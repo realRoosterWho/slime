@@ -8,7 +8,7 @@ channels = 2        # 单声道
 filename = "mic_test.wav"
 
 print(f"🎤 开始录音（{duration} 秒）...")
-recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=channels, dtype='int16', device=1)
+recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=channels, dtype='int16', device=0)
 sd.wait()
 
 write(filename, samplerate, recording)
