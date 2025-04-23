@@ -20,7 +20,7 @@ filename = "mic_test.wav"
 print("\n🎤 开始录音（5 秒）...")
 recording = sd.rec(int(duration * samplerate),
                    samplerate=samplerate, channels=channels,
-                   dtype='int16', device=0)
+                   dtype='int16', device=1)
 sd.wait()
 write(filename, samplerate, recording)
 print(f"✅ 已保存录音到 {filename}")
