@@ -14,4 +14,6 @@ draw.rectangle(device.bounding_box, outline=255, fill=0)
 draw.text((10, 10), "Hello Slime!", fill=255)
 
 # 发送到显示屏
+print("Displaying image...")
 device.display(img)
+print("Image displayed successfully.")
