@@ -4,7 +4,7 @@ import os
 
 samplerate = 44100  # 采样率
 duration = 5        # 录音时长（秒）
-channels = 1        # 单声道
+channels = 2        # 单声道
 filename = "mic_test.wav"
 
 print(f"🎤 开始录音（{duration} 秒）...")
