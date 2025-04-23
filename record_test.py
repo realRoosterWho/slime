@@ -2,7 +2,7 @@ import sounddevice as sd
 from scipy.io.wavfile import write
 import os
 
-samplerate = 44100  # 采样率
+samplerate = 16000
 duration = 5        # 录音时长（秒）
 channels = 2        # 单声道
 filename = "mic_test.wav"
