@@ -3,14 +3,21 @@
 import sounddevice as sd
 from scipy.io.wavfile import write
 
-print(sd.query_devices(0, 'input'))
+def find_input_device():
+    print("\n🔍 正在查找可用输入设备...")
+    for i, dev in enumerate(sd.query_devices()):
+        if dev['max_input_channels'] > 0:
+            print(f"✅ 可用输入设备: {dev['name']} → index={i}")
+    return
+
+find_input_device()
 
 samplerate = 16000
 duration = 5
 channels = 1
 filename = "mic_test.wav"
 
-print("🎤 开始录音（5 秒）...")
+print("\n🎤 开始录音（5 秒）...")
 recording = sd.rec(int(duration * samplerate),
                    samplerate=samplerate, channels=channels,
                    dtype='int16', device=0)
