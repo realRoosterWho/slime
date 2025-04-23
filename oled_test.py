@@ -10,5 +10,3 @@ with canvas(device) as draw:
     draw.text((10, 10), "Hello Slime!", fill="white")
 
 print("Displaying image...")
-device.display(img)
-print("Image displayed successfully.")
