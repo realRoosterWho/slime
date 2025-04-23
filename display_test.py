@@ -71,7 +71,7 @@ if __name__ == "__main__":
     try:
         print("开始显示屏测试...")
         print("\n=== LCD测试 ===")
-        test_lcd()
+        # test_lcd()
         print("\n=== OLED测试 ===")
         test_oled()
         print("\n测试完成！")

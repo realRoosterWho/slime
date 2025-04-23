@@ -28,12 +28,18 @@ class DisplayManager:
         self.width = 128
         self.height = 64
     
+    def _display_image(self, image):
+        """统一处理图像显示"""
+        if self.display_type == "LCD":
+            self.device.display(image)
+        else:  # OLED
+            self.device.image(image)
+            self.device.show()
+    
     def clear(self):
         """清空显示屏"""
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
-        self.device.display(image)
-        if self.display_type == "OLED":
-            self.device.show()
+        self._display_image(image)
     
     def show_text(self, text, x=10, y=10, font_size=20):
         """显示文本"""
@@ -47,17 +53,15 @@ class DisplayManager:
             font = ImageFont.load_default()
         
         draw.text((x, y), text, font=font, fill=255 if self.display_type == "OLED" else "white")
-        self.device.display(image)
-        if self.display_type == "OLED":
-            self.device.show()
+        self._display_image(image)
     
     def show_image(self, image_path):
         """显示图片"""
         try:
             img = Image.open(image_path).resize((self.width, self.height))
-            self.device.display(img)
             if self.display_type == "OLED":
-                self.device.show()
+                img = img.convert("1")  # 转换为黑白图像
+            self._display_image(img)
         except Exception as e:
             print(f"显示图片时出错: {e}")
     
@@ -83,9 +87,7 @@ class DisplayManager:
         progress_width = int(width * progress)
         draw.rectangle((x, y, x + progress_width, y + height), fill=255 if self.display_type == "OLED" else "white")
         
-        self.device.display(image)
-        if self.display_type == "OLED":
-            self.device.show()
+        self._display_image(image)
     
     def draw_menu(self, items, selected_index=0):
         """绘制菜单"""
@@ -106,6 +108,4 @@ class DisplayManager:
                 draw.text((10, y), item, font=font, fill=255 if self.display_type == "OLED" else "white")
             y += 15
         
-        self.device.display(image)
-        if self.display_type == "OLED":
-            self.device.show() 
+        self._display_image(image) 
