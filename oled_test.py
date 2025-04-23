@@ -1,12 +1,15 @@
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
-from luma.core.render import canvas
-from PIL import ImageFont
+from PIL import Image, ImageDraw
 
 serial = i2c(port=1, address=0x3C)
 device = ssd1306(serial, width=128, height=64)
 
-with canvas(device) as draw:
-    draw.text((10, 10), "Hello Slime!", fill="white")
+# 设置对比度最大
+device.contrast(255)
 
-print("Displaying image...")
+# 创建一个全白的图像
+img = Image.new("1", (128, 64), color=1)
+device.display(img)
+
+print("试图强制点亮整个屏幕")
