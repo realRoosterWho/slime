@@ -1,34 +1,51 @@
 Adafruit-Blinka==8.56.0
 adafruit-circuitpython-busdevice==5.2.11
 adafruit-circuitpython-connectionmanager==3.1.3
+adafruit-circuitpython-framebuf==1.6.7
 adafruit-circuitpython-neopixel==6.3.15
 adafruit-circuitpython-pixelbuf==2.0.7
 adafruit-circuitpython-requests==4.1.10
+adafruit-circuitpython-ssd1306==2.12.19
 adafruit-circuitpython-typing==1.11.2
 Adafruit-PlatformDetect==3.77.0
 Adafruit-PureIO==1.1.11
+av @ file:///home/conda/feedstock_root/build_artifacts/av_1740887570903/work
+beautifulsoup4 @ file:///home/conda/feedstock_root/build_artifacts/beautifulsoup4_1744783198182/work
 binho-host-adapter==0.1.6
+builtwith==1.3.4
 cbor2==5.6.5
 certifi==2025.1.31
 cffi==1.17.1
 charset-normalizer==3.4.1
+colorama @ file:///home/conda/feedstock_root/build_artifacts/colorama_1733218098505/work
 idna==3.10
+kms==1.0.1.3
 luma.core==2.4.2
+luma.lcd==2.11.0
 luma.oled==3.14.0
-pillow==11.2.1
+numpy @ file:///home/conda/feedstock_root/build_artifacts/numpy_1745118901937/work/dist/numpy-2.2.5-cp311-cp311-linux_aarch64.whl#sha256=80ce6cbf15fbcb663d615502733ae018c3671c034ab344d2a7c304b85022ee6e
+opencv-python==4.11.0
+opencv-python-headless==4.11.0
+pidng @ file:///home/conda/feedstock_root/build_artifacts/pidng_1742903469220/work
+piexif==1.1.3
+pillow @ file:///home/conda/feedstock_root/build_artifacts/pillow_1735929917774/work
 pycparser==2.22
 pyftdi==0.56.0
 pyserial==3.5
+python-prctl @ file:///home/conda/feedstock_root/build_artifacts/python-prctl_1742566139909/work
 pyusb==1.3.1
 requests==2.32.3
 RPi.GPIO==0.7.1
 rpi_ws281x==5.0.0
+simplejpeg==1.8.2
+six==1.17.0
 smbus2==0.5.0
+soupsieve @ file:///home/conda/feedstock_root/build_artifacts/soupsieve_1693929250441/work
 spidev==3.6
 srt==3.5.3
 sysv_ipc==1.1.0
 tqdm==4.67.1
-typing_extensions==4.13.2
+typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_typing_extensions_1744302253/work
 urllib3==2.4.0
 vosk==0.3.45
 websockets==15.0.1
