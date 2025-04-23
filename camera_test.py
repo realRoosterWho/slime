@@ -1,20 +1,20 @@
+from picamera2 import Picamera2
 import cv2
 import time
 
-# 打开摄像头，通常 /dev/video0 是树莓派主摄像头
-cap = cv2.VideoCapture(0)
-
-if not cap.isOpened():
-    print("无法打开摄像头")
-    exit()
+# 初始化摄像头
+picam2 = Picamera2()
+picam2.preview_configuration.main.size = (640, 480)
+picam2.preview_configuration.main.format = "RGB888"
+picam2.configure("preview")
+picam2.start()
+time.sleep(2)  # 等待摄像头启动
 
 print("摄像头打开成功，开始拍摄10张照片...")
 
 for i in range(10):
-    ret, frame = cap.read()
-    if not ret:
-        print("无法读取摄像头帧")
-        break
+    # 捕获图像
+    frame = picam2.capture_array()
     
     # 保存图像到文件
     filename = f"camera_photo/photo_{i+1}.jpg"
@@ -25,5 +25,5 @@ for i in range(10):
     time.sleep(1)
 
 print("拍摄完成！")
-cap.release()
+picam2.stop()
 cv2.destroyAllWindows()
