@@ -6,7 +6,7 @@ def run_camera_test():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # 拼接camera_test.py的完整路径
-    camera_script = os.path.join(current_dir, "camera_test.py")
+    camera_script = os.path.join(current_dir, "./camera_test.py")
 
     # 调用camera_test.py
     try:
