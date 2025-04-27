@@ -1,3 +1,4 @@
+import base64
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
@@ -8,16 +9,16 @@ load_dotenv()
 # 初始化 OpenAI 客户端
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 第一步：上传本地图片
-file = client.files.create(
-    file=open("slime1.png", "rb"),
-    purpose="vision"  # 注意这里必须是 vision
-)
+# 编码图片为 base64
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
 
-# 拿到上传后的 file_id
-file_id = file.id
+# 你的本地图片路径
+image_path = "slime1.png"  # 换成你的图路径
+base64_image = encode_image(image_path)
 
-# 第二步：用 file_id 作为 input_image
+# 用 responses.create 发送图像+文本
 response = client.responses.create(
     model="gpt-4o",
     input=[
@@ -25,7 +26,12 @@ response = client.responses.create(
             "role": "user",
             "content": [
                 {"type": "input_text", "text": "请描述这张图片。"},
-                {"type": "input_image", "image_file": {"file_id": file_id}}
+                {
+                    "type": "input_image",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{base64_image}"
+                    }
+                }
             ]
         }
     ]
