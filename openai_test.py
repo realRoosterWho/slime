@@ -6,7 +6,7 @@ import os
 # 加载环境变量
 load_dotenv()
 
-# 初始化 OpenAI 客户端
+# 初始化OpenAI客户端
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 编码图片为 base64
