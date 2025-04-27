@@ -6,10 +6,8 @@ picam2 = Picamera2()
 picam2.start()
 time.sleep(2)  # 等待相机初始化
 
-for i in range(10):
-    filename = f"test_{i+1}.jpg"
-    picam2.capture_file(filename)
-    print(f"已拍摄照片: {filename}")
-    time.sleep(1)  # 等待1秒
+filename = "current_image.jpg"
+picam2.capture_file(filename)
+print(f"已拍摄照片: {filename}")
 
 picam2.stop()
