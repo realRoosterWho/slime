@@ -11,7 +11,7 @@ def run_camera_test():
     # 调用camera_test.py
     try:
         print("启动拍照脚本...")
-        subprocess.run(["python3", camera_script], check=True)
+        subprocess.run(["/usr/bin/python3", camera_script], check=True)
         print("拍照完成。")
     except subprocess.CalledProcessError as e:
         print(f"拍照脚本运行出错: {e}")
