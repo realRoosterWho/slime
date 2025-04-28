@@ -2,6 +2,8 @@ import subprocess
 import os
 import sys
 import base64
+import replicate
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -9,6 +11,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+replicate_api_key = os.getenv("REPLICATE_API_KEY")
+
+if not replicate_api_key:
+    raise Exception("没有找到REPLICATE_API_KEY，请检查.env文件设置！")
+
+replicate_client = replicate.Client(api_token=replicate_api_key)
 
 # 拍照函数
 def run_camera_test():
@@ -17,7 +25,7 @@ def run_camera_test():
 
     try:
         print("启动拍照脚本...")
-        subprocess.run(["/usr/bin/python3", camera_script], check=True)  # 或sys.executable
+        subprocess.run(["/usr/bin/python3", camera_script], check=True)
         print("拍照完成。")
     except subprocess.CalledProcessError as e:
         print(f"拍照脚本运行出错: {e}")
@@ -56,24 +64,24 @@ def main():
     print("\n📷 识别结果：", description)
 
     # 第3步：生成史莱姆描述的 prompt
-    slime_prompt = f"绘制一只史莱姆，主题灵感来自：'{description}'。请用游戏风格，颜色清新，表情可爱。"
+    slime_prompt = f"A slime creature inspired by '{description}', in a colorful, cute, fantasy style, children's book illustration."
 
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
-    # 第4步：用gpt-image-1生成史莱姆图片
-    print("\n🖌️ 开始绘制史莱姆图片...")
-    result = client.images.generate(
-        model="gpt-image-1",
-        prompt=slime_prompt
+    # 第4步：用Replicate的 Flux-1.1-Pro 生成史莱姆图片
+    print("\n🖌️ 开始绘制史莱姆图片（Replicate生成）...")
+    output = replicate_client.run(
+        "black-forest-labs/flux-1.1-pro",
+        input={
+            "prompt": slime_prompt,
+            "prompt_upsampling": True
+        }
     )
 
-    image_base64 = result.data[0].b64_json
-    image_bytes = base64.b64decode(image_base64)
-
-    # 第5步：保存新生成的史莱姆图片
+    # output 是文件流，直接保存
     output_path = os.path.join(current_dir, "new_slime.png")
     with open(output_path, "wb") as f:
-        f.write(image_bytes)
+        f.write(output.read())
 
     print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
 
