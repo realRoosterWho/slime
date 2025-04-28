@@ -80,7 +80,7 @@ def main():
     slime_personality_text = slime_personality.choices[0].message.content.strip()
 
     # 用这个性格描述作为新prompt
-    slime_prompt = f"A fantasy slime creature. {slime_personality_text} Children's book illustration style, colorful and cute."
+    slime_prompt = f"A fantasy slime creature. {slime_personality_text} Children's book illustration style, colorful and cute. Slime is a cute and fluffy creature, has two big eyes and a small mouth."
 
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
