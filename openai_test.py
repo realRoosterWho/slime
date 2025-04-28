@@ -102,21 +102,21 @@ def main():
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
     # 第4步：用Replicate的 Flux-1.1-Pro 生成史莱姆图片
-    print("\n🖌️ 开始绘制史莱姆图片（Replicate生成）...")
-    output = replicate_client.run(
-        "black-forest-labs/flux-1.1-pro",
-        input={
-            "prompt": slime_prompt,
-            "prompt_upsampling": True
-        }
-    )
+    # print("\n🖌️ 开始绘制史莱姆图片（Replicate生成）...")
+    # output = replicate_client.run(
+    #     "black-forest-labs/flux-1.1-pro",
+    #     input={
+    #         "prompt": slime_prompt,
+    #         "prompt_upsampling": True
+    #     }
+    # )
 
-    # output 是文件流，直接保存
-    output_path = os.path.join(current_dir, "new_slime.png")
-    with open(output_path, "wb") as f:
-        f.write(output.read())
+    # # output 是文件流，直接保存
+    # output_path = os.path.join(current_dir, "new_slime.png")
+    # with open(output_path, "wb") as f:
+    #     f.write(output.read())
 
-    print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
+    # print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
 
     # 第五步：在LCD上显示图片
     try:

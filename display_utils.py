@@ -167,8 +167,9 @@ class DisplayManager:
         import textwrap
         lines = textwrap.wrap(text, width=chars_per_line)
         
-        # 计算总文本高度
-        line_height = font.getsize("测")[1] + 2
+        # 计算总文本高度（使用新的方法获取字体度量）
+        ascent, descent = font.getmetrics()
+        line_height = ascent + descent + 2
         total_height = line_height * len(lines)
         
         # 计算起始y坐标使文本垂直居中
