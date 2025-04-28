@@ -112,7 +112,7 @@ def main():
     # )
 
     # # output 是文件流，直接保存
-    # output_path = os.path.join(current_dir, "new_slime.png")
+    output_path = os.path.join(current_dir, "new_slime.png")
     # with open(output_path, "wb") as f:
     #     f.write(output.read())
 
