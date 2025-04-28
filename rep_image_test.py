@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-# 读取API Key
 REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY")
 
 if not REPLICATE_API_KEY:
@@ -14,7 +13,7 @@ if not REPLICATE_API_KEY:
 
 client = replicate.Client(api_token=REPLICATE_API_KEY)
 
-# 设定 Prompt
+# Prompt
 prompt = """
 A melancholic slime creature sitting alone under a gray, rainy sky.
 The slime looks translucent and slightly glowing, with sad, drooping eyes.
@@ -24,20 +23,19 @@ Children's book illustration style, soft watercolor texture, highly detailed, fa
 
 print("正在生成图片，请稍等...")
 
-# 调用 Flux-1.1-Pro 模型，不指定具体版本
 output = client.run(
     "black-forest-labs/flux-1.1-pro",
     input={
         "prompt": prompt,
-        "prompt_upsampling": True,  # 开启细节增强
+        "prompt_upsampling": True
     }
 )
 
-# output是直接返回一张图片的链接
-image_url = output[0]
+# 直接用 .path
+image_url = output.path
 print(f"图片生成成功！图片地址: {image_url}")
 
-# 下载图片
+# 下载图片保存
 image_response = requests.get(image_url)
 if image_response.status_code == 200:
     with open("melancholic_slime.png", "wb") as f:
