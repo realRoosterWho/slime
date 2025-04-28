@@ -39,6 +39,10 @@ def encode_image(image_path):
 
 # 主流程
 def main():
+    # 初始化显示管理器
+    oled_display = DisplayManager("OLED")
+    lcd_display = DisplayManager("LCD")
+
     # 第1步：拍照
     run_camera_test()
 
@@ -65,10 +69,7 @@ def main():
     description = response.output[0].content[0].text.strip()
     print("\n📷 识别结果：", description)
 
-    # 第3步：生成史莱姆描述的 prompt
-    # 第3步：根据description生成更有灵魂的史莱姆prompt
-
-    # 根据识别内容，创造性格描述
+    # 第3步：生成史莱姆性格描述
     slime_personality = client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -79,7 +80,23 @@ def main():
 
     slime_personality_text = slime_personality.choices[0].message.content.strip()
 
-    # 用这个性格描述作为新prompt
+    # 新增：生成打招呼文本
+    greeting = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "你是一个可爱的史莱姆。请根据给定的性格描述，生成一句简短的打招呼用语，要可爱活泼，不超过20个字。"},
+            {"role": "user", "content": f"根据这个性格描述生成打招呼用语：{slime_personality_text}"}
+        ]
+    )
+
+    greeting_text = greeting.choices[0].message.content.strip()
+    print("\n👋 史莱姆打招呼：", greeting_text)
+
+    # 在OLED上显示打招呼文本
+    oled_display.show_text_oled(greeting_text)
+    time.sleep(3)  # 显示3秒
+
+    # 继续生成史莱姆图片的prompt
     slime_prompt = f"A fantasy slime creature. {slime_personality_text} Children's book illustration style, colorful and cute. Slime is a cute and fluffy creature, has two big eyes and a small mouth."
 
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
@@ -103,11 +120,10 @@ def main():
 
     # 第五步：在LCD上显示图片
     try:
-        display = DisplayManager(display_type="LCD")
         print("\n📺 正在显示史莱姆图片...")
-        display.show_image(output_path)
+        lcd_display.show_image(output_path)
         time.sleep(60)  # 显示5秒
-        display.clear()  # 清除显示
+        lcd_display.clear()  # 清除显示
     except Exception as e:
         print(f"显示图片时出错: {e}")
 

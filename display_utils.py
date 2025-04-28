@@ -142,4 +142,45 @@ class DisplayManager:
                          fill=255 if self.display_type == "OLED" else "white")
             y += 15
         
+        self._display_image(image)
+
+    def show_text_oled(self, text, font_size=12):
+        """专门为OLED优化的文本显示，自动处理换行和文本大小"""
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, font_size)
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+
+        # OLED屏幕特别优化：自动计算合适的显示范围
+        padding = 2
+        max_width = self.width - (padding * 2)
+        
+        # 计算每行能显示的字符数
+        avg_char_width = font.getlength("测")/2
+        chars_per_line = int(max_width / avg_char_width)
+        
+        # 自动换行
+        import textwrap
+        lines = textwrap.wrap(text, width=chars_per_line)
+        
+        # 计算总文本高度
+        line_height = font.getsize("测")[1] + 2
+        total_height = line_height * len(lines)
+        
+        # 计算起始y坐标使文本垂直居中
+        start_y = (self.height - total_height) // 2
+        
+        # 绘制每一行
+        y = start_y
+        for line in lines:
+            # 计算每行x坐标使其水平居中
+            line_width = font.getlength(line)
+            x = (self.width - line_width) // 2
+            draw.text((x, y), line, font=font, fill=255)
+            y += line_height
+
         self._display_image(image) 
