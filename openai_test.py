@@ -64,7 +64,21 @@ def main():
     print("\n📷 识别结果：", description)
 
     # 第3步：生成史莱姆描述的 prompt
-    slime_prompt = f"A slime creature inspired by '{description}', in a colorful, cute, fantasy style, children's book illustration."
+    # 第3步：根据description生成更有灵魂的史莱姆prompt
+
+    # 根据识别内容，创造性格描述
+    slime_personality = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "你是一个专业的角色设定师。根据环境或物体的描述，帮我设定一只史莱姆的小档案，包括它的性格、表情、动作特点等，用英文简洁描述，不要太长，情感要细腻。"},
+            {"role": "user", "content": f"根据这个描述设定一只史莱姆：{description}"}
+        ]
+    )
+
+    slime_personality_text = slime_personality.choices[0].message.content.strip()
+
+    # 用这个性格描述作为新prompt
+    slime_prompt = f"A fantasy slime creature. {slime_personality_text} Children's book illustration style, colorful and cute."
 
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
