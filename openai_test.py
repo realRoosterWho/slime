@@ -84,7 +84,7 @@ def main():
     greeting = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "你是一个可爱的史莱姆。请根据给定的性格描述，生成一句简短的打招呼用语，要可爱活泼，不超过15个字。"},
+            {"role": "system", "content": "你是一个可爱的史莱姆。请根据给定的性格描述，生成一句简短的打招呼用语，要可爱活泼，中文，不超过15个字。"},
             {"role": "user", "content": f"根据这个性格描述生成打招呼用语：{slime_personality_text}"}
         ]
     )
