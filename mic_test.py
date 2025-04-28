@@ -7,7 +7,7 @@ import time
 samplerate = 16000  # 采样率
 channels = 1        # 单声道（虽然I2S是双声道，但通常我们用单声道提取）
 duration = 5        # 录音时长（秒）
-filename = "test.wav"
+filename = "pyaudio.wav"
 
 print("准备录音，5秒钟...")
 time.sleep(1)
