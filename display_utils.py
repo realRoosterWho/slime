@@ -9,6 +9,8 @@ from adafruit_ssd1306 import SSD1306_I2C
 class DisplayManager:
     def __init__(self, display_type="LCD"):
         self.display_type = display_type
+        # 设置默认中文字体路径
+        self.font_path = '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc'
         if display_type == "LCD":
             self._init_lcd()
         else:
@@ -41,20 +43,48 @@ class DisplayManager:
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
         self._display_image(image)
     
-    def show_text(self, text, x=10, y=10, font_size=20):
-        """显示文本"""
+    def show_text(self, text, x=10, y=10, font_size=20, max_width=None):
+        """显示文本，支持中文和自动换行"""
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
         draw = ImageDraw.Draw(image)
         
-        # 尝试加载字体，如果失败则使用默认字体
+        # 尝试加载中文字体，如果失败则使用默认字体
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
+            font = ImageFont.truetype(self.font_path, font_size)
         except:
+            print("警告：无法加载中文字体，将使用默认字体")
             font = ImageFont.load_default()
-        
-        draw.text((x, y), text, font=font, fill=255 if self.display_type == "OLED" else "white")
+
+        if max_width:
+            self._draw_wrapped_text(draw, text, x, y, max_width, font)
+        else:
+            # 处理手动换行（\n）
+            lines = text.split('\n')
+            y_text = y
+            for line in lines:
+                draw.text((x, y_text), line, font=font, 
+                         fill=255 if self.display_type == "OLED" else "white")
+                y_text += font.getsize(line)[1] + 5  # 行间距为5像素
+
         self._display_image(image)
-    
+
+    def _draw_wrapped_text(self, draw, text, x, y, max_width, font):
+        """绘制自动换行的文本"""
+        # 计算每行大约能容纳多少个字符
+        avg_char_width = font.getlength("测")/2  # 获取一个汉字的平均宽度
+        chars_per_line = int(max_width / avg_char_width)
+        
+        # 使用textwrap进行自动换行
+        import textwrap
+        lines = textwrap.wrap(text, width=chars_per_line)
+        
+        # 绘制每一行
+        y_text = y
+        for line in lines:
+            draw.text((x, y_text), line, font=font, 
+                     fill=255 if self.display_type == "OLED" else "white")
+            y_text += font.getsize(line)[1] + 5  # 行间距为5像素
+
     def show_image(self, image_path):
         """显示图片"""
         try:
@@ -90,22 +120,26 @@ class DisplayManager:
         self._display_image(image)
     
     def draw_menu(self, items, selected_index=0):
-        """绘制菜单"""
+        """绘制菜单，支持中文"""
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
         draw = ImageDraw.Draw(image)
         
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+            font = ImageFont.truetype(self.font_path, 12)
         except:
+            print("警告：无法加载中文字体，将使用默认字体")
             font = ImageFont.load_default()
         
         y = 10
         for i, item in enumerate(items):
             if i == selected_index:
-                draw.rectangle((5, y-2, self.width-5, y+12), fill=255 if self.display_type == "OLED" else "white")
-                draw.text((10, y), item, font=font, fill=0 if self.display_type == "OLED" else "black")
+                draw.rectangle((5, y-2, self.width-5, y+12), 
+                             fill=255 if self.display_type == "OLED" else "white")
+                draw.text((10, y), item, font=font, 
+                         fill=0 if self.display_type == "OLED" else "black")
             else:
-                draw.text((10, y), item, font=font, fill=255 if self.display_type == "OLED" else "white")
+                draw.text((10, y), item, font=font, 
+                         fill=255 if self.display_type == "OLED" else "white")
             y += 15
         
         self._display_image(image) 
