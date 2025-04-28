@@ -4,8 +4,10 @@ import sys
 import base64
 import replicate
 import requests
+import time
 from openai import OpenAI
 from dotenv import load_dotenv
+from display_utils import DisplayManager
 
 # 加载环境变量
 load_dotenv()
@@ -98,6 +100,16 @@ def main():
         f.write(output.read())
 
     print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
+
+    # 第五步：在LCD上显示图片
+    try:
+        display = DisplayManager(display_type="LCD")
+        print("\n📺 正在显示史莱姆图片...")
+        display.show_image(output_path)
+        time.sleep(60)  # 显示5秒
+        display.clear()  # 清除显示
+    except Exception as e:
+        print(f"显示图片时出错: {e}")
 
 if __name__ == "__main__":
     main()
