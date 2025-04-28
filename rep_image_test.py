@@ -1,6 +1,5 @@
 import os
 import replicate
-import requests
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -23,6 +22,7 @@ Children's book illustration style, soft watercolor texture, highly detailed, fa
 
 print("正在生成图片，请稍等...")
 
+# 调用Flux生成图
 output = client.run(
     "black-forest-labs/flux-1.1-pro",
     input={
@@ -31,15 +31,8 @@ output = client.run(
     }
 )
 
-# 直接用 .path
-image_url = output.path
-print(f"图片生成成功！图片地址: {image_url}")
+# 保存到sad_slime.png
+with open("sad_slime.png", "wb") as file:
+    file.write(output.read())
 
-# 下载图片保存
-image_response = requests.get(image_url)
-if image_response.status_code == 200:
-    with open("melancholic_slime.png", "wb") as f:
-        f.write(image_response.content)
-    print("✅ 图片已保存为 melancholic_slime.png")
-else:
-    print(f"下载图片失败，状态码: {image_response.status_code}")
+print("✅ 图片已保存为 sad_slime.png")
