@@ -12,7 +12,7 @@ duration = 5        # 录音时长（秒）
 filename = "pyaudio.wav"
 
 # 如果还没有设置环境变量，手动设置（替换成你的路径）
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/path/to/your/GOOGLE_STT_API.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/roosterwho/keys/nth-passage-458018-v2-d7658cf7d449.json"
 
 # Step 1. 录音
 print("准备录音，5秒钟...")
