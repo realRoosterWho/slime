@@ -161,7 +161,7 @@ def main():
         print(f"\n👋 史莱姆回答：{response_text}")
         
         # 在OLED上显示回答
-        oled_display.show_text_oled(response_text)
+        oled_display.show_text_oled(response_text, chars_per_line=12)
         time.sleep(3)
         
         time.sleep(60)
