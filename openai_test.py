@@ -9,6 +9,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from display_utils import DisplayManager
 from stt_utils import SpeechToText
+import signal
 
 # 加载环境变量
 load_dotenv()
@@ -61,8 +62,22 @@ def encode_image(image_path):
     with open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
+def cleanup_handler(signum, frame):
+    """清理资源并优雅退出"""
+    print("\n🛑 检测到中断信号，正在清理资源...")
+    try:
+        lcd_display.clear()
+        print("✅ 已清理显示资源")
+    except:
+        pass
+    sys.exit(0)
+
 # 主流程
 def main():
+    # 设置信号处理
+    signal.signal(signal.SIGINT, cleanup_handler)
+    signal.signal(signal.SIGTERM, cleanup_handler)
+    
     # 初始化显示管理器
     oled_display = DisplayManager("OLED")
     lcd_display = DisplayManager("LCD")
@@ -97,7 +112,7 @@ def main():
 
     # 第三轮：生成打招呼
     response = chat_with_gpt(
-        system_content="你是一个可爱的史莱姆。请根据给定的性格描述说话，不超过15个字。",
+        system_content="你是一个可爱的史莱姆。请根据给定的性格描述说话，中文，不超过15个字。",
         input_content=f"根据这个性格描述生成打招呼用语：{slime_personality_text}",
         previous_response_id=response.id
     )
@@ -108,8 +123,8 @@ def main():
     oled_display.show_text_oled(greeting_text)
     time.sleep(3)
 
-    # 生成史莱姆图片的prompt
-    slime_prompt = f"A fantasy slime creature. {slime_personality_text} Children's book illustration style, colorful and cute. Slime is a cute and fluffy creature, has two big eyes and a small mouth."
+    # 生成史莱姆图片的提示词
+    slime_prompt = f"一个奇幻的史莱姆生物。{slime_personality_text} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
     # 第4步：用Replicate生成史莱姆图片

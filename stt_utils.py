@@ -5,9 +5,40 @@ import time
 from google.cloud import speech
 import os
 from typing import Optional
+import signal
+import sys
+from contextlib import contextmanager
 
 # 默认凭证路径
 DEFAULT_CREDENTIALS_PATH = "/home/roosterwho/keys/nth-passage-458018-v2-d7658cf7d449.json"
+
+class AudioResourceManager:
+    def __init__(self):
+        self.stream = None
+        
+    def __enter__(self):
+        # 设置信号处理
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()
+        
+    def _signal_handler(self, signum, frame):
+        print("\n🛑 检测到中断信号，正在清理资源...")
+        self.cleanup()
+        sys.exit(0)
+        
+    def cleanup(self):
+        if self.stream is not None:
+            try:
+                sd.stop()
+                print("✅ 已释放音频资源")
+            except Exception as e:
+                print(f"清理音频资源时出错: {e}")
+            finally:
+                self.stream = None
 
 class SpeechToText:
     def __init__(self, 
@@ -30,6 +61,7 @@ class SpeechToText:
         self.samplerate = samplerate
         self.channels = channels
         self.language_code = language_code
+        self.audio_manager = AudioResourceManager()
         
         # 设置Google Cloud凭证
         if os.path.exists(credentials_path):
@@ -93,33 +125,36 @@ class SpeechToText:
         """
         print(f"🎤 开始录音（{duration} 秒）...")
         
-        try:
-            # 录制音频
-            recording = sd.rec(int(duration * self.samplerate),
-                            samplerate=self.samplerate,
-                            channels=self.channels,
-                            dtype='int16',
-                            device=self.device_index)
-            sd.wait()
-            
-            # 保存为临时文件
-            with wave.open(filename, mode='wb') as wf:
-                wf.setnchannels(self.channels)
-                wf.setsampwidth(2)  # 16bit = 2 bytes
-                wf.setframerate(self.samplerate)
-                wf.writeframes(recording.tobytes())
+        with self.audio_manager:
+            try:
+                # 录制音频
+                recording = sd.rec(int(duration * self.samplerate),
+                                samplerate=self.samplerate,
+                                channels=self.channels,
+                                dtype='int16',
+                                device=self.device_index)
+                self.audio_manager.stream = True  # 标记正在录音
+                sd.wait()
+                self.audio_manager.stream = None  # 录音完成
                 
-            print("✅ 录音完成")
-            return recording
-            
-        except Exception as e:
-            print("\n❌ 录音失败，请检查设备配置")
-            print("🔍 可用输入设备列表:")
-            for i, dev in enumerate(sd.query_devices()):
-                if dev['max_input_channels'] > 0:
-                    print(f"  {i}: {dev['name']} (输入声道: {dev['max_input_channels']}, "
-                          f"采样率: {dev['default_samplerate']})")
-            raise
+                # 保存为临时文件
+                with wave.open(filename, mode='wb') as wf:
+                    wf.setnchannels(self.channels)
+                    wf.setsampwidth(2)  # 16bit = 2 bytes
+                    wf.setframerate(self.samplerate)
+                    wf.writeframes(recording.tobytes())
+                    
+                print("✅ 录音完成")
+                return recording
+                
+            except Exception as e:
+                print("\n❌ 录音失败，请检查设备配置")
+                print("🔍 可用输入设备列表:")
+                for i, dev in enumerate(sd.query_devices()):
+                    if dev['max_input_channels'] > 0:
+                        print(f"  {i}: {dev['name']} (输入声道: {dev['max_input_channels']}, "
+                              f"采样率: {dev['default_samplerate']})")
+                raise
     
     def transcribe(self, audio_data: Optional[np.ndarray] = None, filename: str = "pyaudio.wav") -> str:
         """
