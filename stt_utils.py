@@ -49,7 +49,43 @@ class SpeechToText:
         # 初始化Google Speech客户端
         self.client = speech.SpeechClient()
         
-    def record(self, duration: int = 5, filename: str = "temp_recording.wav") -> np.ndarray:
+        # 检查音频设备
+        self._check_audio_device()
+        
+    def _check_audio_device(self):
+        """检查音频设备配置"""
+        try:
+            # 获取设备信息
+            if self.device_index is not None:
+                device_info = sd.query_devices(self.device_index)
+            else:
+                device_info = sd.query_devices(kind='input')
+            
+            # 检查设备是否支持输入
+            if device_info['max_input_channels'] == 0:
+                raise ValueError(f"设备 {device_info['name']} 不支持输入")
+            
+            # 检查声道数是否支持
+            if self.channels > device_info['max_input_channels']:
+                print(f"⚠️ 警告: 设备 {device_info['name']} 只支持 {device_info['max_input_channels']} 个输入声道，"
+                      f"将使用 {device_info['max_input_channels']} 个声道")
+                self.channels = device_info['max_input_channels']
+            
+            # 检查采样率是否支持
+            if self.samplerate > device_info['default_samplerate']:
+                print(f"⚠️ 警告: 设备 {device_info['name']} 默认采样率为 {device_info['default_samplerate']}，"
+                      f"将使用默认采样率")
+                self.samplerate = int(device_info['default_samplerate'])
+                
+        except Exception as e:
+            print("\n🔍 可用输入设备列表:")
+            for i, dev in enumerate(sd.query_devices()):
+                if dev['max_input_channels'] > 0:
+                    print(f"  {i}: {dev['name']} (输入声道: {dev['max_input_channels']}, "
+                          f"采样率: {dev['default_samplerate']})")
+            raise ValueError(f"音频设备配置错误: {str(e)}\n请从上面的列表中选择一个有效的设备索引")
+    
+    def record(self, duration: int = 5, filename: str = "pyaudio.wav") -> np.ndarray:
         """
         录制音频
         
@@ -62,25 +98,35 @@ class SpeechToText:
         """
         print(f"🎤 开始录音（{duration} 秒）...")
         
-        # 录制音频
-        recording = sd.rec(int(duration * self.samplerate),
-                          samplerate=self.samplerate,
-                          channels=self.channels,
-                          dtype='int16',
-                          device=self.device_index)
-        sd.wait()
-        
-        # 保存为临时文件
-        with wave.open(filename, mode='wb') as wf:
-            wf.setnchannels(self.channels)
-            wf.setsampwidth(2)  # 16bit = 2 bytes
-            wf.setframerate(self.samplerate)
-            wf.writeframes(recording.tobytes())
+        try:
+            # 录制音频
+            recording = sd.rec(int(duration * self.samplerate),
+                            samplerate=self.samplerate,
+                            channels=self.channels,
+                            dtype='int16',
+                            device=self.device_index)
+            sd.wait()
             
-        print("✅ 录音完成")
-        return recording
+            # 保存为临时文件
+            with wave.open(filename, mode='wb') as wf:
+                wf.setnchannels(self.channels)
+                wf.setsampwidth(2)  # 16bit = 2 bytes
+                wf.setframerate(self.samplerate)
+                wf.writeframes(recording.tobytes())
+                
+            print("✅ 录音完成")
+            return recording
+            
+        except Exception as e:
+            print("\n❌ 录音失败，请检查设备配置")
+            print("🔍 可用输入设备列表:")
+            for i, dev in enumerate(sd.query_devices()):
+                if dev['max_input_channels'] > 0:
+                    print(f"  {i}: {dev['name']} (输入声道: {dev['max_input_channels']}, "
+                          f"采样率: {dev['default_samplerate']})")
+            raise
     
-    def transcribe(self, audio_data: Optional[np.ndarray] = None, filename: str = "temp_recording.wav") -> str:
+    def transcribe(self, audio_data: Optional[np.ndarray] = None, filename: str = "pyaudio.wav") -> str:
         """
         将音频转换为文本
         
