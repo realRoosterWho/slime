@@ -123,11 +123,21 @@ def main():
         }
     )
 
-    output_path = os.path.join(current_dir, "new_slime.png")
-    with open(output_path, "wb") as f:
-        f.write(output.read())
-
-    print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
+    # 从返回的URL下载图片
+    if isinstance(output, list) and len(output) > 0:
+        image_url = output[0]
+        print(f"正在下载图片: {image_url}")
+        
+        response = requests.get(image_url)
+        if response.status_code == 200:
+            output_path = os.path.join(current_dir, "new_slime.png")
+            with open(output_path, "wb") as f:
+                f.write(response.content)
+            print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
+        else:
+            print(f"下载图片失败，状态码: {response.status_code}")
+    else:
+        print("生成图片失败，没有获取到有效的URL")
 
     # 第五步：在LCD上显示图片并处理语音输入
     try:
