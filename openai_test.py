@@ -160,9 +160,9 @@ def main():
         lcd_display.show_image(output_path)
         
         # 添加语音输入部分
-        print("\n🎤 请在15秒内说出你想对史莱姆说的话...")
+        print("\n🎤 请在5秒内说出你想对史莱姆说的话...")
         stt = SpeechToText()
-        user_input = stt.record_and_transcribe(duration=15)
+        user_input = stt.record_and_transcribe(duration=5)
         print(f"\n👂 你说的是: {user_input}")
         
         # 第四轮：生成史莱姆的回答
