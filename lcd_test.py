@@ -19,36 +19,53 @@ def cleanup_handler(signum, frame):
 signal.signal(signal.SIGINT, cleanup_handler)
 signal.signal(signal.SIGTERM, cleanup_handler)
 
-# 使用 bitbang 代替 SPI
+# GPIO 引脚定义（确保都是整数）
+DC_PIN = 24    # Data/Command
+RST_PIN = 25   # Reset
+CS_PIN = 8     # Chip Select
+MOSI_PIN = 10  # Master Out Slave In (数据线)
+CLK_PIN = 11   # Clock (时钟线)
+
+# 使用 bitbang，确保所有参数都是整数
 serial = bitbang(
-    gpio_DC=24,    # Data/Command
-    gpio_RST=25,   # Reset
-    gpio_CS=8,     # Chip Select
-    gpio_MOSI=10,  # Master Out Slave In (数据线)
-    gpio_CLK=11    # Clock (时钟线)
+    gpio_DC=int(DC_PIN),
+    gpio_RST=int(RST_PIN),
+    gpio_CS=int(CS_PIN),
+    gpio_MOSI=int(MOSI_PIN),
+    gpio_CLK=int(CLK_PIN)
 )
 
-device = st7789(serial, width=240, height=240, h_offset=40, v_offset=53)
-
-image = Image.new('RGB', device.size, 'black')
-draw = ImageDraw.Draw(image)
-
-# 尝试画个白色方块
-draw.rectangle((10, 10, 50, 50), fill="white")
-
-# 加载字体
 try:
-    font = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 24)
-    draw.text((20, 100), "你好，世界！", font=font, fill="white")
-except Exception as e:
-    print(f"字体加载失败: {e}")
+    print("初始化显示设备...")
+    device = st7789(serial, width=240, height=240, h_offset=40, v_offset=53)
+    
+    print("创建测试图像...")
+    image = Image.new('RGB', device.size, 'black')
+    draw = ImageDraw.Draw(image)
 
-# 显示图像
-device.display(image)
+    # 尝试画个白色方块
+    draw.rectangle((10, 10, 50, 50), fill="white")
 
-try:
+    # 加载字体
+    try:
+        font = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 24)
+        draw.text((20, 100), "你好，世界！", font=font, fill="white")
+    except Exception as e:
+        print(f"字体加载失败: {e}")
+
+    # 显示图像
+    print("显示图像...")
+    device.display(image)
+
+    print("运行中... (按 Ctrl+C 退出)")
     while True:
         time.sleep(1)
+
+except Exception as e:
+    print(f"错误: {e}")
+    import traceback
+    traceback.print_exc()
+
 except KeyboardInterrupt:
     print("\n程序被用户中断")
     device.clear()
