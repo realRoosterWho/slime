@@ -144,7 +144,7 @@ class DisplayManager:
         
         self._display_image(image)
 
-    def show_text_oled(self, text, font_size=12, chars_per_line=12):
+    def show_text_oled(self, text, font_size=12, chars_per_line=9):
         """专门为OLED优化的文本显示
         Args:
             text: 要显示的文本
