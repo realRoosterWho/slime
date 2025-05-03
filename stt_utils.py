@@ -15,7 +15,7 @@ class SpeechToText:
                  samplerate: int = 16000,
                  channels: int = 1,
                  language_code: str = "zh-CN",
-                 credentials_path: Optional[str] = None):
+                 credentials_path: str = DEFAULT_CREDENTIALS_PATH):
         """
         初始化语音识别器
         
@@ -24,27 +24,22 @@ class SpeechToText:
             samplerate: 采样率，默认16000Hz
             channels: 声道数，默认单声道
             language_code: 语言代码，默认中文
-            credentials_path: Google Cloud凭证文件路径
+            credentials_path: Google Cloud凭证文件路径，默认使用DEFAULT_CREDENTIALS_PATH
         """
         self.device_index = device_index
         self.samplerate = samplerate
         self.channels = channels
         self.language_code = language_code
         
-        # 检查并设置Google Cloud凭证
-        if credentials_path:
+        # 设置Google Cloud凭证
+        if os.path.exists(credentials_path):
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
-        elif "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-            if os.path.exists(DEFAULT_CREDENTIALS_PATH):
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = DEFAULT_CREDENTIALS_PATH
-                print(f"⚠️ 使用默认凭证路径: {DEFAULT_CREDENTIALS_PATH}")
-            else:
-                raise EnvironmentError(
-                    "未设置Google Cloud凭证。请通过以下方式之一设置：\n"
-                    "1. 设置环境变量 GOOGLE_APPLICATION_CREDENTIALS\n"
-                    "2. 在初始化时传入 credentials_path 参数\n"
-                    "3. 确保默认凭证文件存在: " + DEFAULT_CREDENTIALS_PATH
-                )
+            print(f"✅ 使用凭证路径: {credentials_path}")
+        else:
+            raise FileNotFoundError(
+                f"找不到凭证文件: {credentials_path}\n"
+                "请确保凭证文件存在或提供正确的路径"
+            )
         
         # 初始化Google Speech客户端
         self.client = speech.SpeechClient()
