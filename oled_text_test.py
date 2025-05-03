@@ -11,7 +11,7 @@ def test_oled_text_wrapping():
     
     # 测试用例2：长文本，自动换行
     print("测试2：长文本自动换行")
-    oled.show_text_oled("这是一段很长的文本需要自动换行显示在OLED上", chars_per_line=8)
+    oled.show_text_oled("这是一段很长的文本需要自动换行显示在OLED上", chars_per_line=10)
     time.sleep(3)
     
     # 测试用例3：手动换行文本
