@@ -14,8 +14,8 @@ class BitBangLCD:
         self.CS = 8
         self.CLK = 11
         self.MOSI = 10
-        self.width = 320   # 横向宽度
-        self.height = 240  # 横向高度
+        self.width = 240   # 屏幕宽度
+        self.height = 360  # 修改为实际的屏幕高度
         
         # 初始化GPIO
         GPIO.setmode(GPIO.BCM)
@@ -118,7 +118,7 @@ class DisplayManager:
         if display_type == "LCD":
             self.device = BitBangLCD()  # 使用新的BitBang实现
             self.width = 240
-            self.height = 240
+            self.height = 360  # 修改为实际的屏幕高度
         else:
             self._init_oled()
     
