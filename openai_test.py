@@ -79,8 +79,12 @@ def main():
     signal.signal(signal.SIGTERM, cleanup_handler)
     
     # 初始化显示管理器
+    print("初始化显示设备...")
+    print("正在初始化OLED...")
     oled_display = DisplayManager("OLED")
+    print("正在初始化LCD (BitBang模式)...")
     lcd_display = DisplayManager("LCD")
+    print("显示设备初始化完成")
 
     # 第1步：拍照
     run_camera_test()
