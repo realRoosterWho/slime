@@ -59,7 +59,7 @@ class BitBangLCD:
         """初始化LCD"""
         self._reset()
         self._write_command(0x36)
-        self._write_data(0x70)  # 修改为横向显示: MY=0,MX=1,MV=1,ML=0,RGB=0
+        self._write_data(0xF0)  # 修改为横向显示并旋转180度: MY=1,MX=1,MV=1,ML=0,RGB=0
         
         # 其他初始化命令
         self._write_command(0x3A); self._write_data(0x05)
