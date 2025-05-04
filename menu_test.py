@@ -124,20 +124,22 @@ class MenuSystem:
         try:
             self.oled.show_text_oled("正在扫描...")
             
-            # 确保WiFi接口启动
-            subprocess.run(['sudo', 'ifconfig', 'wlan0', 'up'], check=True)
+            # 使用nmcli扫描WiFi
+            subprocess.run(['sudo', 'nmcli', 'device', 'wifi', 'rescan'], check=True)
+            time.sleep(2)  # 等待扫描完成
             
-            # 扫描WiFi
-            result = subprocess.run(['sudo', 'iwlist', 'wlan0', 'scan'], 
-                                 capture_output=True, text=True)
+            # 获取扫描结果
+            result = subprocess.run(
+                ['sudo', 'nmcli', '-t', '-f', 'SSID', 'device', 'wifi', 'list'],
+                capture_output=True,
+                text=True
+            )
             
             # 解析扫描结果
             networks = []
             for line in result.stdout.split('\n'):
-                if 'ESSID:' in line:
-                    ssid = line.split('ESSID:')[1].strip().strip('"')
-                    if ssid:  # 排除隐藏网络
-                        networks.append(ssid)
+                if line and line not in networks:  # 去除重复的SSID
+                    networks.append(line)
             
             if networks:
                 # 显示找到的网络
@@ -191,44 +193,43 @@ class MenuSystem:
             
             self.oled.show_text_oled(f"正在连接:\n{ssid}")
             
-            # 先断开当前连接
-            self.disconnect_wifi()
-            
-            # 创建wpa_supplicant配置
-            wpa_config = (
-                'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n'
-                'update_config=1\n'
-                'country=CN\n'
-                '\n'
-                'network={\n'
-                f'    ssid="{ssid}"\n'
-                f'    psk="{password}"\n'
-                '    key_mgmt=WPA-PSK\n'
-                '    scan_ssid=1\n'
-                '}\n'
-            )
-            
-            # 写入配置文件
-            with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w') as f:
-                f.write(wpa_config)
-            
-            # 重启网络服务
-            subprocess.run(['sudo', 'systemctl', 'restart', 'wpa_supplicant'], check=True)
-            subprocess.run(['sudo', 'systemctl', 'restart', 'dhcpcd'], check=True)
-            
-            # 等待连接
-            attempts = 0
-            while attempts < 3:
-                time.sleep(5)
-                current_wifi = self.get_current_wifi()
-                if current_wifi == ssid:
-                    self.oled.show_text_oled(f"已连接到:\n{ssid}")
-                    print(f"成功连接到 {ssid}")
-                    break
-                attempts += 1
-            else:
+            # 使用nmcli连接WiFi
+            try:
+                # 先断开当前连接
+                subprocess.run(['sudo', 'nmcli', 'device', 'disconnect', 'wlan0'], check=False)
+                time.sleep(1)
+                
+                # 删除可能存在的同名连接
+                subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], check=False)
+                time.sleep(1)
+                
+                # 添加并激活新连接
+                subprocess.run([
+                    'sudo', 'nmcli', 'device', 'wifi', 'connect', ssid,
+                    'password', password,
+                    'ifname', 'wlan0'
+                ], check=True)
+                
+                # 等待连接
+                attempts = 0
+                max_attempts = 3
+                while attempts < max_attempts:
+                    time.sleep(3)
+                    current_wifi = self.get_current_wifi()
+                    if current_wifi == ssid:
+                        self.oled.show_text_oled(f"已连接到:\n{ssid}")
+                        print(f"成功连接到 {ssid}")
+                        break
+                    attempts += 1
+                    if attempts < max_attempts:
+                        print(f"重试连接... ({attempts}/{max_attempts})")
+                else:
+                    self.oled.show_text_oled("连接失败")
+                    print("WiFi连接失败")
+                
+            except Exception as e:
+                print(f"NetworkManager连接错误: {e}")
                 self.oled.show_text_oled("连接失败")
-                print("WiFi连接失败")
             
             time.sleep(2)
             
