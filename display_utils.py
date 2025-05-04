@@ -14,8 +14,8 @@ class BitBangLCD:
         self.CS = 8
         self.CLK = 11
         self.MOSI = 10
-        self.width = 240   # 屏幕宽度
-        self.height = 360  # 修改为实际的屏幕高度
+        self.width = 320   # 横向宽度
+        self.height = 240  # 横向高度
         
         # 初始化GPIO
         GPIO.setmode(GPIO.BCM)
@@ -59,7 +59,7 @@ class BitBangLCD:
         """初始化LCD"""
         self._reset()
         self._write_command(0x36)
-        self._write_data(0x00)
+        self._write_data(0xF0)
         
         # 其他初始化命令
         self._write_command(0x3A); self._write_data(0x05)
@@ -118,7 +118,7 @@ class DisplayManager:
         if display_type == "LCD":
             self.device = BitBangLCD()  # 使用新的BitBang实现
             self.width = 240
-            self.height = 360  # 修改为实际的屏幕高度
+            self.height = 240
         else:
             self._init_oled()
     
@@ -131,10 +131,12 @@ class DisplayManager:
     
     def _display_image(self, image):
         """统一处理图像显示"""
+        # 在显示之前旋转图像180度
+        rotated_image = image.rotate(180)
         if self.display_type == "LCD":
-            self.device.display(image)
+            self.device.display(rotated_image)
         else:  # OLED
-            self.device.image(image)
+            self.device.image(rotated_image)
             self.device.show()
     
     def clear(self):
@@ -168,6 +170,7 @@ class DisplayManager:
                          fill=255 if self.display_type == "OLED" else "white")
                 y_text += font.getsize(line)[1] + 5  # 行间距为5像素
 
+        # 不需要在这里旋转，因为会在_display_image中处理
         self._display_image(image)
 
     def _draw_wrapped_text(self, draw, text, x, y, max_width, font):
@@ -202,12 +205,11 @@ class DisplayManager:
             else:
                 raise ValueError("输入必须是图片路径或PIL Image对象")
 
-            if self.display_type == "LCD":
-                self.device.display(img)
-            else:  # OLED
+            if self.display_type == "OLED":
                 img = img.convert("1")  # 转换为黑白图像
-                self.device.image(img)
-                self.device.show()
+            
+            # 不需要在这里旋转，因为会在_display_image中处理
+            self._display_image(img)
         except Exception as e:
             print(f"显示图片时出错: {e}")
     
