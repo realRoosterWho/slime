@@ -28,6 +28,7 @@ class MenuSystem:
         
         # 菜单选项
         self.menu_items = [
+            "扫描可用wifi",
             "使用默认wifi",
             "使用热点wifi",
             "查看当前wifi",
@@ -118,6 +119,70 @@ class MenuSystem:
         except Exception as e:
             print(f"断开WiFi错误: {e}")
 
+    def scan_wifi(self):
+        """扫描可用的WiFi网络"""
+        try:
+            self.oled.show_text_oled("正在扫描...")
+            
+            # 确保WiFi接口启动
+            subprocess.run(['sudo', 'ifconfig', 'wlan0', 'up'], check=True)
+            
+            # 扫描WiFi
+            result = subprocess.run(['sudo', 'iwlist', 'wlan0', 'scan'], 
+                                 capture_output=True, text=True)
+            
+            # 解析扫描结果
+            networks = []
+            for line in result.stdout.split('\n'):
+                if 'ESSID:' in line:
+                    ssid = line.split('ESSID:')[1].strip().strip('"')
+                    if ssid:  # 排除隐藏网络
+                        networks.append(ssid)
+            
+            if networks:
+                # 显示找到的网络
+                self.show_networks(networks)
+            else:
+                self.oled.show_text_oled("未找到网络")
+                time.sleep(2)
+                self.display_menu()
+                
+        except Exception as e:
+            print(f"扫描错误: {e}")
+            self.oled.show_text_oled("扫描失败")
+            time.sleep(2)
+            self.display_menu()
+
+    def show_networks(self, networks):
+        """显示找到的网络列表"""
+        self.network_list = networks
+        self.network_selection = 0
+        self.display_networks()
+
+    def display_networks(self):
+        """显示网络列表"""
+        total_networks = len(self.network_list)
+        if total_networks <= 3:
+            start_idx = 0
+            end_idx = total_networks
+        else:
+            if self.network_selection == 0:
+                start_idx = 0
+                end_idx = 3
+            elif self.network_selection == total_networks - 1:
+                start_idx = total_networks - 3
+                end_idx = total_networks
+            else:
+                start_idx = self.network_selection - 1
+                end_idx = self.network_selection + 2
+
+        network_text = ""
+        for i in range(start_idx, end_idx):
+            prefix = "> " if i == self.network_selection else "  "
+            network_text += f"{prefix}{self.network_list[i]}\n"
+        network_text = network_text.rstrip()
+        self.oled.show_text_oled(network_text)
+
     def connect_wifi(self, wifi_config):
         """连接WiFi的通用方法"""
         try:
@@ -139,6 +204,7 @@ class MenuSystem:
                 f'    ssid="{ssid}"\n'
                 f'    psk="{password}"\n'
                 '    key_mgmt=WPA-PSK\n'
+                '    scan_ssid=1\n'
                 '}\n'
             )
             
@@ -146,19 +212,20 @@ class MenuSystem:
             with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w') as f:
                 f.write(wpa_config)
             
-            # 启动wpa_supplicant
-            subprocess.run(['sudo', 'wpa_supplicant', '-B', '-i', 'wlan0', '-c', '/etc/wpa_supplicant/wpa_supplicant.conf'], check=True)
-            time.sleep(2)
-            subprocess.run(['sudo', 'wpa_cli', '-i', 'wlan0', 'reconfigure'], check=True)
+            # 重启网络服务
+            subprocess.run(['sudo', 'systemctl', 'restart', 'wpa_supplicant'], check=True)
+            subprocess.run(['sudo', 'systemctl', 'restart', 'dhcpcd'], check=True)
             
             # 等待连接
-            time.sleep(5)
-            
-            # 检查连接状态
-            current_wifi = self.get_current_wifi()
-            if current_wifi == ssid:
-                self.oled.show_text_oled(f"已连接到:\n{ssid}")
-                print(f"成功连接到 {ssid}")
+            attempts = 0
+            while attempts < 3:
+                time.sleep(5)
+                current_wifi = self.get_current_wifi()
+                if current_wifi == ssid:
+                    self.oled.show_text_oled(f"已连接到:\n{ssid}")
+                    print(f"成功连接到 {ssid}")
+                    break
+                attempts += 1
             else:
                 self.oled.show_text_oled("连接失败")
                 print("WiFi连接失败")
@@ -225,7 +292,9 @@ class MenuSystem:
     def on_confirm(self):
         """确认选择"""
         selected_item = self.menu_items[self.current_selection]
-        if selected_item == "进入漂流":
+        if selected_item == "扫描可用wifi":
+            self.scan_wifi()
+        elif selected_item == "进入漂流":
             self.oled.show_text_oled("正在启动漂流...")
             time.sleep(1)
             self.run_openai_test()
