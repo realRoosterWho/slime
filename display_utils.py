@@ -15,7 +15,7 @@ class BitBangLCD:
         self.CLK = 11
         self.MOSI = 10
         self.width = 240
-        self.height = 240
+        self.height = 320
         
         # 初始化GPIO
         GPIO.setmode(GPIO.BCM)

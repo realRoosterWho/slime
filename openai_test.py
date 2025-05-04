@@ -66,7 +66,10 @@ def cleanup_handler(signum, frame):
     """清理资源并优雅退出"""
     print("\n🛑 检测到中断信号，正在清理资源...")
     try:
-        lcd_display.clear()
+        if 'lcd_display' in globals():
+            lcd_display.clear()
+        if 'oled_display' in globals():
+            oled_display.clear()
         print("✅ 已清理显示资源")
     except:
         pass
