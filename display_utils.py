@@ -1,10 +1,111 @@
 from luma.core.interface.serial import spi
-from luma.lcd.device import st7789
 from PIL import Image, ImageDraw, ImageFont
 import time
 import board
 import busio
 from adafruit_ssd1306 import SSD1306_I2C
+import RPi.GPIO as GPIO
+
+class BitBangLCD:
+    def __init__(self):
+        # GPIO定义
+        self.DC = 24
+        self.RST = 25
+        self.CS = 8
+        self.CLK = 11
+        self.MOSI = 10
+        self.width = 240
+        self.height = 240
+        
+        # 初始化GPIO
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        for pin in [self.DC, self.RST, self.CS, self.CLK, self.MOSI]:
+            GPIO.setup(pin, GPIO.OUT)
+            
+        # 初始化LCD
+        self._init_lcd()
+        
+    def _spi_write(self, byte):
+        """BitBang SPI写入一个字节"""
+        for i in range(8):
+            GPIO.output(self.CLK, 0)
+            GPIO.output(self.MOSI, (byte & 0x80) != 0)
+            byte <<= 1
+            GPIO.output(self.CLK, 1)
+
+    def _write_command(self, cmd):
+        """写入命令"""
+        GPIO.output(self.DC, 0)
+        GPIO.output(self.CS, 0)
+        self._spi_write(cmd)
+        GPIO.output(self.CS, 1)
+
+    def _write_data(self, data):
+        """写入数据"""
+        GPIO.output(self.DC, 1)
+        GPIO.output(self.CS, 0)
+        self._spi_write(data)
+        GPIO.output(self.CS, 1)
+
+    def _reset(self):
+        """重置显示器"""
+        GPIO.output(self.RST, 0)
+        time.sleep(0.05)
+        GPIO.output(self.RST, 1)
+        time.sleep(0.05)
+
+    def _init_lcd(self):
+        """初始化LCD"""
+        self._reset()
+        self._write_command(0x36); self._write_data(0x00)
+        self._write_command(0x3A); self._write_data(0x05)
+        self._write_command(0xB2); [self._write_data(i) for i in (0x0C,0x0C,0x00,0x33,0x33)]
+        self._write_command(0xB7); self._write_data(0x35)
+        self._write_command(0xBB); self._write_data(0x19)
+        self._write_command(0xC0); self._write_data(0x2C)
+        self._write_command(0xC2); self._write_data(0x01)
+        self._write_command(0xC3); self._write_data(0x12)
+        self._write_command(0xC4); self._write_data(0x20)
+        self._write_command(0xC6); self._write_data(0x0F)
+        self._write_command(0xD0); [self._write_data(i) for i in (0xA4, 0xA1)]
+        self._write_command(0xE0); [self._write_data(i) for i in (0xD0,0x04,0x0D,0x11,0x13,0x2B,0x3F,0x54,0x4C,0x18,0x0D,0x0B,0x1F,0x23)]
+        self._write_command(0xE1); [self._write_data(i) for i in (0xD0,0x04,0x0C,0x11,0x13,0x2C,0x3F,0x44,0x51,0x2F,0x1F,0x1F,0x20,0x23)]
+        self._write_command(0x21)
+        self._write_command(0x11)
+        time.sleep(0.12)
+        self._write_command(0x29)
+
+    def display(self, image):
+        """显示图像"""
+        # 转换图像为RGB565
+        image = image.resize((self.width, self.height)).convert('RGB')
+        pixelbytes = []
+        for y in range(self.height):
+            for x in range(self.width):
+                r, g, b = image.getpixel((x, y))
+                rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+                pixelbytes.append((rgb565 >> 8) & 0xFF)
+                pixelbytes.append(rgb565 & 0xFF)
+
+        # 设置显示区域
+        self._write_command(0x2A)
+        [self._write_data(i) for i in (0, 0, 0, self.width - 1)]
+        self._write_command(0x2B)
+        [self._write_data(i) for i in (0, 0, 0, self.height - 1)]
+        
+        # 写入数据
+        self._write_command(0x2C)
+        GPIO.output(self.DC, 1)
+        GPIO.output(self.CS, 0)
+        for byte in pixelbytes:
+            self._spi_write(byte)
+        GPIO.output(self.CS, 1)
+
+    def clear(self):
+        """清空显示"""
+        black_image = Image.new('RGB', (self.width, self.height), 'black')
+        self.display(black_image)
 
 class DisplayManager:
     def __init__(self, display_type="LCD"):
@@ -12,16 +113,11 @@ class DisplayManager:
         # 设置默认中文字体路径
         self.font_path = '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc'
         if display_type == "LCD":
-            self._init_lcd()
+            self.device = BitBangLCD()  # 使用新的BitBang实现
+            self.width = 240
+            self.height = 240
         else:
             self._init_oled()
-    
-    def _init_lcd(self):
-        """初始化LCD显示屏"""
-        serial = spi(port=0, device=0, gpio_DC=24, gpio_RST=25)
-        self.device = st7789(serial, width=240, height=240)
-        self.width = 240
-        self.height = 240
     
     def _init_oled(self):
         """初始化OLED显示屏"""
@@ -40,8 +136,11 @@ class DisplayManager:
     
     def clear(self):
         """清空显示屏"""
-        image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
-        self._display_image(image)
+        if self.display_type == "LCD":
+            self.device.clear()  # 使用新的clear方法
+        else:  # OLED
+            self.device.fill(0)
+            self.device.show()
     
     def show_text(self, text, x=10, y=10, font_size=20, max_width=None):
         """显示文本，支持中文和自动换行"""
@@ -88,10 +187,13 @@ class DisplayManager:
     def show_image(self, image_path):
         """显示图片"""
         try:
-            img = Image.open(image_path).resize((self.width, self.height))
-            if self.display_type == "OLED":
+            img = Image.open(image_path)
+            if self.display_type == "LCD":
+                self.device.display(img)  # 使用新的display方法
+            else:  # OLED
                 img = img.convert("1")  # 转换为黑白图像
-            self._display_image(img)
+                self.device.image(img)
+                self.device.show()
         except Exception as e:
             print(f"显示图片时出错: {e}")
     
