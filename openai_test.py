@@ -174,8 +174,7 @@ def main():
             "prompt_upsampling": True,
             "width": 320,        # 匹配LCD宽度
             "height": 240,       # 匹配LCD高度
-            "guidance_scale": 7.5,  # 提示词引导强度
-            "num_inference_steps": 25  # 生成步数
+            "num_inference_steps": 4  # flux-schnell模型最大支持4步
         }
     )
 
