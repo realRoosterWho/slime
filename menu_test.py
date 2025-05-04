@@ -209,11 +209,36 @@ class MenuSystem:
     
     def display_menu(self):
         """显示菜单"""
+        # 计算显示范围
+        total_items = len(self.menu_items)
+        if self.current_selection >= total_items:
+            self.current_selection = total_items - 1
+        
+        # 确定显示的起始和结束索引
+        if total_items <= 3:
+            # 如果总项目不超过3个，全部显示
+            start_idx = 0
+            end_idx = total_items
+        else:
+            # 如果超过3个，需要滚动显示
+            if self.current_selection == 0:
+                start_idx = 0
+                end_idx = 3
+            elif self.current_selection == total_items - 1:
+                start_idx = total_items - 3
+                end_idx = total_items
+            else:
+                start_idx = self.current_selection - 1
+                end_idx = self.current_selection + 2
+        
+        # 生成显示文本
         menu_text = ""
-        for i, item in enumerate(self.menu_items):
-            # 当前选中的项目前面加上 ">"
+        for i in range(start_idx, end_idx):
             prefix = "> " if i == self.current_selection else "  "
-            menu_text += f"{prefix}{item}\n"
+            menu_text += f"{prefix}{self.menu_items[i]}\n"
+        
+        # 去掉最后的换行符
+        menu_text = menu_text.rstrip()
         self.oled.show_text_oled(menu_text)
     
     def run(self):
