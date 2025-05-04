@@ -32,6 +32,8 @@ class MenuSystem:
             "使用热点wifi",
             "进入漂流",
             "系统信息",
+            "重启系统",
+            "关闭系统",
             "退出漂流"
         ]
         self.current_selection = 0  # 当前选择的索引
@@ -155,6 +157,32 @@ class MenuSystem:
         finally:
             self.display_menu()
 
+    def system_reboot(self):
+        """重启系统"""
+        try:
+            self.oled.show_text_oled("系统正在重启...")
+            time.sleep(1)
+            self.cleanup()
+            subprocess.run(['sudo', 'reboot'], check=True)
+        except Exception as e:
+            self.oled.show_text_oled("重启失败!")
+            print(f"重启错误: {e}")
+            time.sleep(2)
+            self.display_menu()
+
+    def system_shutdown(self):
+        """关闭系统"""
+        try:
+            self.oled.show_text_oled("系统正在关闭...")
+            time.sleep(1)
+            self.cleanup()
+            subprocess.run(['sudo', 'shutdown', '-h', 'now'], check=True)
+        except Exception as e:
+            self.oled.show_text_oled("关机失败!")
+            print(f"关机错误: {e}")
+            time.sleep(2)
+            self.display_menu()
+
     def on_confirm(self):
         """确认选择"""
         selected_item = self.menu_items[self.current_selection]
@@ -169,6 +197,10 @@ class MenuSystem:
             self.connect_hotspot_wifi()
         elif selected_item == "系统信息":
             self.show_system_info()
+        elif selected_item == "重启系统":
+            self.system_reboot()
+        elif selected_item == "关闭系统":
+            self.system_shutdown()
         else:  # 退出漂流
             self.oled.show_text_oled("再见！")
             time.sleep(1)
