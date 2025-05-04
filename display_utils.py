@@ -184,12 +184,23 @@ class DisplayManager:
                      fill=255 if self.display_type == "OLED" else "white")
             y_text += font.getsize(line)[1] + 5  # 行间距为5像素
 
-    def show_image(self, image_path):
-        """显示图片"""
+    def show_image(self, image_input):
+        """显示图片
+        Args:
+            image_input: 可以是图片文件路径(str)或PIL Image对象
+        """
         try:
-            img = Image.open(image_path)
+            # 如果输入是字符串（文件路径），则打开图片
+            if isinstance(image_input, str):
+                img = Image.open(image_input)
+            # 如果输入已经是PIL Image对象，直接使用
+            elif isinstance(image_input, Image.Image):
+                img = image_input
+            else:
+                raise ValueError("输入必须是图片路径或PIL Image对象")
+
             if self.display_type == "LCD":
-                self.device.display(img)  # 使用新的display方法
+                self.device.display(img)
             else:  # OLED
                 img = img.convert("1")  # 转换为黑白图像
                 self.device.image(img)
