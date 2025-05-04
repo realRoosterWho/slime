@@ -163,11 +163,22 @@ def main():
         print("\n📺 正在显示史莱姆图片...")
         lcd_display.show_image(output_path)
         
-        # 添加语音输入部分
-        print("\n🎤 请在5秒内说出你想对史莱姆说的话...")
+        # 显示语音输入提示
+        print("\n🎤 准备录音...")
+        oled_display.show_text_oled("请说话...\n(5秒)", chars_per_line=12)
+        time.sleep(1)  # 给用户一点准备时间
+        
+        # 语音输入
         stt = SpeechToText()
         user_input = stt.record_and_transcribe(duration=5)
         print(f"\n👂 你说的是: {user_input}")
+        
+        # 显示识别结果
+        oled_display.show_text_oled(f"识别结果:\n{user_input}", chars_per_line=12)
+        time.sleep(3)  # 显示3秒识别结果
+        
+        # 显示思考提示
+        oled_display.show_text_oled("思考中...", chars_per_line=12)
         
         # 第四轮：生成史莱姆的回答
         response = chat_with_gpt(
@@ -179,7 +190,7 @@ def main():
         response_text = response.output[0].content[0].text.strip()
         print(f"\n👋 史莱姆回答：{response_text}")
         
-        # 在OLED上显示回答
+        # 显示史莱姆的回答
         oled_display.show_text_oled(response_text, chars_per_line=12)
         time.sleep(3)
         
