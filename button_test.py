@@ -8,9 +8,9 @@ class JoystickButtonTest:
         # 定义摇杆引脚
         self.JOYSTICK_PINS = {
             'UP': 17,     # GPIO17
-            'DOWN': 27,   # GPIO27
-            'LEFT': 22,   # GPIO22
-            'RIGHT': 23,  # GPIO23
+            'LEFT': 27,   # GPIO27
+            'RIGHT': 22,   # GPIO22
+            'DOWN': 23,  # GPIO23
         }
         
         # 定义独立按钮引脚
