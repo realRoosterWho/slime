@@ -72,6 +72,22 @@ def cleanup_handler(signum, frame):
         pass
     sys.exit(0)
 
+def download_with_retry(url, max_retries=3, delay=1):
+    """带重试机制的下载函数"""
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                return response
+            print(f"下载失败，状态码: {response.status_code}，尝试重试...")
+        except requests.exceptions.RequestException as e:
+            print(f"下载出错 (尝试 {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+                continue
+            raise
+    return None
+
 # 主流程
 def main():
     # 设置信号处理
@@ -162,16 +178,20 @@ def main():
         print(f"正在下载图片: {image_url}")
         oled_display.show_text_oled("正在下载\n史莱姆图片...")
         
-        img_response = requests.get(image_url)
-        if img_response.status_code == 200:
-            output_path = os.path.join(current_dir, "new_slime.png")
-            with open(output_path, "wb") as f:
-                f.write(img_response.content)
-            print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
-            oled_display.show_text_oled("史莱姆\n绘制完成！")
-            time.sleep(1)
-        else:
-            print(f"下载图片失败，状态码: {img_response.status_code}")
+        try:
+            img_response = download_with_retry(image_url)
+            if img_response:
+                output_path = os.path.join(current_dir, "new_slime.png")
+                with open(output_path, "wb") as f:
+                    f.write(img_response.content)
+                print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
+                oled_display.show_text_oled("史莱姆\n绘制完成！")
+                time.sleep(1)
+            else:
+                print("下载图片失败")
+                oled_display.show_text_oled("图片下载失败")
+        except Exception as e:
+            print(f"下载图片时出错: {e}")
             oled_display.show_text_oled("图片下载失败")
     else:
         print("生成图片失败，没有获取到有效的URL")
