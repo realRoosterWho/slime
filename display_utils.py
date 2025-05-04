@@ -131,12 +131,12 @@ class DisplayManager:
     
     def _display_image(self, image):
         """统一处理图像显示"""
-        # 在显示之前旋转图像180度
-        rotated_image = image.rotate(180)
         if self.display_type == "LCD":
+            # 只有LCD需要旋转180度
+            rotated_image = image.rotate(180)
             self.device.display(rotated_image)
-        else:  # OLED
-            self.device.image(rotated_image)
+        else:  # OLED保持原样
+            self.device.image(image)
             self.device.show()
     
     def clear(self):
