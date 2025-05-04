@@ -30,6 +30,7 @@ class MenuSystem:
         self.menu_items = [
             "使用默认wifi",
             "使用热点wifi",
+            "查看当前wifi",
             "进入漂流",
             "系统信息",
             "重启系统",
@@ -82,6 +83,41 @@ class MenuSystem:
             self.__init__()
             print("返回主菜单")
     
+    def get_current_wifi(self):
+        """获取当前连接的WiFi名称"""
+        try:
+            result = subprocess.run(['iwgetid'], capture_output=True, text=True)
+            if result.stdout:
+                # iwgetid输出格式: wlan0    ESSID:"WiFi名称"
+                ssid = result.stdout.split('ESSID:')[1].strip().strip('"')
+                return ssid
+            return None
+        except Exception:
+            return None
+
+    def show_current_wifi(self):
+        """显示当前WiFi连接状态"""
+        try:
+            current_wifi = self.get_current_wifi()
+            if current_wifi:
+                self.oled.show_text_oled(f"当前WiFi:\n{current_wifi}")
+            else:
+                self.oled.show_text_oled("未连接WiFi")
+            time.sleep(2)
+        finally:
+            self.display_menu()
+
+    def disconnect_wifi(self):
+        """断开当前WiFi连接"""
+        try:
+            subprocess.run(['sudo', 'killall', 'wpa_supplicant'], check=False)
+            subprocess.run(['sudo', 'ifconfig', 'wlan0', 'down'], check=True)
+            time.sleep(1)
+            subprocess.run(['sudo', 'ifconfig', 'wlan0', 'up'], check=True)
+            time.sleep(1)
+        except Exception as e:
+            print(f"断开WiFi错误: {e}")
+
     def connect_wifi(self, wifi_config):
         """连接WiFi的通用方法"""
         try:
@@ -89,6 +125,9 @@ class MenuSystem:
             password = wifi_config['password']
             
             self.oled.show_text_oled(f"正在连接:\n{ssid}")
+            
+            # 先断开当前连接
+            self.disconnect_wifi()
             
             # 创建wpa_supplicant配置
             wpa_config = (
@@ -107,17 +146,17 @@ class MenuSystem:
             with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w') as f:
                 f.write(wpa_config)
             
-            # 重启WiFi接口
-            subprocess.run(['sudo', 'ifconfig', 'wlan0', 'down'], check=True)
-            subprocess.run(['sudo', 'ifconfig', 'wlan0', 'up'], check=True)
+            # 启动wpa_supplicant
+            subprocess.run(['sudo', 'wpa_supplicant', '-B', '-i', 'wlan0', '-c', '/etc/wpa_supplicant/wpa_supplicant.conf'], check=True)
+            time.sleep(2)
             subprocess.run(['sudo', 'wpa_cli', '-i', 'wlan0', 'reconfigure'], check=True)
             
             # 等待连接
             time.sleep(5)
             
             # 检查连接状态
-            result = subprocess.run(['iwgetid'], capture_output=True, text=True)
-            if ssid in result.stdout:
+            current_wifi = self.get_current_wifi()
+            if current_wifi == ssid:
                 self.oled.show_text_oled(f"已连接到:\n{ssid}")
                 print(f"成功连接到 {ssid}")
             else:
@@ -195,6 +234,8 @@ class MenuSystem:
             self.connect_default_wifi()
         elif selected_item == "使用热点wifi":
             self.connect_hotspot_wifi()
+        elif selected_item == "查看当前wifi":
+            self.show_current_wifi()
         elif selected_item == "系统信息":
             self.show_system_info()
         elif selected_item == "重启系统":
