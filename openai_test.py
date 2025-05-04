@@ -171,7 +171,11 @@ def main():
         "black-forest-labs/flux-schnell",
         input={
             "prompt": slime_prompt,
-            "prompt_upsampling": True
+            "prompt_upsampling": True,
+            "width": 320,        # 匹配LCD宽度
+            "height": 240,       # 匹配LCD高度
+            "guidance_scale": 7.5,  # 提示词引导强度
+            "num_inference_steps": 25  # 生成步数
         }
     )
 

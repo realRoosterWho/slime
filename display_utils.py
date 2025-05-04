@@ -14,8 +14,8 @@ class BitBangLCD:
         self.CS = 8
         self.CLK = 11
         self.MOSI = 10
-        self.width = 240
-        self.height = 320
+        self.width = 320   # 横向宽度
+        self.height = 240  # 横向高度
         
         # 初始化GPIO
         GPIO.setmode(GPIO.BCM)
@@ -58,7 +58,10 @@ class BitBangLCD:
     def _init_lcd(self):
         """初始化LCD"""
         self._reset()
-        self._write_command(0x36); self._write_data(0x00)
+        self._write_command(0x36)
+        self._write_data(0x70)  # 修改为横向显示: MY=0,MX=1,MV=1,ML=0,RGB=0
+        
+        # 其他初始化命令
         self._write_command(0x3A); self._write_data(0x05)
         self._write_command(0xB2); [self._write_data(i) for i in (0x0C,0x0C,0x00,0x33,0x33)]
         self._write_command(0xB7); self._write_data(0x35)
@@ -78,7 +81,7 @@ class BitBangLCD:
 
     def display(self, image):
         """显示图像"""
-        # 转换图像为RGB565
+        # 调整图像大小为屏幕实际大小
         image = image.resize((self.width, self.height)).convert('RGB')
         pixelbytes = []
         for y in range(self.height):
@@ -88,11 +91,11 @@ class BitBangLCD:
                 pixelbytes.append((rgb565 >> 8) & 0xFF)
                 pixelbytes.append(rgb565 & 0xFF)
 
-        # 设置显示区域
+        # 设置显示区域为全屏
         self._write_command(0x2A)
-        [self._write_data(i) for i in (0, 0, 0, self.width - 1)]
+        [self._write_data(i) for i in (0, 0, (self.width-1) >> 8, (self.width-1) & 0xFF)]
         self._write_command(0x2B)
-        [self._write_data(i) for i in (0, 0, 0, self.height - 1)]
+        [self._write_data(i) for i in (0, 0, (self.height-1) >> 8, (self.height-1) & 0xFF)]
         
         # 写入数据
         self._write_command(0x2C)
