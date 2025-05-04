@@ -82,16 +82,24 @@ def main():
     print("初始化显示设备...")
     print("正在初始化OLED...")
     oled_display = DisplayManager("OLED")
+    oled_display.show_text_oled("初始化中...")
+    
     print("正在初始化LCD (BitBang模式)...")
     lcd_display = DisplayManager("LCD")
-    print("显示设备初始化完成")
+    oled_display.show_text_oled("初始化完成")
+    time.sleep(1)
 
     # 第1步：拍照
+    oled_display.show_text_oled("准备拍照...")
     run_camera_test()
+    oled_display.show_text_oled("拍照完成")
+    time.sleep(1)
 
     # 第2步：读取图片，做识别
     current_dir = os.path.dirname(os.path.abspath(__file__))
     image_path = os.path.join(current_dir, "current_image.jpg")
+    oled_display.show_text_oled("正在分析\n图片...")
+    
     base64_image = encode_image(image_path)
     data_url = f"data:image/jpeg;base64,{base64_image}"
 
@@ -105,16 +113,22 @@ def main():
     )
     description = response.output[0].content[0].text.strip()
     print("\n📷 识别结果：", description)
+    oled_display.show_text_oled("识别完成")
+    time.sleep(1)
 
     # 第二轮：生成史莱姆性格
+    oled_display.show_text_oled("正在生成\n史莱姆性格...")
     response = chat_with_gpt(
         system_content="你是一个专业的角色设定师。根据环境或物体的描述，帮我设定一只史莱姆的小档案，包括它的性格、表情、动作特点等，用英文简洁描述，不要太长，情感要细腻。",
         input_content=f"根据这个描述设定一只史莱姆：{description}",
         previous_response_id=response.id
     )
     slime_personality_text = response.output[0].content[0].text.strip()
+    oled_display.show_text_oled("性格设定完成")
+    time.sleep(1)
 
     # 第三轮：生成打招呼
+    oled_display.show_text_oled("正在想打招呼\n的话...")
     response = chat_with_gpt(
         system_content="你是一个可爱的史莱姆。请根据给定的性格描述说话，中文，不超过15个字。",
         input_content=f"根据这个性格描述生成打招呼用语：{slime_personality_text}",
@@ -127,14 +141,14 @@ def main():
     oled_display.show_text_oled(greeting_text)
     time.sleep(3)
 
-    # 生成史莱姆图片的提示词
+    # 生成史莱姆图片
+    oled_display.show_text_oled("正在绘制\n史莱姆...")
     slime_prompt = f"一个奇幻的史莱姆生物。{slime_personality_text} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
     # 第4步：用Replicate生成史莱姆图片
     print("\n🖌️ 开始绘制史莱姆图片（Replicate生成）...")
     output = replicate_client.run(
-        # "black-forest-labs/flux-1.1-pro",
         "black-forest-labs/flux-schnell",
         input={
             "prompt": slime_prompt,
@@ -146,6 +160,7 @@ def main():
     if isinstance(output, list) and len(output) > 0:
         image_url = output[0]
         print(f"正在下载图片: {image_url}")
+        oled_display.show_text_oled("正在下载\n史莱姆图片...")
         
         img_response = requests.get(image_url)
         if img_response.status_code == 200:
@@ -153,10 +168,14 @@ def main():
             with open(output_path, "wb") as f:
                 f.write(img_response.content)
             print(f"\n✅ 新史莱姆绘制完成，已保存为: {output_path}")
+            oled_display.show_text_oled("史莱姆\n绘制完成！")
+            time.sleep(1)
         else:
             print(f"下载图片失败，状态码: {img_response.status_code}")
+            oled_display.show_text_oled("图片下载失败")
     else:
         print("生成图片失败，没有获取到有效的URL")
+        oled_display.show_text_oled("图片生成失败")
 
     # 第五步：在LCD上显示图片并处理语音输入
     try:
@@ -165,7 +184,7 @@ def main():
         
         # 显示语音输入提示
         print("\n🎤 准备录音...")
-        oled_display.show_text_oled("请说话...\n(5秒)", chars_per_line=12)
+        oled_display.show_text_oled("请说话...\n(5秒)")
         time.sleep(1)  # 给用户一点准备时间
         
         # 语音输入
@@ -174,11 +193,11 @@ def main():
         print(f"\n👂 你说的是: {user_input}")
         
         # 显示识别结果
-        oled_display.show_text_oled(f"识别结果:\n{user_input}", chars_per_line=12)
+        oled_display.show_text_oled(f"识别结果:\n{user_input}")
         time.sleep(3)  # 显示3秒识别结果
         
         # 显示思考提示
-        oled_display.show_text_oled("思考中...", chars_per_line=12)
+        oled_display.show_text_oled("思考中...")
         
         # 第四轮：生成史莱姆的回答
         response = chat_with_gpt(
@@ -191,7 +210,7 @@ def main():
         print(f"\n👋 史莱姆回答：{response_text}")
         
         # 显示史莱姆的回答
-        oled_display.show_text_oled(response_text, chars_per_line=12)
+        oled_display.show_text_oled(response_text)
         time.sleep(3)
         
         time.sleep(60)
