@@ -21,21 +21,25 @@ class ButtonTest:
         for pin in self.BUTTON_PINS.values():
             GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             
-        # 为每个按钮添加事件检测
-        for name, pin in self.BUTTON_PINS.items():
-            GPIO.add_event_detect(pin, GPIO.FALLING, 
-                                callback=lambda x, btn=name: self.button_callback(btn), 
-                                bouncetime=300)
+        # 存储按钮状态
+        self.button_states = {pin: GPIO.input(pin) for pin in self.BUTTON_PINS.values()}
         
         print("按钮测试初始化完成")
         print("按钮映射:")
         for name, pin in self.BUTTON_PINS.items():
             print(f"{name}: GPIO{pin}")
     
-    def button_callback(self, button_name):
-        """按钮回调函数"""
-        print(f"\n🔘 按钮 {button_name} 被按下")
-        
+    def check_buttons(self):
+        """检查所有按钮状态"""
+        for name, pin in self.BUTTON_PINS.items():
+            current_state = GPIO.input(pin)
+            # 因为使用上拉电阻，所以0表示按下，1表示释放
+            if current_state == 0 and self.button_states[pin] == 1:
+                print(f"\n🔘 按钮 {name} 被按下")
+            elif current_state == 1 and self.button_states[pin] == 0:
+                print(f"\n⚪ 按钮 {name} 被释放")
+            self.button_states[pin] = current_state
+    
     def cleanup(self):
         """清理GPIO资源"""
         GPIO.cleanup()
@@ -44,7 +48,8 @@ class ButtonTest:
 def signal_handler(signum, frame):
     """信号处理函数"""
     print("\n🛑 检测到中断信号，正在清理...")
-    button_test.cleanup()
+    if 'button_test' in globals():
+        button_test.cleanup()
     sys.exit(0)
 
 if __name__ == "__main__":
@@ -59,10 +64,12 @@ if __name__ == "__main__":
         print("\n🔄 按钮测试运行中...")
         print("按下任意按钮测试，按 Ctrl+C 退出")
         
-        # 保持程序运行
+        # 持续检测按钮状态
         while True:
-            time.sleep(0.1)
+            button_test.check_buttons()
+            time.sleep(0.1)  # 100ms的检测间隔
             
     except Exception as e:
         print(f"错误: {e}")
-        button_test.cleanup() 
+        if 'button_test' in globals():
+            button_test.cleanup() 
