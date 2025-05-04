@@ -59,7 +59,7 @@ class BitBangLCD:
         """初始化LCD"""
         self._reset()
         self._write_command(0x36)
-        self._write_data(0xF0)  
+        self._write_data(0x00)
         
         # 其他初始化命令
         self._write_command(0x3A); self._write_data(0x05)
