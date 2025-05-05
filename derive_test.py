@@ -87,17 +87,17 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
     """与GPT进行对话"""
     # 如果输入是列表（包含图片），直接使用
     if isinstance(input_content, list):
-        messages = input_content
+        input_data = input_content
     else:
         # 否则构建普通文本消息
-        messages = [{"type": "message", "content": input_content}]
+        input_data = [{"role": "user", "content": input_content}]
         
     if system_content:
-        messages.insert(0, {"type": "message", "content": system_content})
+        input_data.insert(0, {"role": "system", "content": system_content})
         
     response = client.responses.create(
         model="gpt-4o-mini",
-        input=messages,
+        input=input_data,
         previous_response_id=previous_response_id
     )
     return response
@@ -163,10 +163,9 @@ class DeriveState(Enum):
 
 class DeriveStateMachine:
     def __init__(self, initial_text):
-        # 确保在任何GPIO操作之前设置模式
-        if not GPIO.getmode():  # 检查是否已经设置了模式
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setwarnings(False)
+        # 初始化 GPIO 设置
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
         
         self.logger = DeriveLogger()
         self.oled_display = DisplayManager("OLED")
@@ -200,11 +199,7 @@ class DeriveStateMachine:
             previous_response_id=self.response_id
         )
         self.response_id = response.id
-        
-        # 获取响应文本
-        if hasattr(response.output[0], 'content'):
-            return response.output[0].content
-        return str(response.output[0])
+        return response  # 直接返回完整的响应对象
 
     def wait_for_button(self, display_text):
         """等待按钮点击的通用函数"""
@@ -440,14 +435,15 @@ class DeriveStateMachine:
         base64_image = encode_image(self.data['timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
         
-        # 修改输入格式
+        # 修改输入格式，参考 openai_test.py 的实现
         input_content = [
-            {"type": "message", "content": "请简短描述这张照片的主要内容。"},
-            {"type": "image_url", "image_url": data_url}
+            {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
+            {"type": "input_image", "image_url": data_url}
         ]
         
         response = self.chat_with_continuity(input_content)
-        self.data['photo_description'] = response
+        # 从响应中获取文本内容
+        self.data['photo_description'] = response.output[0].content[0].text.strip()
         
         self.logger.log_step("照片分析", self.data['photo_description'])
         self.wait_for_button(f"分析结果：\n{self.data['photo_description']}")
