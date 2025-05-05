@@ -5,17 +5,19 @@ import requests
 from io import BytesIO
 from dotenv import load_dotenv
 
-# 加载环境变量
-load_dotenv()
-
 def test_image_generation():
-    # 获取 API token
+    # 加载环境变量
+    load_dotenv()
+    
+    # 获取并检查 API token
     replicate_api_key = os.getenv("REPLICATE_API_KEY")
     if not replicate_api_key:
         raise Exception("没有找到 REPLICATE_API_KEY")
     
-    # 创建客户端
-    client = replicate.Client(api_token=replicate_api_key)
+    print(f"API Key 前几位: {replicate_api_key[:8]}...")
+    
+    # 创建客户端并设置 token
+    os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
     
     # 测试参数
     prompt = "a cute slime creature with big eyes, children's book style, colorful and adorable"
@@ -28,6 +30,7 @@ def test_image_generation():
             "black-forest-labs/flux-1.1-pro",
             input={
                 "prompt": prompt,
+                "prompt_upsampling": True,
                 "width": 512,
                 "height": 512,
                 "num_outputs": 1,
