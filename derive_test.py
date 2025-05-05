@@ -323,10 +323,10 @@ class DeriveStateMachine:
             DeriveState.SHOW_ANALYSIS: DeriveState.GEN_PERSONALITY,
             DeriveState.GEN_PERSONALITY: DeriveState.SHOW_PERSONALITY,
             DeriveState.SHOW_PERSONALITY: DeriveState.GEN_GREETING,
-            DeriveState.GEN_GREETING: DeriveState.SHOW_GREETING,
-            DeriveState.SHOW_GREETING: DeriveState.GEN_IMAGE,
             DeriveState.GEN_IMAGE: DeriveState.SHOW_IMAGE,
             DeriveState.SHOW_IMAGE: DeriveState.CLEANUP,
+            DeriveState.GEN_GREETING: DeriveState.SHOW_GREETING,
+            DeriveState.SHOW_GREETING: DeriveState.GEN_IMAGE,
             DeriveState.CLEANUP: DeriveState.EXIT
         }
         
