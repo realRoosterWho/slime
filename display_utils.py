@@ -395,6 +395,85 @@ class DisplayManager:
 
             self._display_image(image)
 
+    def show_text_oled_interactive(self, text, font_size=12, chars_per_line=9, visible_lines=3):
+        """支持摇杆控制的OLED文本显示
+        Args:
+            text: 要显示的文本
+            font_size: 字体大小，默认12
+            chars_per_line: 每行字符数，默认9
+            visible_lines: 同时显示的行数，默认3
+        """
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, font_size)
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+
+        # 处理文本换行
+        if '\n' not in text:
+            lines = []
+            for i in range(0, len(text), chars_per_line):
+                lines.append(text[i:i + chars_per_line])
+        else:
+            lines = text.split('\n')
+        
+        # 如果文本行数超过可见行数，需要滚动显示
+        total_lines = len(lines)
+        start_line = 0
+        
+        def draw_current_page():
+            """绘制当前页面"""
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制当前可见的行
+            y = 10
+            for i in range(start_line, min(start_line + visible_lines, total_lines)):
+                draw.text((10, y), lines[i], font=font, fill=255)
+                y += 20  # 行间距
+            
+            # 绘制滚动指示器
+            if start_line > 0:  # 顶部箭头
+                draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+            if start_line + visible_lines < total_lines:  # 底部箭头
+                draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+            
+            # 绘制页码
+            current_page = (start_line // visible_lines) + 1
+            total_pages = (total_lines + visible_lines - 1) // visible_lines
+            page_text = f"{current_page}/{total_pages}"
+            draw.text((90, 54), page_text, font=font, fill=255)
+            
+            self._display_image(image)
+        
+        def scroll_up():
+            """向上滚动"""
+            nonlocal start_line
+            if start_line > 0:
+                start_line = max(0, start_line - visible_lines)
+                return True
+            return False
+        
+        def scroll_down():
+            """向下滚动"""
+            nonlocal start_line
+            if start_line + visible_lines < total_lines:
+                start_line = min(total_lines - visible_lines, start_line + visible_lines)
+                return True
+            return False
+        
+        # 返回控制函数
+        return {
+            'draw': draw_current_page,
+            'up': scroll_up,
+            'down': scroll_down,
+            'total_pages': (total_lines + visible_lines - 1) // visible_lines
+        }
+
     def draw_indicator(self, x, y, frame):
         """绘制活动指示器（跳动的点）
         Args:

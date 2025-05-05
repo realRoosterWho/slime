@@ -8,6 +8,13 @@ import subprocess
 import os
 from PIL import Image, ImageDraw, ImageFont
 
+should_exit = False  # 退出标志位
+
+def signal_handler(signum, frame):
+    global should_exit
+    should_exit = True
+    print("\n🛑 检测到退出信号，准备退出...")
+
 class MenuSystem:
     def __init__(self):
         # 添加指示器帧计数（移到最前面）
@@ -33,15 +40,16 @@ class MenuSystem:
         
         # 菜单选项
         self.menu_items = [
+            "开始漂流",      # derive_test.py
+            "功能测试",      # openai_test.py (原漂流测试)
             "扫描可用wifi",
             "使用默认wifi",
             "使用热点wifi",
             "查看当前wifi",
-            "进入漂流",
             "系统信息",
             "重启系统",
             "关闭系统",
-            "退出漂流"
+            "退出系统"
         ]
         
         # 注册输入回调
@@ -64,20 +72,20 @@ class MenuSystem:
             self.display_menu()
             time.sleep(0.2)
     
-    def run_openai_test(self):
-        """运行OpenAI测试程序"""
+    def run_derive_test(self):
+        """运行漂流程序"""
         try:
             # 清理当前资源
             self.controller.cleanup()
             self.oled.show_loading("正在启动漂流...")
             
-            # 获取openai_test.py的路径
+            # 获取derive_test.py的路径
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            openai_script = os.path.join(current_dir, "openai_test.py")
+            derive_script = os.path.join(current_dir, "derive_test.py")
             
-            # 运行openai_test.py
+            # 运行derive_test.py
             print("启动漂流程序...")
-            subprocess.run([sys.executable, openai_script], check=True)
+            subprocess.run([sys.executable, derive_script], check=True)
             
         except subprocess.CalledProcessError as e:
             print(f"漂流程序运行出错: {e}")
@@ -87,7 +95,31 @@ class MenuSystem:
             # 重新初始化资源
             self.__init__()
             print("返回主菜单")
-    
+
+    def run_openai_test(self):
+        """运行功能测试程序"""
+        try:
+            # 清理当前资源
+            self.controller.cleanup()
+            self.oled.show_loading("正在启动功能测试...")
+            
+            # 获取openai_test.py的路径
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            openai_script = os.path.join(current_dir, "openai_test.py")
+            
+            # 运行openai_test.py
+            print("启动功能测试程序...")
+            subprocess.run([sys.executable, openai_script], check=True)
+            
+        except subprocess.CalledProcessError as e:
+            print(f"功能测试程序运行出错: {e}")
+        except Exception as e:
+            print(f"发生错误: {e}")
+        finally:
+            # 重新初始化资源
+            self.__init__()
+            print("返回主菜单")
+
     def get_current_wifi(self):
         """获取当前连接的WiFi名称"""
         try:
@@ -294,10 +326,12 @@ class MenuSystem:
         """确认选择"""
         selected_index = self.oled.get_selected_index()
         selected_item = self.menu_items[selected_index]
-        if selected_item == "扫描可用wifi":
-            self.scan_wifi()
-        elif selected_item == "进入漂流":
+        if selected_item == "开始漂流":
+            self.run_derive_test()
+        elif selected_item == "功能测试":
             self.run_openai_test()
+        elif selected_item == "扫描可用wifi":
+            self.scan_wifi()
         elif selected_item == "使用默认wifi":
             self.connect_default_wifi()
         elif selected_item == "使用热点wifi":
@@ -310,7 +344,7 @@ class MenuSystem:
             self.system_reboot()
         elif selected_item == "关闭系统":
             self.system_shutdown()
-        else:  # 退出漂流
+        else:  # 退出系统
             self.oled.show_message("再见！")
             self.cleanup()
             sys.exit(0)
@@ -319,55 +353,77 @@ class MenuSystem:
         """显示菜单"""
         self.oled.show_menu(self.menu_items)
     
-    def run(self):
-        """运行菜单系统"""
-        try:
-            print("菜单系统运行中...")
-            print("使用上下摇杆选择，按钮1确认")
-            print("按 Ctrl+C 退出")
-            
-            while True:
-                self.controller.check_inputs()
-                self.display_menu()  # 每次循环都刷新显示
-                time.sleep(0.1)  # 避免CPU占用过高
-                
-        except KeyboardInterrupt:
-            print("\n程序被用户中断")
-            self.cleanup()
+    def run_step(self):
+        """执行一次主循环"""
+        self.controller.check_inputs()
+        self.display_menu()  # 刷新显示
+        time.sleep(0.1)  # 避免CPU占用过高
     
     def cleanup(self):
         """清理资源"""
-        self.controller.cleanup()
-        self.oled.clear()
-        print("已清理所有资源")
+        try:
+            self.controller.cleanup()
+            self.oled.show_text_oled("再见！")
+            time.sleep(0.5)
+            self.oled.clear()
+            print("已清理所有资源")
+        except Exception as e:
+            print(f"清理时出错: {e}")
 
-def cleanup_handler(signum, frame):
-    """处理 systemd 服务停止信号"""
-    print("\n🛑 收到 systemd 停止信号，正在清理...")
-    if 'menu' in globals():
-        menu.oled.show_text_oled("系统正在停止...")
-        menu.cleanup()
-    os._exit(0)  # 使用 os._exit 强制退出
-
-def signal_handler(signum, frame):
-    """处理用户中断信号(Ctrl+C)"""
-    print("\n🛑 检测到用户中断，正在清理...")
-    if 'menu' in globals():
-        menu.oled.show_text_oled("正在退出...")
-        menu.cleanup()
-    os._exit(0)  # 使用 os._exit 强制退出
+    def show_long_text(self, text):
+        """显示长文本，支持摇杆控制"""
+        text_controller = self.oled.show_text_oled_interactive(text)
+        text_controller['draw']()  # 显示第一页
+        
+        # 注册临时的摇杆回调
+        original_up = self.controller.joystick_callbacks.get('UP')
+        original_down = self.controller.joystick_callbacks.get('DOWN')
+        
+        def on_up():
+            if text_controller['up']():
+                text_controller['draw']()
+                time.sleep(0.2)
+        
+        def on_down():
+            if text_controller['down']():
+                text_controller['draw']()
+                time.sleep(0.2)
+        
+        self.controller.register_joystick_callback('UP', on_up)
+        self.controller.register_joystick_callback('DOWN', on_down)
+        
+        # 等待按钮1被按下
+        while not should_exit:
+            self.controller.check_inputs()
+            time.sleep(0.1)
+        
+        # 恢复原来的回调
+        self.controller.register_joystick_callback('UP', original_up)
+        self.controller.register_joystick_callback('DOWN', original_down)
 
 if __name__ == "__main__":
     # 设置信号处理
-    signal.signal(signal.SIGINT, signal_handler)    # Ctrl+C
-    signal.signal(signal.SIGTERM, cleanup_handler)  # systemd 停止信号
-    
+    signal.signal(signal.SIGINT, signal_handler)     # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)    # systemd
+
     try:
         menu = MenuSystem()
-        menu.run()
+        print("菜单系统运行中...")
+        print("使用上下摇杆选择，按钮1确认")
+        print("按 Ctrl+C 退出")
+        
+        while not should_exit:
+            menu.run_step()
+            
+        print("🧹 正在清理...")
+        menu.cleanup()
+        sys.exit(0)
+        
     except Exception as e:
-        print(f"错误: {e}")
+        print(f"❌ 错误: {e}")
         if 'menu' in globals():
-            menu.oled.show_text_oled("发生错误\n正在退出...")
-            menu.cleanup()
-        os._exit(1)  # 使用 os._exit 强制退出 
+            try:
+                menu.cleanup()
+            except Exception:
+                pass
+        sys.exit(1)
