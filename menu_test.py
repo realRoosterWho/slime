@@ -9,6 +9,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 class MenuSystem:
     def __init__(self):
+        # 添加指示器帧计数（移到最前面）
+        self.indicator_frame = 0
+        
         # WiFi配置
         self.wifi_configs = {
             'default': {
@@ -48,8 +51,6 @@ class MenuSystem:
         
         # 显示初始菜单
         self.display_menu()
-        
-        self.indicator_frame = 0  # 添加指示器帧计数
     
     def on_up(self):
         """向上选择"""
