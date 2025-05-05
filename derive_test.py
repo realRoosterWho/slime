@@ -175,6 +175,12 @@ class DeriveStateMachine:
             'image_path': None,
             'timestamped_image': None
         }
+        
+        # 设置 Replicate API token
+        replicate_api_key = os.getenv("REPLICATE_API_KEY")
+        if not replicate_api_key:
+            raise Exception("没有找到REPLICATE_API_KEY，请检查.env文件设置！")
+        os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
     
     def handle_init(self):
         """处理初始化状态"""
@@ -264,11 +270,15 @@ class DeriveStateMachine:
             slime_prompt = f"一个奇幻的史莱姆生物。{self.data['personality']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
             self.logger.log_prompt("image", slime_prompt)
             
+            # 验证 API token 是否设置
+            if not os.getenv("REPLICATE_API_TOKEN"):
+                raise Exception("REPLICATE_API_TOKEN 未设置")
+            
             input = {
                 "prompt": slime_prompt,
                 "prompt_upsampling": True,
-                "width": 427,      # 按比例调整：320/240 * 320 ≈ 427
-                "height": 320,     # 使用允许的最小值的稍大值
+                "width": 427,
+                "height": 320,
                 "num_outputs": 1,
                 "scheduler": "K_EULER",
                 "num_inference_steps": 25,
@@ -276,6 +286,7 @@ class DeriveStateMachine:
             }
             
             print(f"\n开始生成图片，使用参数：{input}")
+            print(f"API Token 前几位: {os.getenv('REPLICATE_API_TOKEN')[:8]}...")
             
             try:
                 output = replicate.run(
