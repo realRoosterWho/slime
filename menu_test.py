@@ -346,18 +346,16 @@ def cleanup_handler(signum, frame):
     print("\n🛑 收到 systemd 停止信号，正在清理...")
     if 'menu' in globals():
         menu.oled.show_text_oled("系统正在停止...")
-        time.sleep(1)
         menu.cleanup()
-    sys.exit(0)
+        os._exit(0)  # 使用 os._exit 强制退出
 
 def signal_handler(signum, frame):
     """处理用户中断信号(Ctrl+C)"""
     print("\n🛑 检测到用户中断，正在清理...")
     if 'menu' in globals():
         menu.oled.show_text_oled("正在退出...")
-        time.sleep(1)
         menu.cleanup()
-    sys.exit(0)
+        os._exit(0)  # 使用 os._exit 强制退出
 
 if __name__ == "__main__":
     # 设置信号处理
@@ -371,6 +369,5 @@ if __name__ == "__main__":
         print(f"错误: {e}")
         if 'menu' in globals():
             menu.oled.show_text_oled("发生错误\n正在退出...")
-            time.sleep(1)
             menu.cleanup()
-        sys.exit(1) 
+            os._exit(1)  # 使用 os._exit 强制退出 
