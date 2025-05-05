@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from display_utils import DisplayManager
 import signal
 import shutil
+from button_utils import InputController
 
 # 加载环境变量
 load_dotenv()
@@ -72,6 +73,11 @@ class DeriveLogger:
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(self.log_data, f, ensure_ascii=False, indent=2)
         print(f"\n✅ 日志已保存到: {log_path}")
+
+    def get_timestamped_filename(self, original_name, ext):
+        """生成带时间戳的文件名"""
+        base_name = os.path.splitext(original_name)[0]
+        return f"{base_name}_{self.timestamp}{ext}"
 
 def chat_with_gpt(input_content, system_content=None, previous_response_id=None):
     """与GPT进行对话"""
@@ -141,27 +147,36 @@ def main():
     signal.signal(signal.SIGINT, cleanup_handler)
     signal.signal(signal.SIGTERM, cleanup_handler)
     
-    # 初始化显示管理器
+    # 初始化显示和输入设备
     logger.log_step("初始化显示", "初始化显示设备...")
     print("正在初始化OLED...")
     oled_display = DisplayManager("OLED")
-    oled_display.show_text_oled("初始化中...")
+    controller = InputController()
     
-    print("正在初始化LCD (BitBang模式)...")
-    lcd_display = DisplayManager("LCD")
-    oled_display.show_text_oled("初始化完成")
-    time.sleep(1)
-
+    def wait_for_button():
+        """等待按钮1被按下"""
+        while True:
+            controller.check_inputs()
+            time.sleep(0.1)
+            if controller.is_pressed('BTN1'):
+                time.sleep(0.2)  # 防抖
+                return
+    
     try:
         # 第1步：拍照
         logger.log_step("拍照", "准备拍照...")
         oled_display.show_text_oled("准备拍照...")
         run_camera_test()
         
-        # 保存原始照片
+        # 保存带时间戳的照片
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        image_path = os.path.join(current_dir, "current_image.jpg")
-        logger.save_image(image_path, "original")
+        original_image = os.path.join(current_dir, "current_image.jpg")
+        timestamped_image = os.path.join(
+            current_dir, 
+            logger.get_timestamped_filename("current_image", ".jpg")
+        )
+        shutil.copy2(original_image, timestamped_image)
+        logger.save_image(timestamped_image, "original")
         
         oled_display.show_text_oled("拍照完成")
         time.sleep(1)
@@ -170,7 +185,7 @@ def main():
         logger.log_step("图片识别", "开始分析图片...")
         oled_display.show_text_oled("正在分析\n图片...")
         
-        base64_image = encode_image(image_path)
+        base64_image = encode_image(timestamped_image)
         data_url = f"data:image/jpeg;base64,{base64_image}"
 
         # 第一轮：图片识别
@@ -184,8 +199,14 @@ def main():
         logger.log_response("image_description", description)
         logger.log_step("识别结果", f"识别结果：{description}")
         
-        oled_display.show_text_oled("识别完成")
-        time.sleep(1)
+        # 显示识别结果
+        text_controller = oled_display.show_text_oled_interactive(
+            f"识别结果:\n{description}",
+            chars_per_line=12
+        )
+        text_controller['draw']()
+        oled_display.show_text_oled("按按钮1继续...", font_size=10)
+        wait_for_button()
 
         # 第二轮：生成史莱姆性格
         logger.log_step("生成性格", "开始生成史莱姆性格...")
@@ -202,8 +223,14 @@ def main():
         slime_personality_text = response.output[0].content[0].text.strip()
         logger.log_response("personality", slime_personality_text)
         
-        oled_display.show_text_oled("性格设定完成")
-        time.sleep(1)
+        # 显示性格设定
+        text_controller = oled_display.show_text_oled_interactive(
+            f"史莱姆性格:\n{slime_personality_text}",
+            chars_per_line=12
+        )
+        text_controller['draw']()
+        oled_display.show_text_oled("按按钮1继续...", font_size=10)
+        wait_for_button()
 
         # 第三轮：生成打招呼
         logger.log_step("生成对话", "生成打招呼语句...")
@@ -281,14 +308,13 @@ def main():
         logger.log_step("错误", f"程序运行出错: {str(e)}")
     
     finally:
-        # 保存日志
-        logger.save_log()
-        
-        # 清理显示
+        # 清理资源
+        controller.cleanup()
         if 'lcd_display' in locals():
             lcd_display.clear()
         if 'oled_display' in locals():
             oled_display.clear()
+        logger.save_log()
 
 if __name__ == "__main__":
     main() 
