@@ -155,12 +155,18 @@ def main():
     
     def wait_for_button():
         """等待按钮1被按下"""
-        while True:
+        def on_button1(pin):
+            nonlocal button_pressed
+            button_pressed = True
+        
+        button_pressed = False
+        controller.register_button_callback('BTN1', on_button1, 'press')
+        
+        while not button_pressed:
             controller.check_inputs()
             time.sleep(0.1)
-            if controller.is_pressed('BTN1'):
-                time.sleep(0.2)  # 防抖
-                return
+        
+        time.sleep(0.2)  # 防抖
     
     try:
         # 第1步：拍照
