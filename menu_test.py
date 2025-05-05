@@ -43,7 +43,6 @@ class MenuSystem:
             "关闭系统",
             "退出漂流"
         ]
-        self.current_selection = 0  # 当前选择的索引
         
         # 注册输入回调
         self.controller.register_joystick_callback('UP', self.on_up)
@@ -55,15 +54,15 @@ class MenuSystem:
     
     def on_up(self):
         """向上选择"""
-        if self.current_selection > 0:
-            self.current_selection -= 1
+        if self.oled.menu_up():
             self.display_menu()
+            time.sleep(0.5)
     
     def on_down(self):
         """向下选择"""
-        if self.current_selection < len(self.menu_items) - 1:
-            self.current_selection += 1
+        if self.oled.menu_down(len(self.menu_items)):
             self.display_menu()
+            time.sleep(0.5)
     
     def run_openai_test(self):
         """运行OpenAI测试程序"""
@@ -297,7 +296,8 @@ class MenuSystem:
 
     def on_confirm(self):
         """确认选择"""
-        selected_item = self.menu_items[self.current_selection]
+        selected_index = self.oled.get_selected_index()
+        selected_item = self.menu_items[selected_index]
         if selected_item == "扫描可用wifi":
             self.scan_wifi()
         elif selected_item == "进入漂流":
@@ -325,12 +325,7 @@ class MenuSystem:
     
     def display_menu(self):
         """显示菜单"""
-        self.oled.draw_menu_with_indicator(
-            self.menu_items,
-            self.current_selection,
-            self.indicator_frame
-        )
-        self.indicator_frame = (self.indicator_frame + 1) % 2
+        self.oled.show_menu(self.menu_items)
     
     def run(self):
         """运行菜单系统"""
@@ -341,9 +336,7 @@ class MenuSystem:
             
             while True:
                 self.controller.check_inputs()
-                # 每隔一段时间刷新一次显示以更新指示器
-                self.display_menu()
-                time.sleep(0.5)  # 控制指示器闪烁频率
+                time.sleep(0.1)  # 只需要检查输入，不需要在这里刷新显示
                 
         except KeyboardInterrupt:
             print("\n程序被用户中断")

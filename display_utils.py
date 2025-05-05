@@ -121,6 +121,8 @@ class DisplayManager:
             self.height = 240
         else:
             self._init_oled()
+        self.current_menu_index = 0  # 当前菜单选择索引
+        self.indicator_frame = 0     # 指示器动画帧
     
     def _init_oled(self):
         """初始化OLED显示屏"""
@@ -237,13 +239,15 @@ class DisplayManager:
         
         self._display_image(image)
     
-    def draw_menu_with_indicator(self, items, selected_index=0, indicator_frame=0):
-        """绘制带有活动指示器的菜单
+    def show_menu(self, items, selected_index=None):
+        """显示菜单（包含滚动和指示器功能）
         Args:
             items: 菜单项列表
-            selected_index: 当前选中项的索引
-            indicator_frame: 指示器动画帧(0或1)
+            selected_index: 可选，指定选中项索引。如果不指定则使用内部索引
         """
+        if selected_index is not None:
+            self.current_menu_index = selected_index
+            
         # 创建基础图像
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
         draw = ImageDraw.Draw(image)
@@ -256,43 +260,80 @@ class DisplayManager:
 
         # 计算显示范围
         total_items = len(items)
-        if total_items <= 3:
-            start_idx = 0
-            end_idx = total_items
-        else:
-            if selected_index == 0:
-                start_idx = 0
-                end_idx = 3
-            elif selected_index == total_items - 1:
-                start_idx = total_items - 3
-                end_idx = total_items
-            else:
-                start_idx = selected_index - 1
-                end_idx = selected_index + 2
-
+        visible_items = self._calculate_visible_items(total_items, self.current_menu_index)
+        
         # 绘制菜单项
+        self._draw_menu_items(draw, items, visible_items, font)
+        
+        # 绘制指示器
+        self._draw_activity_indicator(draw)
+        
+        # 显示图像
+        self._display_image(image)
+        
+        # 更新指示器帧
+        self.indicator_frame = (self.indicator_frame + 1) % 2
+
+    def _calculate_visible_items(self, total_items, current_index, visible_count=3):
+        """计算当前应该显示哪些菜单项
+        Returns:
+            (start_index, end_index)
+        """
+        if total_items <= visible_count:
+            return (0, total_items)
+            
+        if current_index == 0:
+            return (0, visible_count)
+        elif current_index == total_items - 1:
+            return (total_items - visible_count, total_items)
+        else:
+            return (current_index - 1, current_index + 2)
+
+    def _draw_menu_items(self, draw, items, visible_range, font):
+        """绘制菜单项"""
+        start_idx, end_idx = visible_range
         y = 10
+        
         for i in range(start_idx, end_idx):
-            if i == selected_index:
+            if i == self.current_menu_index:
+                # 绘制选中项的背景
                 draw.rectangle((5, y-2, self.width-5, y+12),
                              fill=255 if self.display_type == "OLED" else "white")
+                # 绘制选中项的文本
                 draw.text((10, y), items[i], font=font,
                          fill=0 if self.display_type == "OLED" else "black")
             else:
+                # 绘制未选中项
                 draw.text((10, y), items[i], font=font,
                          fill=255 if self.display_type == "OLED" else "white")
             y += 15
 
-        # 绘制指示器
-        y_offset = -1 if indicator_frame % 2 == 0 else 1
+    def _draw_activity_indicator(self, draw):
+        """绘制活动指示器"""
+        y_offset = -1 if self.indicator_frame % 2 == 0 else 1
         dot_size = 2
         draw.ellipse(
             [120, 2 + y_offset, 120 + dot_size, 2 + dot_size + y_offset],
             fill=255 if self.display_type == "OLED" else "white"
         )
 
-        # 显示图像
-        self._display_image(image)
+    def menu_up(self):
+        """菜单向上选择"""
+        if self.current_menu_index > 0:
+            self.current_menu_index -= 1
+            return True
+        return False
+
+    def menu_down(self, total_items):
+        """菜单向下选择"""
+        if self.current_menu_index < total_items - 1:
+            self.current_menu_index += 1
+            return True
+        return False
+
+    def get_selected_index(self):
+        """获取当前选中的索引"""
+        return self.current_menu_index
 
     def show_text_oled(self, text, font_size=12, chars_per_line=9):
         """专门为OLED优化的文本显示
