@@ -1,5 +1,6 @@
 from button_utils import InputController
 from display_utils import DisplayManager
+from adafruit_ssd1306 import SSD1306_I2C
 import time
 import signal
 import sys
@@ -324,60 +325,13 @@ class MenuSystem:
     
     def display_menu(self):
         """显示菜单"""
-        # 计算显示范围
-        total_items = len(self.menu_items)
-        if self.current_selection >= total_items:
-            self.current_selection = total_items - 1
-        
-        # 确定显示的起始和结束索引
-        if total_items <= 3:
-            # 如果总项目不超过3个，全部显示
-            start_idx = 0
-            end_idx = total_items
-        else:
-            # 如果超过3个，需要滚动显示
-            if self.current_selection == 0:
-                start_idx = 0
-                end_idx = 3
-            elif self.current_selection == total_items - 1:
-                start_idx = total_items - 3
-                end_idx = total_items
-            else:
-                start_idx = self.current_selection - 1
-                end_idx = self.current_selection + 2
-        
-        # 生成显示文本
-        menu_text = ""
-        for i in range(start_idx, end_idx):
-            prefix = "> " if i == self.current_selection else "  "
-            menu_text += f"{prefix}{self.menu_items[i]}\n"
-        
-        # 去掉最后的换行符
-        menu_text = menu_text.rstrip()
-        
-        # 创建指示器图像
-        indicator_image = self.oled.draw_indicator(120, 2, self.indicator_frame)
-        
-        # 将菜单文本绘制到指示器图像上
-        draw = ImageDraw.Draw(indicator_image)
-        try:
-            font = ImageFont.truetype(self.oled.font_path, 12)
-        except:
-            font = ImageFont.load_default()
-            
-        # 绘制菜单文本
-        lines = menu_text.split('\n')
-        y_text = 10
-        for line in lines:
-            draw.text((10, y_text), line, font=font, fill=255 if isinstance(self.oled.device, SSD1306_I2C) else "white")
-            y_text += 15
-            
-        # 显示合并后的图像
-        self.oled._display_image(indicator_image)
-        
-        # 更新指示器帧
+        self.oled.draw_menu_with_indicator(
+            self.menu_items,
+            self.current_selection,
+            self.indicator_frame
+        )
         self.indicator_frame = (self.indicator_frame + 1) % 2
-        
+    
     def run(self):
         """运行菜单系统"""
         try:

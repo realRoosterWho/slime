@@ -237,8 +237,14 @@ class DisplayManager:
         
         self._display_image(image)
     
-    def draw_menu(self, items, selected_index=0):
-        """绘制菜单，支持中文"""
+    def draw_menu_with_indicator(self, items, selected_index=0, indicator_frame=0):
+        """绘制带有活动指示器的菜单
+        Args:
+            items: 菜单项列表
+            selected_index: 当前选中项的索引
+            indicator_frame: 指示器动画帧(0或1)
+        """
+        # 创建基础图像
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
         draw = ImageDraw.Draw(image)
         
@@ -247,19 +253,45 @@ class DisplayManager:
         except:
             print("警告：无法加载中文字体，将使用默认字体")
             font = ImageFont.load_default()
-        
+
+        # 计算显示范围
+        total_items = len(items)
+        if total_items <= 3:
+            start_idx = 0
+            end_idx = total_items
+        else:
+            if selected_index == 0:
+                start_idx = 0
+                end_idx = 3
+            elif selected_index == total_items - 1:
+                start_idx = total_items - 3
+                end_idx = total_items
+            else:
+                start_idx = selected_index - 1
+                end_idx = selected_index + 2
+
+        # 绘制菜单项
         y = 10
-        for i, item in enumerate(items):
+        for i in range(start_idx, end_idx):
             if i == selected_index:
-                draw.rectangle((5, y-2, self.width-5, y+12), 
+                draw.rectangle((5, y-2, self.width-5, y+12),
                              fill=255 if self.display_type == "OLED" else "white")
-                draw.text((10, y), item, font=font, 
+                draw.text((10, y), items[i], font=font,
                          fill=0 if self.display_type == "OLED" else "black")
             else:
-                draw.text((10, y), item, font=font, 
+                draw.text((10, y), items[i], font=font,
                          fill=255 if self.display_type == "OLED" else "white")
             y += 15
-        
+
+        # 绘制指示器
+        y_offset = -1 if indicator_frame % 2 == 0 else 1
+        dot_size = 2
+        draw.ellipse(
+            [120, 2 + y_offset, 120 + dot_size, 2 + dot_size + y_offset],
+            fill=255 if self.display_type == "OLED" else "white"
+        )
+
+        # 显示图像
         self._display_image(image)
 
     def show_text_oled(self, text, font_size=12, chars_per_line=9):
