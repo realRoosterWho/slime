@@ -14,6 +14,7 @@ import signal
 import shutil
 from button_utils import InputController
 from enum import Enum, auto
+import RPi.GPIO as GPIO  # 添加这个导入
 
 # 加载环境变量
 load_dotenv()
@@ -156,6 +157,10 @@ class DeriveState(Enum):
 
 class DeriveStateMachine:
     def __init__(self):
+        # 初始化 GPIO 模式
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        
         self.logger = DeriveLogger()
         self.oled_display = DisplayManager("OLED")
         self.lcd_display = DisplayManager("LCD")
@@ -219,7 +224,7 @@ class DeriveStateMachine:
         self.logger.log_prompt("personality", personality_prompt)
         
         response = chat_with_gpt(
-            system_content="你是一个专业的角色设定师。根据环境或物体的描述，帮我设定一只史莱姆的小档案，包括它的性格、表情、动作特点等，用英文简洁描述，不要太长，情感要细腻。",
+            system_content="你是一个专业的角色设定师。根据环境或物体的描述，帮我设定一只史莱姆的小档案，包括它的性格、表情、动作特点等，用中文简洁描述，不要太长，情感要细腻。",
             input_content=personality_prompt
         )
         self.data['personality'] = response.output[0].content[0].text.strip()
@@ -289,10 +294,13 @@ class DeriveStateMachine:
     
     def handle_cleanup(self):
         """处理清理状态"""
-        self.controller.cleanup()
-        self.lcd_display.clear()
-        self.oled_display.clear()
-        self.logger.save_log()
+        try:
+            self.controller.cleanup()
+            self.lcd_display.clear()
+            self.oled_display.clear()
+            self.logger.save_log()
+        finally:
+            GPIO.cleanup()  # 确保在最后清理 GPIO
         return
     
     def run(self):
