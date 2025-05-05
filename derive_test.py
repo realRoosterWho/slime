@@ -426,7 +426,7 @@ class DeriveStateMachine:
         return prompts.get(prompt_type, '')
 
     def generate_image(self, prompt, save_key, filename_prefix):
-        """通用的图片生成函数 - 增强稳定性与错误报告"""
+        """通用的图片生成函数 - 修复API响应处理"""
         max_retries = 3  # 最大重试次数
         
         for attempt in range(max_retries):
@@ -463,12 +463,14 @@ class DeriveStateMachine:
                 
                 print(f"API 返回: {output}")
                 
-                # 获取图片URL
+                # 修复图片URL获取逻辑
                 if isinstance(output, list) and len(output) > 0:
                     image_url = output[0]
-                    print(f"获取到图片URL: {image_url}")
+                elif isinstance(output, str) and output.startswith('http'):
+                    # 处理API直接返回URL的情况
+                    image_url = output
                 else:
-                    error_msg = f"生成图片失败，返回内容无效: {output}"
+                    error_msg = f"生成图片失败，返回内容格式不支持: {type(output)}"
                     print(f"\n❌ {error_msg}")
                     self.logger.log_step("错误", error_msg)
                     if attempt < max_retries - 1:
@@ -478,6 +480,8 @@ class DeriveStateMachine:
                     time.sleep(2)
                     return False
                 
+                print(f"获取到图片URL: {image_url}")
+                
                 # 下载图片
                 print(f"开始下载图片: {image_url}")
                 img_response = download_with_retry(image_url)
@@ -486,7 +490,7 @@ class DeriveStateMachine:
                     print(f"\n❌ {error_msg}")
                     self.logger.log_step("错误", error_msg)
                     if attempt < max_retries - 1:
-                        time.sleep(2)  # 等待一段时间后重试
+                        time.sleep(2)
                         continue
                     self.oled_display.show_text_oled("图片下载失败")
                     time.sleep(2)
@@ -666,7 +670,8 @@ class DeriveStateMachine:
         # 生成一个有关执念的等待提示
         waiting_prompt = self.generate_text(
             'waiting_prompt', 
-            obsession=self.data['slime_attributes']['obsession']
+            obsession=self.data['slime_attributes']['obsession'],
+            tone=self.data['slime_attributes']['tone']  # 添加缺少的tone参数
         )
         
         self.logger.log_step("等待新照片", waiting_prompt)
