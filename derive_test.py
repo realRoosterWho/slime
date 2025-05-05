@@ -175,7 +175,8 @@ class DeriveStateMachine:
             'destination_suggestion': None,
             'image_path': None,
             'timestamped_image': None,
-            'slime_image': None
+            'slime_image': None,
+            'slime_description': None
         }
         
         # 设置 Replicate API token
@@ -187,12 +188,14 @@ class DeriveStateMachine:
     def chat_with_continuity(self, prompt, system_content=None):
         """带连续性的对话函数"""
         response = chat_with_gpt(
-            input_content=prompt,
+            input_content=prompt,  # prompt 可以是文本或包含图片的列表
             system_content=system_content,
             previous_response_id=self.response_id
         )
         self.response_id = response.id  # 保存响应ID以维持对话连续性
-        return response.output[0].content[0].text.strip()
+        if hasattr(response.output[0].content[0], 'text'):
+            return response.output[0].content[0].text.strip()
+        return response.output[0].content[0]
 
     def wait_for_button(self, display_text):
         """等待按钮点击的通用函数"""
@@ -202,13 +205,7 @@ class DeriveStateMachine:
         )
 
     def generate_text_prompt(self, prompt_type):
-        """生成不同类型文本的提示词模板
-        
-        Args:
-            prompt_type: 提示词类型
-        Returns:
-            (system_content, prompt_template): 返回系统提示词和用户提示词模板的元组
-        """
+        """生成不同类型文本的提示词模板"""
         prompts = {
             'personality': (
                 """你是一个专业的角色设定师。根据环境或物体的描述，帮我设定一只史莱姆的性格特点，用中文简洁描述，不要太长，情感要细腻。以下是你设计角色的一般要求：
@@ -230,6 +227,10 @@ class DeriveStateMachine:
                 
                 现在你已经知道了一般的生成角色的要求，但是你需要根据以下的玩家心情描述来生成一只特殊的史莱姆，这将会在下面的提示词中体现。你的描述方式应该和例子一样。""",
                 "根据这个描述设定史莱姆的性格：{text}"
+            ),
+            'slime_description': (
+                "你是一个专业的角色描述师。请根据这个史莱姆的性格特点，描述它的外观、表情、动作等视觉特征，还要有场景的描述，用简短的中文描述，要具体且生动，适合用于图像生成。",
+                "根据这个性格描述一下史莱姆的样子：{text}"
             ),
             'greeting': (
                 "你是一个可爱的史莱姆。请根据给定的性格描述说一句打招呼的话，中文，不超过15个字。",
@@ -271,15 +272,19 @@ class DeriveStateMachine:
         
         # 使用通用函数生成性格
         self.data['personality'] = self.generate_text('personality', text=self.initial_text)
-        
         self.logger.log_step("性格生成", self.data['personality'])
+        
+        # 根据性格生成视觉描述
+        self.data['slime_description'] = self.generate_text('slime_description', text=self.data['personality'])
+        self.logger.log_step("外观描述", self.data['slime_description'])
+        
         self.oled_display.show_text_oled("性格设定完成")
         time.sleep(1)
 
     def generate_image_prompt(self, prompt_type):
         """生成不同类型图片的提示词"""
         prompts = {
-            'slime': f"一个奇幻的史莱姆生物。{self.data['personality']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。",
+            'slime': f"一个奇幻的史莱姆生物。{self.data['slime_description']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。",
             # 可以在这里添加其他类型的提示词模板
             'scene': lambda desc: f"一个梦幻的场景。{desc} 儿童绘本风格，色彩丰富。",
             'item': lambda desc: f"一个物品特写。{desc} 儿童绘本风格，细节清晰。"
@@ -379,6 +384,9 @@ class DeriveStateMachine:
             self.lcd_display.show_image(img)
             self.logger.log_step("显示图片", "史莱姆图片显示成功")
             
+            # 等待按钮按下才继续
+            self.wait_for_button("按下按钮\n继续...")
+            
         except Exception as e:
             error_msg = f"显示图片时出错: {str(e)}"
             print(error_msg)
@@ -423,14 +431,18 @@ class DeriveStateMachine:
         base64_image = encode_image(self.data['timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
         
-        self.data['photo_description'] = self.chat_with_continuity(
-            input_content=[
-                {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
-                {"type": "input_image", "image_url": data_url}
-            ]
-        )
+        # 创建包含图片的输入
+        input_content = [
+            {"type": "text", "text": "请简短描述这张照片的主要内容。"},
+            {"type": "image_url", "image_url": data_url}
+        ]
+        
+        # 使用修改后的 chat_with_continuity
+        response_text = self.chat_with_continuity(input_content)
+        self.data['photo_description'] = response_text
         
         self.logger.log_step("照片分析", self.data['photo_description'])
+        self.wait_for_button(f"分析结果：\n{self.data['photo_description']}")
 
     def handle_suggest_destination(self):
         """处理建议目的地状态"""
