@@ -13,6 +13,7 @@ from display_utils import DisplayManager
 import signal
 import shutil
 from button_utils import InputController
+from enum import Enum, auto
 
 # 加载环境变量
 load_dotenv()
@@ -138,107 +139,123 @@ def download_with_retry(url, max_retries=3, delay=1):
             raise
     return None
 
-def main():
-    # 初始化日志记录器
-    logger = DeriveLogger()
-    logger.log_step("初始化", "开始新的漂流...")
+class DeriveState(Enum):
+    """漂流状态枚举"""
+    INIT = auto()          # 初始化
+    TAKE_PHOTO = auto()    # 拍照
+    ANALYZE_PHOTO = auto() # 分析照片
+    SHOW_ANALYSIS = auto() # 显示分析结果
+    GEN_PERSONALITY = auto() # 生成性格
+    SHOW_PERSONALITY = auto() # 显示性格
+    GEN_GREETING = auto()  # 生成问候
+    SHOW_GREETING = auto() # 显示问候
+    GEN_IMAGE = auto()     # 生成图片
+    SHOW_IMAGE = auto()    # 显示图片
+    CLEANUP = auto()       # 清理
+    EXIT = auto()          # 退出
+
+class DeriveStateMachine:
+    def __init__(self):
+        self.logger = DeriveLogger()
+        self.oled_display = DisplayManager("OLED")
+        self.lcd_display = DisplayManager("LCD")
+        self.controller = InputController()
+        self.state = DeriveState.INIT
+        self.data = {
+            'description': None,
+            'personality': None,
+            'greeting': None,
+            'image_path': None,
+            'timestamped_image': None
+        }
     
-    # 设置信号处理
-    signal.signal(signal.SIGINT, cleanup_handler)
-    signal.signal(signal.SIGTERM, cleanup_handler)
+    def handle_init(self):
+        """处理初始化状态"""
+        self.logger.log_step("初始化", "开始新的漂流...")
+        self.oled_display.show_text_oled("初始化完成")
+        time.sleep(1)
     
-    # 初始化显示和输入设备
-    logger.log_step("初始化显示", "初始化显示设备...")
-    print("正在初始化OLED...")
-    oled_display = DisplayManager("OLED")
-    controller = InputController()
-    
-    try:
-        # 第1步：拍照
-        logger.log_step("拍照", "准备拍照...")
-        oled_display.show_text_oled("准备拍照...")
+    def handle_take_photo(self):
+        """处理拍照状态"""
+        self.oled_display.show_text_oled("准备拍照...")
         run_camera_test()
         
         # 保存带时间戳的照片
         current_dir = os.path.dirname(os.path.abspath(__file__))
         original_image = os.path.join(current_dir, "current_image.jpg")
-        timestamped_image = os.path.join(
+        self.data['timestamped_image'] = os.path.join(
             current_dir, 
-            logger.get_timestamped_filename("current_image", ".jpg")
+            self.logger.get_timestamped_filename("current_image", ".jpg")
         )
-        shutil.copy2(original_image, timestamped_image)
-        logger.save_image(timestamped_image, "original")
-        
-        oled_display.show_text_oled("拍照完成")
-        time.sleep(1)
-
-        # 第2步：读取图片，做识别
-        logger.log_step("图片识别", "开始分析图片...")
-        oled_display.show_text_oled("正在分析\n图片...")
-        
-        base64_image = encode_image(timestamped_image)
+        shutil.copy2(original_image, self.data['timestamped_image'])
+        self.logger.save_image(self.data['timestamped_image'], "original")
+    
+    def handle_analyze_photo(self):
+        """处理照片分析状态"""
+        self.oled_display.show_text_oled("正在分析\n图片...")
+        base64_image = encode_image(self.data['timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
-
-        # 第一轮：图片识别
+        
         response = chat_with_gpt(
             input_content=[
                 {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
                 {"type": "input_image", "image_url": data_url}
             ]
         )
-        description = response.output[0].content[0].text.strip()
-        logger.log_response("image_description", description)
-        logger.log_step("识别结果", f"识别结果：{description}")
+        self.data['description'] = response.output[0].content[0].text.strip()
+        self.logger.log_response("image_description", self.data['description'])
         
-        # 显示识别结果
-        oled_display.wait_for_button_with_text(controller, f"识别结果:\n{description}")
-
-        # 第二轮：生成史莱姆性格
-        logger.log_step("生成性格", "开始生成史莱姆性格...")
-        oled_display.show_text_oled("正在生成\n史莱姆性格...")
-        
-        personality_prompt = f"根据这个描述设定一只史莱姆：{description}"
-        logger.log_prompt("personality", personality_prompt)
+    def handle_show_analysis(self):
+        """处理显示分析结果状态"""
+        self.oled_display.wait_for_button_with_text(
+            self.controller, 
+            f"识别结果:\n{self.data['description']}"
+        )
+    
+    def handle_gen_personality(self):
+        """处理生成性格状态"""
+        self.oled_display.show_text_oled("正在生成\n史莱姆性格...")
+        personality_prompt = f"根据这个描述设定一只史莱姆：{self.data['description']}"
+        self.logger.log_prompt("personality", personality_prompt)
         
         response = chat_with_gpt(
             system_content="你是一个专业的角色设定师。根据环境或物体的描述，帮我设定一只史莱姆的小档案，包括它的性格、表情、动作特点等，用英文简洁描述，不要太长，情感要细腻。",
-            input_content=personality_prompt,
-            previous_response_id=response.id
+            input_content=personality_prompt
         )
-        slime_personality_text = response.output[0].content[0].text.strip()
-        logger.log_response("personality", slime_personality_text)
+        self.data['personality'] = response.output[0].content[0].text.strip()
+        self.logger.log_response("personality", self.data['personality'])
         
-        # 显示性格设定
-        oled_display.wait_for_button_with_text(controller, f"史莱姆性格:\n{slime_personality_text}")
-
-        # 第三轮：生成打招呼
-        logger.log_step("生成对话", "生成打招呼语句...")
-        oled_display.show_text_oled("正在想打招呼\n的话...")
-        
-        greeting_prompt = f"根据这个性格描述生成打招呼用语：{slime_personality_text}"
-        logger.log_prompt("greeting", greeting_prompt)
+    def handle_show_personality(self):
+        """处理显示性格状态"""
+        self.oled_display.wait_for_button_with_text(
+            self.controller,
+            f"史莱姆性格:\n{self.data['personality']}"
+        )
+    
+    def handle_gen_greeting(self):
+        """处理生成问候状态"""
+        self.oled_display.show_text_oled("正在想打招呼\n的话...")
+        greeting_prompt = f"根据这个性格描述生成打招呼用语：{self.data['personality']}"
+        self.logger.log_prompt("greeting", greeting_prompt)
         
         response = chat_with_gpt(
             system_content="你是一个可爱的史莱姆。请根据给定的性格描述说话，中文，不超过15个字。",
-            input_content=greeting_prompt,
-            previous_response_id=response.id
+            input_content=greeting_prompt
         )
-        greeting_text = response.output[0].content[0].text.strip()
-        logger.log_response("greeting", greeting_text)
-        logger.log_step("打招呼", f"史莱姆说：{greeting_text}")
-
-        # 在OLED上显示打招呼文本
-        oled_display.show_text_oled(greeting_text)
-        time.sleep(3)
-
-        # 生成史莱姆图片
-        logger.log_step("生成图片", "开始生成史莱姆图片...")
-        oled_display.show_text_oled("正在绘制\n史莱姆...")
+        self.data['greeting'] = response.output[0].content[0].text.strip()
+        self.logger.log_response("greeting", self.data['greeting'])
         
-        slime_prompt = f"一个奇幻的史莱姆生物。{slime_personality_text} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
-        logger.log_prompt("image", slime_prompt)
-
-        # 第4步：用Replicate生成史莱姆图片
+    def handle_show_greeting(self):
+        """处理显示问候状态"""
+        self.oled_display.show_text_oled(self.data['greeting'])
+        time.sleep(3)
+    
+    def handle_gen_image(self):
+        """处理生成图片状态"""
+        self.oled_display.show_text_oled("正在绘制\n史莱姆...")
+        slime_prompt = f"一个奇幻的史莱姆生物。{self.data['personality']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
+        self.logger.log_prompt("image", slime_prompt)
+        
         output = replicate_client.run(
             "black-forest-labs/flux-schnell",
             input={
@@ -249,51 +266,91 @@ def main():
                 "num_inference_steps": 4
             }
         )
-
-        # 从返回的URL下载图片
+        
         if isinstance(output, list) and len(output) > 0:
             image_url = output[0]
-            logger.log_step("下载图片", f"从URL下载图片: {image_url}")
-            
-            try:
-                img_response = download_with_retry(image_url)
-                if img_response:
-                    output_path = os.path.join(current_dir, "new_slime.png")
-                    with open(output_path, "wb") as f:
-                        f.write(img_response.content)
-                    
-                    # 保存生成的图片
-                    logger.save_image(output_path, "generated")
-                    logger.log_step("图片生成", "史莱姆图片生成完成")
-                    
-                    oled_display.show_text_oled("史莱姆\n绘制完成！")
-                    time.sleep(1)
-                    
-                    # 显示图片
-                    lcd_display.show_image(output_path)
-                    time.sleep(60)
-                    lcd_display.clear()
+            img_response = download_with_retry(image_url)
+            if img_response:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                self.data['image_path'] = os.path.join(current_dir, "new_slime.png")
+                with open(self.data['image_path'], "wb") as f:
+                    f.write(img_response.content)
+                self.logger.save_image(self.data['image_path'], "generated")
+                return
+        
+        return
+    
+    def handle_show_image(self):
+        """处理显示图片状态"""
+        self.oled_display.show_text_oled("史莱姆\n绘制完成！")
+        time.sleep(1)
+        self.lcd_display.show_image(self.data['image_path'])
+        time.sleep(60)
+    
+    def handle_cleanup(self):
+        """处理清理状态"""
+        self.controller.cleanup()
+        self.lcd_display.clear()
+        self.oled_display.clear()
+        self.logger.save_log()
+        return
+    
+    def run(self):
+        """运行状态机"""
+        # 定义状态转换规则
+        state_transitions = {
+            DeriveState.INIT: DeriveState.TAKE_PHOTO,
+            DeriveState.TAKE_PHOTO: DeriveState.ANALYZE_PHOTO,
+            DeriveState.ANALYZE_PHOTO: DeriveState.SHOW_ANALYSIS,
+            DeriveState.SHOW_ANALYSIS: DeriveState.GEN_PERSONALITY,
+            DeriveState.GEN_PERSONALITY: DeriveState.SHOW_PERSONALITY,
+            DeriveState.SHOW_PERSONALITY: DeriveState.GEN_GREETING,
+            DeriveState.GEN_GREETING: DeriveState.SHOW_GREETING,
+            DeriveState.SHOW_GREETING: DeriveState.GEN_IMAGE,
+            DeriveState.GEN_IMAGE: DeriveState.SHOW_IMAGE,
+            DeriveState.SHOW_IMAGE: DeriveState.CLEANUP,
+            DeriveState.CLEANUP: DeriveState.EXIT
+        }
+        
+        # 状态处理函数映射
+        state_handlers = {
+            DeriveState.INIT: self.handle_init,
+            DeriveState.TAKE_PHOTO: self.handle_take_photo,
+            DeriveState.ANALYZE_PHOTO: self.handle_analyze_photo,
+            DeriveState.SHOW_ANALYSIS: self.handle_show_analysis,
+            DeriveState.GEN_PERSONALITY: self.handle_gen_personality,
+            DeriveState.SHOW_PERSONALITY: self.handle_show_personality,
+            DeriveState.GEN_GREETING: self.handle_gen_greeting,
+            DeriveState.SHOW_GREETING: self.handle_show_greeting,
+            DeriveState.GEN_IMAGE: self.handle_gen_image,
+            DeriveState.SHOW_IMAGE: self.handle_show_image,
+            DeriveState.CLEANUP: self.handle_cleanup
+        }
+        
+        try:
+            while self.state != DeriveState.EXIT:
+                # 获取并执行当前状态的处理函数
+                handler = state_handlers.get(self.state)
+                if handler:
+                    handler()
+                    # 获取下一个状态
+                    self.state = state_transitions.get(self.state, DeriveState.CLEANUP)
                 else:
-                    logger.log_step("错误", "下载图片失败")
-                    oled_display.show_text_oled("图片下载失败")
-            except Exception as e:
-                logger.log_step("错误", f"下载图片时出错: {str(e)}")
-                oled_display.show_text_oled("图片下载失败")
-        else:
-            logger.log_step("错误", "生成图片失败，没有获取到有效的URL")
-            oled_display.show_text_oled("图片生成失败")
+                    raise ValueError(f"未知状态: {self.state}")
+                    
+        except Exception as e:
+            self.logger.log_step("错误", f"程序运行出错: {str(e)}")
+            self.state = DeriveState.CLEANUP
+            self.handle_cleanup()
+
+def main():
+    # 设置信号处理
+    signal.signal(signal.SIGINT, cleanup_handler)
+    signal.signal(signal.SIGTERM, cleanup_handler)
     
-    except Exception as e:
-        logger.log_step("错误", f"程序运行出错: {str(e)}")
-    
-    finally:
-        # 清理资源
-        controller.cleanup()
-        if 'lcd_display' in locals():
-            lcd_display.clear()
-        if 'oled_display' in locals():
-            oled_display.clear()
-        logger.save_log()
+    # 运行状态机
+    state_machine = DeriveStateMachine()
+    state_machine.run()
 
 if __name__ == "__main__":
     main() 
