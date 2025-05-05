@@ -124,7 +124,7 @@ class DisplayManager:
             self.device = BitBangLCD()  # 使用新的BitBang实现
             self.width = 320  # 修正为实际的LCD尺寸
             self.height = 240
-        else:  # OLED
+        else:
             self._init_oled()
         self.current_menu_index = 0  # 当前菜单选择索引
         self.indicator_frame = 0     # 指示器动画帧
@@ -134,12 +134,9 @@ class DisplayManager:
     def _init_oled(self):
         """初始化OLED显示屏"""
         i2c = busio.I2C(board.SCL, board.SDA)
-        self.oled = SSD1306_I2C(128, 64, i2c, addr=0x3C)
+        self.device = SSD1306_I2C(128, 64, i2c, addr=0x3C)
         self.width = 128
         self.height = 64
-        # 为OLED创建绘图对象
-        self.image = Image.new("1", (self.width, self.height))
-        self.draw = ImageDraw.Draw(self.image)
     
     def _display_image(self, image):
         """统一处理图像显示"""
@@ -148,16 +145,16 @@ class DisplayManager:
             rotated_image = image.rotate(180)
             self.device.display(rotated_image)
         else:  # OLED保持原样
-            self.oled.image(image)
-            self.oled.show()
+            self.device.image(image)
+            self.device.show()
     
     def clear(self):
         """清空显示屏"""
         if self.display_type == "LCD":
             self.device.clear()  # 使用新的clear方法
         else:  # OLED
-            self.oled.fill(0)
-            self.oled.show()
+            self.device.fill(0)
+            self.device.show()
     
     def show_text(self, text, x=10, y=10, font_size=20, max_width=None):
         """显示文本，支持中文和自动换行"""
@@ -176,216 +173,536 @@ class DisplayManager:
         else:
             # 处理手动换行（\n）
             lines = text.split('\n')
-            for i, line in enumerate(lines):
-                draw.text((x, y + i * font_size * 1.2), line, font=font, fill="white" if self.display_type == "OLED" else "white")
-        
+            y_text = y
+            for line in lines:
+                draw.text((x, y_text), line, font=font, 
+                         fill=255 if self.display_type == "OLED" else "white")
+                y_text += font.getsize(line)[1] + 5  # 行间距为5像素
+
+        # 不需要在这里旋转，因为会在_display_image中处理
         self._display_image(image)
-    
+
     def _draw_wrapped_text(self, draw, text, x, y, max_width, font):
         """绘制自动换行的文本"""
-        words = text.split(' ')
-        lines = []
-        current_line = words[0]
+        # 计算每行大约能容纳多少个字符
+        avg_char_width = font.getlength("测")/2  # 获取一个汉字的平均宽度
+        chars_per_line = int(max_width / avg_char_width)
         
-        for word in words[1:]:
-            # 检查当前行加上新单词的宽度是否超过最大宽度
-            test_line = current_line + " " + word
-            text_width = draw.textlength(test_line, font=font)
-            
-            if text_width <= max_width:
-                current_line = test_line
-            else:
-                lines.append(current_line)
-                current_line = word
+        # 使用textwrap进行自动换行
+        import textwrap
+        lines = textwrap.wrap(text, width=chars_per_line)
         
-        lines.append(current_line)
-        
-        # 绘制所有行
-        for i, line in enumerate(lines):
-            draw.text((x, y + i * font.getsize('A')[1] * 1.2), line, font=font, fill="white" if self.display_type == "OLED" else "white")
+        # 绘制每一行
+        y_text = y
+        for line in lines:
+            draw.text((x, y_text), line, font=font, 
+                     fill=255 if self.display_type == "OLED" else "white")
+            y_text += font.getsize(line)[1] + 5  # 行间距为5像素
 
-    def show_image(self, image):
-        """显示图像"""
-        # 调整图像大小为显示设备的尺寸
-        resized_image = image.resize((self.width, self.height))
-        
-        # 根据显示类型进行转换
-        if self.display_type == "OLED":
-            # 转换为1位图像（仅黑白）
-            bw_image = resized_image.convert("1")
-            self._display_image(bw_image)
-        else:  # LCD
-            # LCD可以显示彩色
-            rgb_image = resized_image.convert("RGB")
-            self._display_image(rgb_image)
-    
-    def show_menu(self, title, options, selected_index=0):
-        """显示菜单"""
-        # 根据显示类型选择不同的实现
-        if self.display_type == "OLED":
-            self._show_menu_oled(title, options, selected_index)
-        else:  # LCD
-            self._show_menu_lcd(title, options, selected_index)
-    
-    def _show_menu_oled(self, title, options, selected_index):
-        """在OLED上显示菜单"""
-        # 清屏
-        self.image = Image.new("1", (self.width, self.height))
-        self.draw = ImageDraw.Draw(self.image)
-        
-        # 绘制标题
-        font = ImageFont.load_default()
-        self.draw.text((0, 0), title, font=font, fill=255)
-        self.draw.line([(0, 10), (self.width, 10)], fill=255)
-        
-        # 绘制选项
-        for i, option in enumerate(options):
-            y_pos = 15 + i * 10
-            if i == selected_index:
-                # 绘制选择指示器
-                indicator = ">" if self.indicator_frame == 0 else ">>"
-                text = indicator + " " + option
+    def show_image(self, image_input):
+        """显示图片
+        Args:
+            image_input: 可以是图片文件路径(str)或PIL Image对象
+        """
+        try:
+            # 如果输入是字符串（文件路径），则打开图片
+            if isinstance(image_input, str):
+                img = Image.open(image_input)
+            # 如果输入已经是PIL Image对象，直接使用
+            elif isinstance(image_input, Image.Image):
+                img = image_input
             else:
-                text = "  " + option
-            self.draw.text((0, y_pos), text, font=font, fill=255)
-        
-        # 显示
-        self.oled.image(self.image)
-        self.oled.show()
-        
-        # 更新指示器动画
-        current_time = time.time()
-        if current_time - self.last_indicator_update > self.indicator_interval:
-            self.indicator_frame = (self.indicator_frame + 1) % 2
-            self.last_indicator_update = current_time
+                raise ValueError("输入必须是图片路径或PIL Image对象")
+
+            if self.display_type == "OLED":
+                img = img.convert("1")  # 转换为黑白图像
+            
+            # 不需要在这里旋转，因为会在_display_image中处理
+            self._display_image(img)
+        except Exception as e:
+            print(f"显示图片时出错: {e}")
     
-    def _show_menu_lcd(self, title, options, selected_index):
-        """在LCD上显示菜单"""
-        # 创建新图像
-        image = Image.new("RGB", (self.width, self.height), (0, 0, 0))
+    def show_animation(self, image_paths, delay=0.2):
+        """显示动画"""
+        try:
+            while True:
+                for path in image_paths:
+                    self.show_image(path)
+                    time.sleep(delay)
+        except KeyboardInterrupt:
+            self.clear()
+    
+    def draw_progress_bar(self, progress, x=10, y=30, width=100, height=10):
+        """绘制进度条"""
+        image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
         draw = ImageDraw.Draw(image)
         
-        # 尝试加载字体
-        try:
-            title_font = ImageFont.truetype(self.font_path, 24)
-            option_font = ImageFont.truetype(self.font_path, 20)
-        except:
-            print("无法加载字体，使用默认字体")
-            title_font = ImageFont.load_default()
-            option_font = ImageFont.load_default()
+        # 绘制背景
+        draw.rectangle((x, y, x + width, y + height), outline=255 if self.display_type == "OLED" else "white")
         
-        # 绘制标题
-        draw.text((10, 10), title, font=title_font, fill=(255, 255, 255))
-        draw.line([(10, 40), (self.width-10, 40)], fill=(100, 100, 100), width=2)
+        # 绘制进度
+        progress_width = int(width * progress)
+        draw.rectangle((x, y, x + progress_width, y + height), fill=255 if self.display_type == "OLED" else "white")
         
-        # 绘制选项
-        for i, option in enumerate(options):
-            y_pos = 50 + i * 30
-            if i == selected_index:
-                # 绘制选中背景
-                draw.rectangle([(5, y_pos-2), (self.width-5, y_pos+22)], fill=(0, 0, 100))
-                
-                # 绘制选择指示器
-                indicator = ">" if self.indicator_frame == 0 else ">>"
-                text = indicator + " " + option
-            else:
-                text = "  " + option
-            
-            draw.text((10, y_pos), text, font=option_font, fill=(255, 255, 255))
-        
-        # 显示
         self._display_image(image)
-        
-        # 更新指示器动画
+    
+    def show_menu(self, items):
+        """显示菜单（包含滚动和指示器功能）"""
+        # 检查是否需要更新指示器
         current_time = time.time()
-        if current_time - self.last_indicator_update > self.indicator_interval:
+        if current_time - self.last_indicator_update >= self.indicator_interval:
             self.indicator_frame = (self.indicator_frame + 1) % 2
             self.last_indicator_update = current_time
-    
-    def update_menu_selection(self, direction):
-        """更新菜单选择，direction为1表示向下，-1表示向上"""
-        # 更新当前选择的索引
-        self.current_menu_index += direction
+            
+        # 创建基础图像
+        image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
         
-        # 确保索引在有效范围内
-        if self.current_menu_index < 0:
-            self.current_menu_index = 0
-        # 上限检查会在实际显示菜单时进行
+        try:
+            font = ImageFont.truetype(self.font_path, 12)
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+
+        # 计算显示范围
+        total_items = len(items)
+        visible_items = self._calculate_visible_items(total_items, self.current_menu_index)
         
+        # 绘制菜单项
+        self._draw_menu_items(draw, items, visible_items, font)
+        
+        # 绘制指示器
+        self._draw_activity_indicator(draw)
+        
+        # 显示图像
+        self._display_image(image)
+
+    def _calculate_visible_items(self, total_items, current_index, visible_count=3):
+        """计算当前应该显示哪些菜单项
+        Returns:
+            (start_index, end_index)
+        """
+        if total_items <= visible_count:
+            return (0, total_items)
+            
+        if current_index == 0:
+            return (0, visible_count)
+        elif current_index == total_items - 1:
+            return (total_items - visible_count, total_items)
+        else:
+            return (current_index - 1, current_index + 2)
+
+    def _draw_menu_items(self, draw, items, visible_range, font):
+        """绘制菜单项"""
+        start_idx, end_idx = visible_range
+        y = 10
+        
+        for i in range(start_idx, end_idx):
+            if i == self.current_menu_index:
+                # 绘制选中项的背景
+                draw.rectangle((5, y-2, self.width-5, y+12),
+                             fill=255 if self.display_type == "OLED" else "white")
+                # 绘制选中项的文本
+                draw.text((10, y), items[i], font=font,
+                         fill=0 if self.display_type == "OLED" else "black")
+            else:
+                # 绘制未选中项
+                draw.text((10, y), items[i], font=font,
+                         fill=255 if self.display_type == "OLED" else "white")
+            y += 15
+
+    def _draw_activity_indicator(self, draw):
+        """绘制活动指示器"""
+        y_offset = -1 if self.indicator_frame % 2 == 0 else 1
+        dot_size = 2
+        draw.ellipse(
+            [120, 2 + y_offset, 120 + dot_size, 2 + dot_size + y_offset],
+            fill=255 if self.display_type == "OLED" else "white"
+        )
+
+    def menu_up(self):
+        """菜单向上选择"""
+        if self.current_menu_index > 0:
+            self.current_menu_index -= 1
+            return True
+        return False
+
+    def menu_down(self, total_items):
+        """菜单向下选择"""
+        if self.current_menu_index < total_items - 1:
+            self.current_menu_index += 1
+            return True
+        return False
+
+    def get_selected_index(self):
+        """获取当前选中的索引"""
         return self.current_menu_index
-    
-    def wait_for_menu_selection(self, options, controller, timeout=None):
-        """等待用户在菜单中进行选择"""
-        num_options = len(options)
-        if num_options == 0:
-            return -1
+
+    def split_text(self, text, chars_per_line):
+        """处理文本换行，支持手动换行和自动换行
+        Args:
+            text: 要显示的文本
+            chars_per_line: 每行字符数
+        Returns:
+            lines: 处理后的文本行列表
+        """
+        lines = []
+        # 首先处理手动换行
+        paragraphs = text.split('\n')
         
-        selected = 0
-        start_time = time.time()
+        for paragraph in paragraphs:
+            if not paragraph:  # 处理空行
+                lines.append('')
+                continue
+            
+            # 处理每个段落的自动换行
+            current_line = ''
+            for char in paragraph:
+                # 计算字符宽度（中文字符算2个长度）
+                char_width = 2 if ord(char) > 127 else 1
+                
+                # 如果当前行加上新字符会超过限制，开始新行
+                if sum(2 if ord(c) > 127 else 1 for c in current_line) + char_width > chars_per_line:
+                    lines.append(current_line)
+                    current_line = char
+                else:
+                    current_line += char
+            
+            # 添加最后一行
+            if current_line:
+                lines.append(current_line)
+        
+        return lines
+
+    def show_text_oled(self, text, font_size=12, chars_per_line=18, visible_lines=3):
+        """专门为OLED优化的文本显示，支持长文本滚动
+        Args:
+            text: 要显示的文本
+            font_size: 字体大小，默认12
+            chars_per_line: 每行字符数，默认9
+            visible_lines: 同时显示的行数，默认3
+        """
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, font_size)
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+
+        # 处理文本换行
+        lines = self.split_text(text, chars_per_line)
+        
+        # 如果文本行数超过可见行数，需要滚动显示
+        total_lines = len(lines)
+        if total_lines > visible_lines:
+            start_line = 0
+            while True:
+                # 清空图像
+                draw.rectangle((0, 0, self.width, self.height), fill=0)
+                
+                # 绘制当前可见的行
+                y = 10
+                for i in range(start_line, min(start_line + visible_lines, total_lines)):
+                    draw.text((10, y), lines[i], font=font, fill=255)
+                    y += 20  # 行间距
+                
+                # 绘制滚动指示器
+                if start_line > 0:  # 顶部箭头
+                    draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+                if start_line + visible_lines < total_lines:  # 底部箭头
+                    draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+                
+                self._display_image(image)
+                time.sleep(3)  # 每页显示3秒
+                
+                # 更新起始行
+                start_line += visible_lines
+                if start_line >= total_lines:
+                    start_line = 0
+        else:
+            # 如果文本行数不超过可见行数，直接显示
+            y = 10
+            for line in lines:
+                draw.text((10, y), line, font=font, fill=255)
+                y += 20
+
+            self._display_image(image)
+
+    def show_text_oled_interactive(self, text, font_size=12, chars_per_line=9, visible_lines=3):
+        """支持摇杆控制的OLED文本显示"""
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, font_size)
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+
+        # 处理文本换行
+        lines = self.split_text(text, chars_per_line)
+        
+        # 如果文本行数超过可见行数，需要滚动显示
+        total_lines = len(lines)
+        start_line = 0
+        
+        def draw_current_page():
+            """绘制当前页面"""
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制当前可见的行
+            y = 10
+            for i in range(start_line, min(start_line + visible_lines, total_lines)):
+                draw.text((10, y), lines[i], font=font, fill=255)
+                y += 20  # 行间距
+            
+            # 绘制滚动指示器
+            if start_line > 0:  # 顶部箭头
+                draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+            if start_line + visible_lines < total_lines:  # 底部箭头
+                draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+            
+            self._display_image(image)
+        
+        def scroll_up():
+            """向上滚动"""
+            nonlocal start_line
+            if start_line > 0:
+                start_line = max(0, start_line - visible_lines)
+                return True
+            return False
+        
+        def scroll_down():
+            """向下滚动"""
+            nonlocal start_line
+            if start_line + visible_lines < total_lines:
+                start_line = min(total_lines - visible_lines, start_line + visible_lines)
+                return True
+            return False
+        
+        # 返回控制函数
+        return {
+            'draw': draw_current_page,
+            'up': scroll_up,
+            'down': scroll_down,
+            'total_pages': (total_lines + visible_lines - 1) // visible_lines
+        }
+
+    def draw_indicator(self, x, y, frame):
+        """绘制活动指示器（跳动的点）
+        Args:
+            x: x坐标
+            y: y坐标
+            frame: 动画帧数(0或1)
+        """
+        image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        # 根据帧数决定点的位置（上下跳动）
+        y_offset = -1 if frame % 2 == 0 else 1
+        
+        # 绘制点
+        dot_size = 2
+        draw.ellipse(
+            [x, y + y_offset, x + dot_size, y + dot_size + y_offset],
+            fill=255 if self.display_type == "OLED" else "white"
+        )
+        
+        return image
+
+    def show_message(self, message, duration=1):
+        """显示临时消息，等待指定时间后自动消失
+        Args:
+            message: 要显示的消息
+            duration: 显示持续时间（秒）
+        """
+        self.show_text_oled(message)
+        time.sleep(duration)
+
+    def show_loading(self, message):
+        """显示加载消息（不包含延时）"""
+        self.show_text_oled(message)
+
+    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=18, visible_lines=3):
+        """显示文本并等待按钮按下，支持摇杆控制滚动
+        Args:
+            controller: InputController实例
+            text: 要显示的文本
+            font_size: 字体大小，默认12
+            chars_per_line: 每行字符数，默认9
+            visible_lines: 同时显示的行数，默认3
+        """
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, font_size)
+            small_font = ImageFont.truetype(self.font_path, 8)  # 小字体用于提示
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+
+        # 处理文本换行
+        lines = self.split_text(text, chars_per_line)
+        
+        # 如果文本行数超过可见行数，需要滚动显示
+        total_lines = len(lines)
+        start_line = 0
+        
+        def draw_current_page():
+            """绘制当前页面"""
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制当前可见的行
+            y = 10
+            for i in range(start_line, min(start_line + visible_lines, total_lines)):
+                draw.text((10, y), lines[i], font=font, fill=255)
+                y += 20  # 行间距
+            
+            # 绘制滚动指示器
+            if start_line > 0:  # 顶部箭头
+                draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+            if start_line + visible_lines < total_lines:  # 底部箭头
+                draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+            
+            # 在右上角添加按钮提示
+            draw.text((90, 2), "按BTN1继续", font=small_font, fill=255)
+            
+            self._display_image(image)
+        
+        # 保存按钮和摇杆状态
+        button_state = {
+            'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
+            'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
+            'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+        }
+        
+        # 绘制初始页面
+        draw_current_page()
         
         while True:
-            # 检查超时
-            if timeout and time.time() - start_time > timeout:
-                return -1
+            # 检查按钮1
+            current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
+            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
+                time.sleep(0.1)  # 防抖
+                return
+            button_state['BTN1'] = current_btn1
             
-            # 检查按钮1（向下移动）
-            if controller.check_button_press(1):
-                selected = (selected + 1) % num_options
-                time.sleep(0.2)  # 防抖动
+            # 检查摇杆上
+            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
+            if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
+                if start_line > 0:
+                    start_line = max(0, start_line - visible_lines)
+                    draw_current_page()
+                    time.sleep(0.1)
+            button_state['UP'] = current_up
             
-            # 检查按钮2（确认选择）
-            if controller.check_button_press(2):
-                return selected
+            # 检查摇杆下
+            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
+                if start_line + visible_lines < total_lines:
+                    start_line = min(total_lines - visible_lines, start_line + visible_lines)
+                    draw_current_page()
+                    time.sleep(0.1)
+            button_state['DOWN'] = current_down
             
-            # 更新菜单显示
-            self.current_menu_index = selected
-            time.sleep(0.05)  # 减少CPU使用率
+            time.sleep(0.1)  # 降低CPU使用率
 
-    def show_text_oled(self, text, corner_text=None):
-        """在OLED上显示文本，可选择在右上角显示提示"""
-        try:
-            # 清屏
-            self.clear()
-            
-            # 确保我们有图像和绘图对象
-            if self.display_type == "OLED":
-                self.image = Image.new("1", (self.width, self.height))
-                self.draw = ImageDraw.Draw(self.image)
-            
-            # 绘制主文本
-            font = ImageFont.load_default()
-            
-            # 分割文本行
-            lines = text.split('\n')
-            y_offset = 0
-            
-            for line in lines:
-                self.draw.text((0, y_offset), line, font=font, fill=255)
-                y_offset += 10  # 行间距
-            
-            # 如果有右上角提示，则显示
-            if corner_text:
-                # 计算文本宽度以放置在右上角
-                corner_width = font.getlength(corner_text)
-                self.draw.text(
-                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
-                    corner_text,
-                    font=font,
-                    fill=255
-                )
-            
-            # 显示
-            self.oled.image(self.image)
-            self.oled.show()
-        except Exception as e:
-            print(f"OLED显示文本出错: {e}")
-            import traceback
-            traceback.print_exc()
-
-    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
-        """显示文本并等待按钮点击，右上角显示提示"""
-        # 显示文本和角落提示
-        self.show_text_oled(text, corner_text=corner_text)
+    def show_continue_drift_option(self, controller, question="是否继续漂流？"):
+        """显示是否继续漂流的选择界面
+        Args:
+            controller: InputController实例
+            question: 显示的问题文本
+        Returns:
+            bool: True表示继续，False表示结束
+        """
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
         
-        # 等待按钮按下
-        controller.wait_for_specific_button(1)
+        try:
+            title_font = ImageFont.truetype(self.font_path, 14)
+            option_font = ImageFont.truetype(self.font_path, 12)
+            small_font = ImageFont.truetype(self.font_path, 8)  # 小字体用于提示
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            title_font = ImageFont.load_default()
+            option_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+        
+        selected_option = 0  # 0表示"是"，1表示"否"
+        options = ["是", "否"]
+        
+        def draw_options():
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制问题
+            draw.text((10, 10), question, font=title_font, fill=255)
+            
+            # 绘制选项
+            y = 40
+            for i, option in enumerate(options):
+                if i == selected_option:
+                    # 绘制选中选项的背景
+                    draw.rectangle((40, y-2, 90, y+12), fill=255)
+                    draw.text((50, y), option, font=option_font, fill=0)  # 黑底白字
+                else:
+                    draw.text((50, y), option, font=option_font, fill=255)  # 白底黑字
+                y += 20
+            
+            # 在右上角添加按钮提示
+            draw.text((85, 2), "BTN1:选择 BTN2:切换", font=small_font, fill=255)
+            
+            self._display_image(image)
+        
+        # 保存按钮状态
+        button_state = {
+            'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
+            'BTN2': GPIO.input(controller.BUTTON_PINS['BTN2']),
+            'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
+            'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+        }
+        
+        # 绘制初始选项
+        draw_options()
+        
+        while True:
+            # 检查按钮1 (确认选择)
+            current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
+            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
+                time.sleep(0.1)  # 防抖
+                return selected_option == 0  # 返回布尔值，是否继续
+            button_state['BTN1'] = current_btn1
+            
+            # 检查按钮2或摇杆上下 (切换选项)
+            current_btn2 = GPIO.input(controller.BUTTON_PINS['BTN2'])
+            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
+            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            
+            option_changed = False
+            
+            if (current_btn2 == 0 and button_state['BTN2'] == 1) or \
+               (current_up == 0 and button_state['UP'] == 1) or \
+               (current_down == 0 and button_state['DOWN'] == 1):
+                # 切换选项
+                selected_option = 1 - selected_option  # 在0和1之间切换
+                option_changed = True
+                time.sleep(0.1)  # 防抖
+            
+            button_state['BTN2'] = current_btn2
+            button_state['UP'] = current_up
+            button_state['DOWN'] = current_down
+            
+            if option_changed:
+                draw_options()
+            
+            time.sleep(0.1)  # 降低CPU使用率 
