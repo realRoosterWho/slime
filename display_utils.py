@@ -333,6 +333,42 @@ class DisplayManager:
         """获取当前选中的索引"""
         return self.current_menu_index
 
+    def split_text(self, text, chars_per_line):
+        """处理文本换行，支持手动换行和自动换行
+        Args:
+            text: 要显示的文本
+            chars_per_line: 每行字符数
+        Returns:
+            lines: 处理后的文本行列表
+        """
+        lines = []
+        # 首先处理手动换行
+        paragraphs = text.split('\n')
+        
+        for paragraph in paragraphs:
+            if not paragraph:  # 处理空行
+                lines.append('')
+                continue
+            
+            # 处理每个段落的自动换行
+            current_line = ''
+            for char in paragraph:
+                # 计算字符宽度（中文字符算2个长度）
+                char_width = 2 if ord(char) > 127 else 1
+                
+                # 如果当前行加上新字符会超过限制，开始新行
+                if sum(2 if ord(c) > 127 else 1 for c in current_line) + char_width > chars_per_line:
+                    lines.append(current_line)
+                    current_line = char
+                else:
+                    current_line += char
+            
+            # 添加最后一行
+            if current_line:
+                lines.append(current_line)
+        
+        return lines
+
     def show_text_oled(self, text, font_size=12, chars_per_line=9, visible_lines=3):
         """专门为OLED优化的文本显示，支持长文本滚动
         Args:
@@ -352,12 +388,7 @@ class DisplayManager:
             font = ImageFont.load_default()
 
         # 处理文本换行
-        if '\n' not in text:
-            lines = []
-            for i in range(0, len(text), chars_per_line):
-                lines.append(text[i:i + chars_per_line])
-        else:
-            lines = text.split('\n')
+        lines = self.split_text(text, chars_per_line)
         
         # 如果文本行数超过可见行数，需要滚动显示
         total_lines = len(lines)
@@ -396,13 +427,7 @@ class DisplayManager:
             self._display_image(image)
 
     def show_text_oled_interactive(self, text, font_size=12, chars_per_line=9, visible_lines=3):
-        """支持摇杆控制的OLED文本显示
-        Args:
-            text: 要显示的文本
-            font_size: 字体大小，默认12
-            chars_per_line: 每行字符数，默认9
-            visible_lines: 同时显示的行数，默认3
-        """
+        """支持摇杆控制的OLED文本显示"""
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
         draw = ImageDraw.Draw(image)
@@ -414,12 +439,7 @@ class DisplayManager:
             font = ImageFont.load_default()
 
         # 处理文本换行
-        if '\n' not in text:
-            lines = []
-            for i in range(0, len(text), chars_per_line):
-                lines.append(text[i:i + chars_per_line])
-        else:
-            lines = text.split('\n')
+        lines = self.split_text(text, chars_per_line)
         
         # 如果文本行数超过可见行数，需要滚动显示
         total_lines = len(lines)
@@ -523,12 +543,7 @@ class DisplayManager:
             font = ImageFont.load_default()
 
         # 处理文本换行
-        if '\n' not in text:
-            lines = []
-            for i in range(0, len(text), chars_per_line):
-                lines.append(text[i:i + chars_per_line])
-        else:
-            lines = text.split('\n')
+        lines = self.split_text(text, chars_per_line)
         
         # 如果文本行数超过可见行数，需要滚动显示
         total_lines = len(lines)

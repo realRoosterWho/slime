@@ -15,6 +15,8 @@ import shutil
 from button_utils import InputController
 from enum import Enum, auto
 import RPi.GPIO as GPIO  # 添加这个导入
+from PIL import Image
+from io import BytesIO
 
 # 加载环境变量
 load_dotenv()
@@ -266,8 +268,8 @@ class DeriveStateMachine:
             input={
                 "prompt": slime_prompt,
                 "prompt_upsampling": True,
-                "width": 320,
-                "height": 240,
+                "width": 384,        # 使用更大的尺寸，保持 4:3 比例
+                "height": 256,       # 满足最小高度要求
                 "num_inference_steps": 4
             }
         )
@@ -278,8 +280,16 @@ class DeriveStateMachine:
             if img_response:
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 self.data['image_path'] = os.path.join(current_dir, "new_slime.png")
+                
+                # 保存原始图片
                 with open(self.data['image_path'], "wb") as f:
                     f.write(img_response.content)
+                
+                # 调整图片大小为 320x240
+                img = Image.open(BytesIO(img_response.content))
+                resized_img = img.resize((320, 240), Image.Resampling.LANCZOS)
+                resized_img.save(self.data['image_path'])
+                
                 self.logger.save_image(self.data['image_path'], "generated")
                 return
         
