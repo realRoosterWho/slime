@@ -85,13 +85,7 @@ class DeriveLogger:
 
 def chat_with_gpt(input_content, system_content=None, previous_response_id=None):
     """与GPT进行对话"""
-    # 如果输入是列表（包含图片），直接使用
-    if isinstance(input_content, list):
-        input_data = input_content
-    else:
-        # 否则构建普通文本消息
-        input_data = [{"role": "user", "content": input_content}]
-        
+    input_data = [{"role": "user", "content": input_content}]
     if system_content:
         input_data.insert(0, {"role": "system", "content": system_content})
         
@@ -439,12 +433,12 @@ class DeriveStateMachine:
         base64_image = encode_image(self.data['timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
         
+        # 完全使用与 openai_test.py 相同的格式
         input_content = [
             {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
             {"type": "input_image", "image_url": data_url}
         ]
         
-        # 现在直接获取到文本内容
         self.data['photo_description'] = self.chat_with_continuity(input_content)
         
         self.logger.log_step("照片分析", self.data['photo_description'])
