@@ -42,23 +42,29 @@ def test_image_generation():
         
         print(f"API 返回: {output}")
         
-        if output and isinstance(output, list):
-            # 下载图片
-            response = requests.get(output[0])
-            if response.status_code == 200:
-                # 保存原始图片
-                img = Image.open(BytesIO(response.content))
-                img.save("test_original.png")
-                print("原始图片已保存为 test_original.png")
-                
-                # 调整大小并保存
-                resized = img.resize((320, 240), Image.Resampling.LANCZOS)
-                resized.save("test_resized.png")
-                print("调整大小后的图片已保存为 test_resized.png")
-            else:
-                print(f"下载图片失败，状态码: {response.status_code}")
+        # 如果返回是字符串（URL），直接使用
+        if isinstance(output, str):
+            image_url = output
+        # 如果返回是列表，使用第一个元素
+        elif isinstance(output, list) and output:
+            image_url = output[0]
         else:
-            print("API 返回格式错误")
+            raise Exception(f"无效的 API 返回格式: {output}")
+            
+        # 下载图片
+        response = requests.get(image_url)
+        if response.status_code == 200:
+            # 保存原始图片
+            img = Image.open(BytesIO(response.content))
+            img.save("test_original.png")
+            print("原始图片已保存为 test_original.png")
+            
+            # 调整大小并保存
+            resized = img.resize((320, 240), Image.Resampling.LANCZOS)
+            resized.save("test_resized.png")
+            print("调整大小后的图片已保存为 test_resized.png")
+        else:
+            print(f"下载图片失败，状态码: {response.status_code}")
             
     except Exception as e:
         print(f"发生错误: {type(e).__name__}")
