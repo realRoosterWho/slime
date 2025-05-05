@@ -509,12 +509,13 @@ class DisplayManager:
         """显示加载消息（不包含延时）"""
         self.show_text_oled(message)
 
-    def wait_for_button_with_text(self, controller, text, chars_per_line=9):
+    def wait_for_button_with_text(self, controller, text, chars_per_line=9, visible_lines=3):
         """显示文本并等待按钮按下，支持摇杆控制滚动
         Args:
             controller: InputController实例
             text: 要显示的文本
             chars_per_line: 每行字符数
+            visible_lines: 同时显示的行数
         """
         button_pressed = False
         
@@ -523,7 +524,11 @@ class DisplayManager:
             button_pressed = True
         
         # 设置文本显示控制器
-        text_controller = self.show_text_oled_interactive(text, chars_per_line=chars_per_line)
+        text_controller = self.show_text_oled_interactive(
+            text, 
+            chars_per_line=chars_per_line,
+            visible_lines=visible_lines
+        )
         text_controller['draw']()
         
         # 保存原有的回调

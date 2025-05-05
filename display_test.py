@@ -1,5 +1,6 @@
 from display_utils import DisplayManager
 import time
+from input_controller import InputController
 
 def test_lcd():
     print("测试LCD显示屏...")
@@ -142,11 +143,55 @@ def test_oled_text():
     display.clear()
     print("OLED 文本显示测试完成！")
 
+def test_wait_for_button():
+    """测试等待按钮的交互式文本显示"""
+    print("测试等待按钮的交互式文本显示...")
+    display = DisplayManager("OLED")
+    controller = InputController()
+    
+    try:
+        # 测试短文本
+        print("1. 测试短文本")
+        display.wait_for_button_with_text(
+            controller,
+            "这是一个测试\n按按钮1继续"
+        )
+        
+        # 测试长文本
+        print("2. 测试长文本")
+        long_text = """这是一个很长的测试文本。
+用来测试多行显示和滚动功能。
+你可以使用摇杆上下移动来查看更多内容。
+按按钮1继续下一步。
+这是第五行文本。
+这是第六行文本。
+这是最后一行。"""
+        display.wait_for_button_with_text(
+            controller,
+            long_text,
+            chars_per_line=9
+        )
+        
+        # 测试边界情况
+        print("3. 测试边界情况")
+        display.wait_for_button_with_text(
+            controller,
+            "单行文本测试"
+        )
+        
+        print("等待按钮测试完成！")
+        
+    except Exception as e:
+        print(f"测试过程中出现错误: {e}")
+    finally:
+        controller.cleanup()
+        display.clear()
+
 if __name__ == "__main__":
     try:
         print("开始显示屏测试...")
-        print("\n=== OLED文本测试 ===")
-        test_oled_text()
+        print("\n=== 等待按钮测试 ===")
+        test_wait_for_button()
         print("\n测试完成！")
     except Exception as e:
         print(f"测试过程中出现错误: {e}")
