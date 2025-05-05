@@ -296,4 +296,26 @@ class DisplayManager:
             draw.text((10, y), line, font=font, fill=255)
             y += 20  # 固定行间距为20像素
 
-        self._display_image(image) 
+        self._display_image(image)
+
+    def draw_indicator(self, x, y, frame):
+        """绘制活动指示器（跳动的点）
+        Args:
+            x: x坐标
+            y: y坐标
+            frame: 动画帧数(0或1)
+        """
+        image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        # 根据帧数决定点的位置（上下跳动）
+        y_offset = -1 if frame % 2 == 0 else 1
+        
+        # 绘制点
+        dot_size = 2
+        draw.ellipse(
+            [x, y + y_offset, x + dot_size, y + dot_size + y_offset],
+            fill=255 if self.display_type == "OLED" else "white"
+        )
+        
+        return image 

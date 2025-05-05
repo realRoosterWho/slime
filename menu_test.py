@@ -5,6 +5,7 @@ import signal
 import sys
 import subprocess
 import os
+from PIL import Image, ImageDraw, ImageFont
 
 class MenuSystem:
     def __init__(self):
@@ -47,6 +48,8 @@ class MenuSystem:
         
         # 显示初始菜单
         self.display_menu()
+        
+        self.indicator_frame = 0  # 添加指示器帧计数
     
     def on_up(self):
         """向上选择"""
@@ -350,8 +353,30 @@ class MenuSystem:
         
         # 去掉最后的换行符
         menu_text = menu_text.rstrip()
-        self.oled.show_text_oled(menu_text)
-    
+        
+        # 创建指示器图像
+        indicator_image = self.oled.draw_indicator(120, 2, self.indicator_frame)
+        
+        # 将菜单文本绘制到指示器图像上
+        draw = ImageDraw.Draw(indicator_image)
+        try:
+            font = ImageFont.truetype(self.oled.font_path, 12)
+        except:
+            font = ImageFont.load_default()
+            
+        # 绘制菜单文本
+        lines = menu_text.split('\n')
+        y_text = 10
+        for line in lines:
+            draw.text((10, y_text), line, font=font, fill=255 if isinstance(self.oled.device, SSD1306_I2C) else "white")
+            y_text += 15
+            
+        # 显示合并后的图像
+        self.oled._display_image(indicator_image)
+        
+        # 更新指示器帧
+        self.indicator_frame = (self.indicator_frame + 1) % 2
+        
     def run(self):
         """运行菜单系统"""
         try:
@@ -361,7 +386,9 @@ class MenuSystem:
             
             while True:
                 self.controller.check_inputs()
-                time.sleep(0.1)
+                # 每隔一段时间刷新一次显示以更新指示器
+                self.display_menu()
+                time.sleep(0.5)  # 控制指示器闪烁频率
                 
         except KeyboardInterrupt:
             print("\n程序被用户中断")
@@ -373,17 +400,28 @@ class MenuSystem:
         self.oled.clear()
         print("已清理所有资源")
 
-def signal_handler(signum, frame):
-    """信号处理函数"""
-    print("\n🛑 检测到中断信号，正在清理...")
+def cleanup_handler(signum, frame):
+    """处理 systemd 服务停止信号"""
+    print("\n🛑 收到 systemd 停止信号，正在清理...")
     if 'menu' in globals():
+        menu.oled.show_text_oled("系统正在停止...")
+        time.sleep(1)
+        menu.cleanup()
+    sys.exit(0)
+
+def signal_handler(signum, frame):
+    """处理用户中断信号(Ctrl+C)"""
+    print("\n🛑 检测到用户中断，正在清理...")
+    if 'menu' in globals():
+        menu.oled.show_text_oled("正在退出...")
+        time.sleep(1)
         menu.cleanup()
     sys.exit(0)
 
 if __name__ == "__main__":
     # 设置信号处理
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)    # Ctrl+C
+    signal.signal(signal.SIGTERM, cleanup_handler)  # systemd 停止信号
     
     try:
         menu = MenuSystem()
@@ -391,4 +429,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"错误: {e}")
         if 'menu' in globals():
-            menu.cleanup() 
+            menu.oled.show_text_oled("发生错误\n正在退出...")
+            time.sleep(1)
+            menu.cleanup()
+        sys.exit(1) 
