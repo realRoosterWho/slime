@@ -112,12 +112,17 @@ class BitBangLCD:
 
 class DisplayManager:
     def __init__(self, display_type="LCD"):
+        # 初始化 GPIO 模式
+        if not GPIO.getmode():  # 如果 GPIO 模式还没有被设置
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            
         self.display_type = display_type
         # 设置默认中文字体路径
         self.font_path = '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc'
         if display_type == "LCD":
             self.device = BitBangLCD()  # 使用新的BitBang实现
-            self.width = 240
+            self.width = 320  # 修正为实际的LCD尺寸
             self.height = 240
         else:
             self._init_oled()
