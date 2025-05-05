@@ -31,8 +31,8 @@ def test_image_generation():
             input={
                 "prompt": prompt,
                 "prompt_upsampling": True,
-                "width": 320,
-                "height": 240,
+                "width": 427,      # 按比例调整：320/240 * 320 ≈ 427
+                "height": 320,     # 使用允许的最小值的稍大值
                 "num_outputs": 1,
                 "scheduler": "K_EULER",
                 "num_inference_steps": 25,
@@ -71,8 +71,11 @@ def test_image_generation():
         if response.status_code == 200:
             # 保存原始图片
             img = Image.open(BytesIO(response.content))
-            img.save("test_original.png")
-            print("原始图片已保存为 test_original.png")
+            
+            # 调整到目标尺寸
+            resized = img.resize((320, 240), Image.Resampling.LANCZOS)
+            resized.save("test_original.png")
+            print("图片已保存为 test_original.png (320x240)")
         else:
             print(f"下载图片失败，状态码: {response.status_code}")
             

@@ -267,12 +267,12 @@ class DeriveStateMachine:
             input = {
                 "prompt": slime_prompt,
                 "prompt_upsampling": True,
-                "width": 512,
-                "height": 384,
+                "width": 427,      # 按比例调整：320/240 * 320 ≈ 427
+                "height": 320,     # 使用允许的最小值的稍大值
                 "num_outputs": 1,
-                "guidance_scale": 7.5,
                 "scheduler": "K_EULER",
-                "num_inference_steps": 25
+                "num_inference_steps": 25,
+                "guidance_scale": 7.5,
             }
             
             print(f"\n开始生成图片，使用参数：{input}")
@@ -282,18 +282,30 @@ class DeriveStateMachine:
                     "black-forest-labs/flux-1.1-pro",
                     input=input
                 )
-                print(f"Replicate API 返回：{output}")
+                print(f"API 返回类型: {type(output)}")
+                print(f"API 返回内容: {output}")
+                
+                # 获取图片URL
+                if isinstance(output, list):
+                    image_url = output[0]
+                elif isinstance(output, str):
+                    image_url = output
+                else:
+                    image_url = str(output)
+                    
+                print(f"获取到图片URL: {image_url}")
+                
             except Exception as api_error:
                 raise Exception(f"Replicate API 调用失败: {str(api_error)}")
             
-            if not output:
-                raise Exception("图片生成失败：API 返回空结果")
+            if not image_url:
+                raise Exception("图片生成失败：无法获取图片URL")
             
             current_dir = os.path.dirname(os.path.abspath(__file__))
             self.data['image_path'] = os.path.join(current_dir, "new_slime.png")
             
             try:
-                response = requests.get(output[0])
+                response = requests.get(image_url)
                 print(f"图片下载状态码: {response.status_code}")
                 if response.status_code != 200:
                     raise Exception(f"图片下载失败，状态码: {response.status_code}")
@@ -316,7 +328,7 @@ class DeriveStateMachine:
             print(f"\n❌ {error_msg}")
             self.logger.log_step("错误", error_msg)
             self.data['image_path'] = None
-            self.oled_display.show_text_oled("图片生成失败...")  # 简化错误显示
+            self.oled_display.show_text_oled("图片生成失败...")
             time.sleep(2)
     
     def handle_show_image(self):
