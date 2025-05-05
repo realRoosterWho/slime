@@ -264,40 +264,59 @@ class DeriveStateMachine:
             slime_prompt = f"一个奇幻的史莱姆生物。{self.data['personality']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
             self.logger.log_prompt("image", slime_prompt)
             
-            output = replicate_client.run(
-                "black-forest-labs/flux-1.1-pro",
-                input={
-                    "prompt": slime_prompt,
-                    "width": 384,
-                    "height": 256,
-                }
-            )
+            input = {
+                "prompt": slime_prompt,
+                "prompt_upsampling": True,
+                "width": 512,
+                "height": 384,
+                "num_outputs": 1,
+                "guidance_scale": 7.5,
+                "scheduler": "K_EULER",
+                "num_inference_steps": 25
+            }
             
-            if not isinstance(output, list) or not output:
-                raise Exception("图片生成失败：未获得有效输出")
+            print(f"\n开始生成图片，使用参数：{input}")
             
-            image_url = output[0]
-            img_response = download_with_retry(image_url)
-            if not img_response:
-                raise Exception("图片下载失败")
+            try:
+                output = replicate.run(
+                    "black-forest-labs/flux-1.1-pro",
+                    input=input
+                )
+                print(f"Replicate API 返回：{output}")
+            except Exception as api_error:
+                raise Exception(f"Replicate API 调用失败: {str(api_error)}")
+            
+            if not output:
+                raise Exception("图片生成失败：API 返回空结果")
             
             current_dir = os.path.dirname(os.path.abspath(__file__))
             self.data['image_path'] = os.path.join(current_dir, "new_slime.png")
             
-            # 保存和处理图片
-            img = Image.open(BytesIO(img_response.content))
-            resized_img = img.resize((320, 240), Image.Resampling.LANCZOS)
-            resized_img.save(self.data['image_path'])
+            try:
+                response = requests.get(output[0])
+                print(f"图片下载状态码: {response.status_code}")
+                if response.status_code != 200:
+                    raise Exception(f"图片下载失败，状态码: {response.status_code}")
+            except requests.exceptions.RequestException as download_error:
+                raise Exception(f"图片下载出错: {str(download_error)}")
+            
+            try:
+                img = Image.open(BytesIO(response.content))
+                resized_img = img.resize((320, 240), Image.Resampling.LANCZOS)
+                resized_img.save(self.data['image_path'])
+                print(f"图片已保存到: {self.data['image_path']}")
+            except Exception as save_error:
+                raise Exception(f"图片处理或保存失败: {str(save_error)}")
             
             self.logger.save_image(self.data['image_path'], "generated")
             self.logger.log_step("生成图片", "史莱姆图片生成成功")
             
         except Exception as e:
-            error_msg = f"生成图片时出错: {str(e)}"
-            print(error_msg)
+            error_msg = f"生成图片时出错:\n错误类型: {type(e).__name__}\n错误信息: {str(e)}"
+            print(f"\n❌ {error_msg}")
             self.logger.log_step("错误", error_msg)
-            self.data['image_path'] = None  # 确保图片路径为空
-            self.oled_display.show_text_oled("图片生成失败...")
+            self.data['image_path'] = None
+            self.oled_display.show_text_oled("图片生成失败...")  # 简化错误显示
             time.sleep(2)
     
     def handle_show_image(self):
