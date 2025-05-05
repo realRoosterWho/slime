@@ -333,12 +333,13 @@ class DisplayManager:
         """获取当前选中的索引"""
         return self.current_menu_index
 
-    def show_text_oled(self, text, font_size=12, chars_per_line=9):
-        """专门为OLED优化的文本显示
+    def show_text_oled(self, text, font_size=12, chars_per_line=9, visible_lines=3):
+        """专门为OLED优化的文本显示，支持长文本滚动
         Args:
             text: 要显示的文本
             font_size: 字体大小，默认12
-            chars_per_line: 每行字符数，默认8
+            chars_per_line: 每行字符数，默认9
+            visible_lines: 同时显示的行数，默认3
         """
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
@@ -350,24 +351,49 @@ class DisplayManager:
             print("警告：无法加载中文字体，将使用默认字体")
             font = ImageFont.load_default()
 
-        # 如果文本中已经有换行符，就使用现有的换行
-        # 如果没有换行符，则按指定字符数添加换行
+        # 处理文本换行
         if '\n' not in text:
             lines = []
             for i in range(0, len(text), chars_per_line):
                 lines.append(text[i:i + chars_per_line])
-            text = '\n'.join(lines)
+        else:
+            lines = text.split('\n')
         
-        # 处理换行
-        lines = text.split('\n')
-        y = 10  # 起始y坐标
-        
-        # 绘制每一行
-        for line in lines:
-            draw.text((10, y), line, font=font, fill=255)
-            y += 20  # 固定行间距为20像素
+        # 如果文本行数超过可见行数，需要滚动显示
+        total_lines = len(lines)
+        if total_lines > visible_lines:
+            start_line = 0
+            while True:
+                # 清空图像
+                draw.rectangle((0, 0, self.width, self.height), fill=0)
+                
+                # 绘制当前可见的行
+                y = 10
+                for i in range(start_line, min(start_line + visible_lines, total_lines)):
+                    draw.text((10, y), lines[i], font=font, fill=255)
+                    y += 20  # 行间距
+                
+                # 绘制滚动指示器
+                if start_line > 0:  # 顶部箭头
+                    draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+                if start_line + visible_lines < total_lines:  # 底部箭头
+                    draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+                
+                self._display_image(image)
+                time.sleep(3)  # 每页显示3秒
+                
+                # 更新起始行
+                start_line += visible_lines
+                if start_line >= total_lines:
+                    start_line = 0
+        else:
+            # 如果文本行数不超过可见行数，直接显示
+            y = 10
+            for line in lines:
+                draw.text((10, y), line, font=font, fill=255)
+                y += 20
 
-        self._display_image(image)
+            self._display_image(image)
 
     def draw_indicator(self, x, y, frame):
         """绘制活动指示器（跳动的点）

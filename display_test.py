@@ -89,13 +89,64 @@ def test_oled():
     
     display.clear()
 
+def test_oled_text():
+    print("测试 OLED 文本显示...")
+    display = DisplayManager("OLED")
+    
+    # 测试清屏
+    print("1. 清屏")
+    display.clear()
+    time.sleep(1)
+    
+    # 测试单行短文本
+    print("2. 测试单行短文本")
+    display.show_text_oled("你好!")
+    time.sleep(2)
+    
+    # 测试多行短文本
+    print("3. 测试多行短文本")
+    display.show_text_oled("第一行\n第二行\n第三行")
+    time.sleep(3)
+    
+    # 测试长文本自动换行和滚动
+    print("4. 测试长文本自动换行和滚动")
+    long_text = "这是一段很长的测试文本，用来测试OLED显示屏的自动换行和滚动显示功能。我们希望看到文本能够正确换行并通过滚动来显示完整内容。"
+    display.show_text_oled(long_text, chars_per_line=8)
+    time.sleep(1)  # 这里不需要延时，因为show_text_oled会自动控制滚动时间
+    
+    # 测试不同字体大小
+    print("5. 测试不同字体大小")
+    display.show_text_oled("大字体", font_size=16)
+    time.sleep(2)
+    display.show_text_oled("小字体", font_size=10)
+    time.sleep(2)
+    
+    # 测试混合内容
+    print("6. 测试混合内容")
+    mixed_text = "标题\n这是正文内容\n第三行"
+    display.show_text_oled(mixed_text, font_size=12)
+    time.sleep(3)
+    
+    # 测试边界情况
+    print("7. 测试边界情况")
+    # 空字符串
+    display.show_text_oled("")
+    time.sleep(1)
+    # 单个字符
+    display.show_text_oled("测")
+    time.sleep(1)
+    # 多个换行
+    display.show_text_oled("\n\n\n测试\n\n")
+    time.sleep(2)
+    
+    display.clear()
+    print("OLED 文本显示测试完成！")
+
 if __name__ == "__main__":
     try:
         print("开始显示屏测试...")
-        print("\n=== LCD测试 ===")
-        test_lcd()
-        print("\n=== OLED测试 ===")
-        test_oled()
+        print("\n=== OLED文本测试 ===")
+        test_oled_text()
         print("\n测试完成！")
     except Exception as e:
         print(f"测试过程中出现错误: {e}")
