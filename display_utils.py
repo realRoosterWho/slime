@@ -123,6 +123,8 @@ class DisplayManager:
             self._init_oled()
         self.current_menu_index = 0  # 当前菜单选择索引
         self.indicator_frame = 0     # 指示器动画帧
+        self.last_indicator_update = time.time()
+        self.indicator_interval = 0.5  # 指示器更新间隔（秒）
     
     def _init_oled(self):
         """初始化OLED显示屏"""
@@ -239,14 +241,13 @@ class DisplayManager:
         
         self._display_image(image)
     
-    def show_menu(self, items, selected_index=None):
-        """显示菜单（包含滚动和指示器功能）
-        Args:
-            items: 菜单项列表
-            selected_index: 可选，指定选中项索引。如果不指定则使用内部索引
-        """
-        if selected_index is not None:
-            self.current_menu_index = selected_index
+    def show_menu(self, items):
+        """显示菜单（包含滚动和指示器功能）"""
+        # 检查是否需要更新指示器
+        current_time = time.time()
+        if current_time - self.last_indicator_update >= self.indicator_interval:
+            self.indicator_frame = (self.indicator_frame + 1) % 2
+            self.last_indicator_update = current_time
             
         # 创建基础图像
         image = Image.new("1" if self.display_type == "OLED" else "RGB", (self.width, self.height))
@@ -270,9 +271,6 @@ class DisplayManager:
         
         # 显示图像
         self._display_image(image)
-        
-        # 更新指示器帧
-        self.indicator_frame = (self.indicator_frame + 1) % 2
 
     def _calculate_visible_items(self, total_items, current_index, visible_count=3):
         """计算当前应该显示哪些菜单项

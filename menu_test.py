@@ -328,7 +328,8 @@ class MenuSystem:
             
             while True:
                 self.controller.check_inputs()
-                time.sleep(0.1)  # 只需要检查输入，不需要在这里刷新显示
+                self.display_menu()  # 每次循环都刷新显示
+                time.sleep(0.1)  # 避免CPU占用过高
                 
         except KeyboardInterrupt:
             print("\n程序被用户中断")
