@@ -86,7 +86,7 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
         input_data.insert(0, {"role": "system", "content": system_content})
         
     response = client.responses.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         input=input_data,
         previous_response_id=None
     )
@@ -137,59 +137,6 @@ def download_with_retry(url, max_retries=3, delay=1):
                 continue
             raise
     return None
-
-def wait_for_button_with_text(oled_display, controller, text, chars_per_line=12):
-    """等待按钮1被按下，同时支持文本交互
-    Args:
-        oled_display: DisplayManager实例
-        controller: InputController实例
-        text: 要显示的文本
-        chars_per_line: 每行字符数
-    """
-    button_pressed = False
-    
-    def on_button1(pin):
-        nonlocal button_pressed
-        button_pressed = True
-    
-    # 设置文本显示控制器
-    text_controller = oled_display.show_text_oled_interactive(text, chars_per_line=chars_per_line)
-    text_controller['draw']()
-    
-    # 保存原有的回调
-    original_callbacks = {
-        'BTN1': controller.button_callbacks.get('BTN1', {}).get('press'),
-        'UP': controller.joystick_callbacks.get('UP'),
-        'DOWN': controller.joystick_callbacks.get('DOWN')
-    }
-    
-    # 注册新的回调
-    controller.register_button_callback('BTN1', on_button1, 'press')
-    
-    def on_up():
-        if text_controller['up']():
-            text_controller['draw']()
-            time.sleep(0.2)
-    
-    def on_down():
-        if text_controller['down']():
-            text_controller['draw']()
-            time.sleep(0.2)
-    
-    controller.register_joystick_callback('UP', on_up)
-    controller.register_joystick_callback('DOWN', on_down)
-    
-    # 等待按钮按下
-    while not button_pressed:
-        controller.check_inputs()
-        time.sleep(0.1)
-    
-    # 恢复原有的回调
-    controller.register_button_callback('BTN1', original_callbacks['BTN1'], 'press')
-    controller.register_joystick_callback('UP', original_callbacks['UP'])
-    controller.register_joystick_callback('DOWN', original_callbacks['DOWN'])
-    
-    time.sleep(0.2)  # 防抖
 
 def main():
     # 初始化日志记录器
@@ -244,7 +191,7 @@ def main():
         logger.log_step("识别结果", f"识别结果：{description}")
         
         # 显示识别结果
-        wait_for_button_with_text(oled_display, controller, f"识别结果:\n{description}")
+        oled_display.wait_for_button_with_text(controller, f"识别结果:\n{description}")
 
         # 第二轮：生成史莱姆性格
         logger.log_step("生成性格", "开始生成史莱姆性格...")
@@ -262,7 +209,7 @@ def main():
         logger.log_response("personality", slime_personality_text)
         
         # 显示性格设定
-        wait_for_button_with_text(oled_display, controller, f"史莱姆性格:\n{slime_personality_text}")
+        oled_display.wait_for_button_with_text(controller, f"史莱姆性格:\n{slime_personality_text}")
 
         # 第三轮：生成打招呼
         logger.log_step("生成对话", "生成打招呼语句...")

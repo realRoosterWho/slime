@@ -507,4 +507,56 @@ class DisplayManager:
 
     def show_loading(self, message):
         """显示加载消息（不包含延时）"""
-        self.show_text_oled(message) 
+        self.show_text_oled(message)
+
+    def wait_for_button_with_text(self, controller, text, chars_per_line=9):
+        """显示文本并等待按钮按下，支持摇杆控制滚动
+        Args:
+            controller: InputController实例
+            text: 要显示的文本
+            chars_per_line: 每行字符数
+        """
+        button_pressed = False
+        
+        def on_button1(pin):
+            nonlocal button_pressed
+            button_pressed = True
+        
+        # 设置文本显示控制器
+        text_controller = self.show_text_oled_interactive(text, chars_per_line=chars_per_line)
+        text_controller['draw']()
+        
+        # 保存原有的回调
+        original_callbacks = {
+            'BTN1': controller.button_callbacks.get('BTN1', {}).get('press'),
+            'UP': controller.joystick_callbacks.get('UP'),
+            'DOWN': controller.joystick_callbacks.get('DOWN')
+        }
+        
+        # 注册新的回调
+        controller.register_button_callback('BTN1', on_button1, 'press')
+        
+        def on_up():
+            if text_controller['up']():
+                text_controller['draw']()
+                time.sleep(0.2)
+        
+        def on_down():
+            if text_controller['down']():
+                text_controller['draw']()
+                time.sleep(0.2)
+        
+        controller.register_joystick_callback('UP', on_up)
+        controller.register_joystick_callback('DOWN', on_down)
+        
+        # 等待按钮按下
+        while not button_pressed:
+            controller.check_inputs()
+            time.sleep(0.1)
+        
+        # 恢复原有的回调
+        controller.register_button_callback('BTN1', original_callbacks['BTN1'], 'press')
+        controller.register_joystick_callback('UP', original_callbacks['UP'])
+        controller.register_joystick_callback('DOWN', original_callbacks['DOWN'])
+        
+        time.sleep(0.2)  # 防抖 
