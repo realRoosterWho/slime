@@ -442,12 +442,6 @@ class DisplayManager:
             if start_line + visible_lines < total_lines:  # 底部箭头
                 draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
             
-            # 绘制页码
-            current_page = (start_line // visible_lines) + 1
-            total_pages = (total_lines + visible_lines - 1) // visible_lines
-            page_text = f"{current_page}/{total_pages}"
-            draw.text((90, 54), page_text, font=font, fill=255)
-            
             self._display_image(image)
         
         def scroll_up():
@@ -510,16 +504,10 @@ class DisplayManager:
         self.show_text_oled(message)
 
     def wait_for_button_with_text(self, controller, text, chars_per_line=9, visible_lines=3):
-        """显示文本并等待按钮按下，支持摇杆控制滚动
-        Args:
-            controller: InputController实例
-            text: 要显示的文本
-            chars_per_line: 每行字符数
-            visible_lines: 同时显示的行数
-        """
+        """显示文本并等待按钮按下，支持摇杆控制滚动"""
         button_pressed = False
         
-        def on_button1(pin):
+        def on_button1():  # 移除 pin 参数
             nonlocal button_pressed
             button_pressed = True
         
@@ -539,7 +527,7 @@ class DisplayManager:
         }
         
         # 注册新的回调
-        controller.register_button_callback('BTN1', on_button1, 'press')
+        controller.register_button_callback('BTN1', lambda pin: on_button1(), 'press')  # 使用 lambda 处理 pin 参数
         
         def on_up():
             if text_controller['up']():
