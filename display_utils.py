@@ -369,7 +369,7 @@ class DisplayManager:
         
         return lines
 
-    def show_text_oled(self, text, font_size=12, chars_per_line=9, visible_lines=3):
+    def show_text_oled(self, text, font_size=12, chars_per_line=18, visible_lines=3):
         """专门为OLED优化的文本显示，支持长文本滚动
         Args:
             text: 要显示的文本

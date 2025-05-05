@@ -297,10 +297,29 @@ class DeriveStateMachine:
     
     def handle_show_image(self):
         """处理显示图片状态"""
-        self.oled_display.show_text_oled("史莱姆\n绘制完成！")
-        time.sleep(1)
-        self.lcd_display.show_image(self.data['image_path'])
-        time.sleep(60)
+        try:
+            if not self.data['image_path'] or not os.path.exists(self.data['image_path']):
+                self.oled_display.show_text_oled("图片生成失败...")
+                time.sleep(2)
+                return
+            
+            self.oled_display.show_text_oled("史莱姆\n绘制完成！")
+            time.sleep(1)
+            
+            # 确保图片可以正确加载
+            try:
+                img = Image.open(self.data['image_path'])
+                self.lcd_display.show_image(img)  # 直接传递 PIL Image 对象
+                time.sleep(60)
+            except Exception as e:
+                print(f"显示图片时出错: {e}")
+                self.oled_display.show_text_oled("图片显示失败...")
+                time.sleep(2)
+            
+        except Exception as e:
+            print(f"处理图片显示时出错: {e}")
+            self.oled_display.show_text_oled("出现错误...")
+            time.sleep(2)
     
     def handle_cleanup(self):
         """处理清理状态"""
