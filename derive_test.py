@@ -259,66 +259,67 @@ class DeriveStateMachine:
     
     def handle_gen_image(self):
         """处理生成图片状态"""
-        self.oled_display.show_text_oled("正在绘制\n史莱姆...")
-        slime_prompt = f"一个奇幻的史莱姆生物。{self.data['personality']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
-        self.logger.log_prompt("image", slime_prompt)
-        
-        output = replicate_client.run(
-            "black-forest-labs/flux-1.1-pro",
-            input={
-                "prompt": slime_prompt,
-                "prompt_upsampling": True,
-                "width": 384,        # 使用更大的尺寸，保持 4:3 比例
-                "height": 256,       # 满足最小高度要求
-                "num_inference_steps": 4
-            }
-        )
-        
-        if isinstance(output, list) and len(output) > 0:
+        try:
+            self.oled_display.show_text_oled("正在绘制\n史莱姆...")
+            slime_prompt = f"一个奇幻的史莱姆生物。{self.data['personality']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
+            self.logger.log_prompt("image", slime_prompt)
+            
+            output = replicate_client.run(
+                "black-forest-labs/flux-1.1-pro",
+                input={
+                    "prompt": slime_prompt,
+                    "width": 384,
+                    "height": 256,
+                }
+            )
+            
+            if not isinstance(output, list) or not output:
+                raise Exception("图片生成失败：未获得有效输出")
+            
             image_url = output[0]
             img_response = download_with_retry(image_url)
-            if img_response:
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                self.data['image_path'] = os.path.join(current_dir, "new_slime.png")
-                
-                # 保存原始图片
-                with open(self.data['image_path'], "wb") as f:
-                    f.write(img_response.content)
-                
-                # 调整图片大小为 320x240
-                img = Image.open(BytesIO(img_response.content))
-                resized_img = img.resize((320, 240), Image.Resampling.LANCZOS)
-                resized_img.save(self.data['image_path'])
-                
-                self.logger.save_image(self.data['image_path'], "generated")
-                return
-        
-        return
+            if not img_response:
+                raise Exception("图片下载失败")
+            
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            self.data['image_path'] = os.path.join(current_dir, "new_slime.png")
+            
+            # 保存和处理图片
+            img = Image.open(BytesIO(img_response.content))
+            resized_img = img.resize((320, 240), Image.Resampling.LANCZOS)
+            resized_img.save(self.data['image_path'])
+            
+            self.logger.save_image(self.data['image_path'], "generated")
+            self.logger.log_step("生成图片", "史莱姆图片生成成功")
+            
+        except Exception as e:
+            error_msg = f"生成图片时出错: {str(e)}"
+            print(error_msg)
+            self.logger.log_step("错误", error_msg)
+            self.data['image_path'] = None  # 确保图片路径为空
+            self.oled_display.show_text_oled("图片生成失败...")
+            time.sleep(2)
     
     def handle_show_image(self):
         """处理显示图片状态"""
+        if not self.data['image_path'] or not os.path.exists(self.data['image_path']):
+            self.logger.log_step("显示图片", "跳过图片显示：图片未生成")
+            return
+        
         try:
-            if not self.data['image_path'] or not os.path.exists(self.data['image_path']):
-                self.oled_display.show_text_oled("图片生成失败...")
-                time.sleep(2)
-                return
-            
             self.oled_display.show_text_oled("史莱姆\n绘制完成！")
             time.sleep(1)
             
-            # 确保图片可以正确加载
-            try:
-                img = Image.open(self.data['image_path'])
-                self.lcd_display.show_image(img)  # 直接传递 PIL Image 对象
-                time.sleep(60)
-            except Exception as e:
-                print(f"显示图片时出错: {e}")
-                self.oled_display.show_text_oled("图片显示失败...")
-                time.sleep(2)
+            img = Image.open(self.data['image_path'])
+            self.lcd_display.show_image(img)
+            self.logger.log_step("显示图片", "图片显示成功")
+            time.sleep(60)
             
         except Exception as e:
-            print(f"处理图片显示时出错: {e}")
-            self.oled_display.show_text_oled("出现错误...")
+            error_msg = f"显示图片时出错: {str(e)}"
+            print(error_msg)
+            self.logger.log_step("错误", error_msg)
+            self.oled_display.show_text_oled("图片显示失败...")
             time.sleep(2)
     
     def handle_cleanup(self):
