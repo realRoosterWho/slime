@@ -90,10 +90,10 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
         messages = input_content
     else:
         # 否则构建普通文本消息
-        messages = [{"type": "input_text", "text": input_content}]
+        messages = [{"type": "message", "content": input_content}]
         
     if system_content:
-        messages.insert(0, {"type": "input_text", "text": system_content})
+        messages.insert(0, {"type": "message", "content": system_content})
         
     response = client.responses.create(
         model="gpt-4o-mini",
@@ -163,9 +163,10 @@ class DeriveState(Enum):
 
 class DeriveStateMachine:
     def __init__(self, initial_text):
-        # 在类初始化时设置 GPIO 模式
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
+        # 确保在任何GPIO操作之前设置模式
+        if not GPIO.getmode():  # 检查是否已经设置了模式
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
         
         self.logger = DeriveLogger()
         self.oled_display = DisplayManager("OLED")
@@ -194,14 +195,16 @@ class DeriveStateMachine:
     def chat_with_continuity(self, prompt, system_content=None):
         """带连续性的对话函数"""
         response = chat_with_gpt(
-            input_content=prompt,  # prompt 可以是文本或包含图片的列表
+            input_content=prompt,
             system_content=system_content,
             previous_response_id=self.response_id
         )
-        self.response_id = response.id  # 保存响应ID以维持对话连续性
-        if hasattr(response.output[0].content[0], 'text'):
-            return response.output[0].content[0].text.strip()
-        return response.output[0].content[0]
+        self.response_id = response.id
+        
+        # 获取响应文本
+        if hasattr(response.output[0], 'content'):
+            return response.output[0].content
+        return str(response.output[0])
 
     def wait_for_button(self, display_text):
         """等待按钮点击的通用函数"""
@@ -439,18 +442,12 @@ class DeriveStateMachine:
         
         # 修改输入格式
         input_content = [
-            {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
-            {"type": "input_image", "image_url": data_url}
+            {"type": "message", "content": "请简短描述这张照片的主要内容。"},
+            {"type": "image_url", "image_url": data_url}
         ]
         
-        # 使用修改后的 chat_with_continuity
         response = self.chat_with_continuity(input_content)
-        
-        # 确保我们正确获取响应文本
-        if hasattr(response.output[0].content[0], 'text'):
-            self.data['photo_description'] = response.output[0].content[0].text.strip()
-        else:
-            self.data['photo_description'] = response.output[0].content[0]
+        self.data['photo_description'] = response
         
         self.logger.log_step("照片分析", self.data['photo_description'])
         self.wait_for_button(f"分析结果：\n{self.data['photo_description']}")
