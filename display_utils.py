@@ -503,84 +503,55 @@ class DisplayManager:
         """显示加载消息（不包含延时）"""
         self.show_text_oled(message)
 
-    def wait_for_button_with_text(self, controller, text, chars_per_line=9, visible_lines=3):
+    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=9, visible_lines=3):
         """显示文本并等待按钮按下，支持摇杆控制滚动
         Args:
             controller: InputController实例
             text: 要显示的文本
-            chars_per_line: 每行字符数
-            visible_lines: 同时显示的行数
+            font_size: 字体大小，默认12
+            chars_per_line: 每行字符数，默认9
+            visible_lines: 同时显示的行数，默认3
         """
-        def split_text(text, chars_per_line):
-            """处理文本换行，支持中英文混合"""
-            if '\n' in text:
-                # 处理手动换行
-                paragraphs = text.split('\n')
-                lines = []
-                for para in paragraphs:
-                    if not para:  # 处理空行
-                        lines.append('')
-                        continue
-                        
-                    # 处理英文单词换行
-                    words = para.split()
-                    current_line = []
-                    current_length = 0
-                    
-                    for word in words:
-                        # 计算单词长度（中文字符算2个长度）
-                        word_length = sum(2 if ord(c) > 127 else 1 for c in word)
-                        
-                        if current_length + word_length + (1 if current_line else 0) <= chars_per_line:
-                            # 当前行还能容纳这个单词
-                            if current_line:
-                                current_line.append(' ')
-                                current_length += 1
-                            current_line.append(word)
-                            current_length += word_length
-                        else:
-                            # 当前行容纳不下，换行
-                            if current_line:
-                                lines.append(''.join(current_line))
-                            current_line = [word]
-                            current_length = word_length
-                    
-                    if current_line:
-                        lines.append(''.join(current_line))
-                return lines
-            else:
-                # 无手动换行，直接处理
-                words = text.split()
-                lines = []
-                current_line = []
-                current_length = 0
-                
-                for word in words:
-                    word_length = sum(2 if ord(c) > 127 else 1 for c in word)
-                    
-                    if current_length + word_length + (1 if current_line else 0) <= chars_per_line:
-                        if current_line:
-                            current_line.append(' ')
-                            current_length += 1
-                        current_line.append(word)
-                        current_length += word_length
-                    else:
-                        if current_line:
-                            lines.append(''.join(current_line))
-                        current_line = [word]
-                        current_length = word_length
-                
-                if current_line:
-                    lines.append(''.join(current_line))
-                return lines
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
         
-        # 设置文本显示控制器
-        text_controller = self.show_text_oled_interactive(
-            '\n'.join(split_text(text, chars_per_line)), 
-            chars_per_line=chars_per_line,
-            visible_lines=visible_lines
-        )
-        text_controller['draw']()
+        try:
+            font = ImageFont.truetype(self.font_path, font_size)
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+
+        # 处理文本换行
+        if '\n' not in text:
+            lines = []
+            for i in range(0, len(text), chars_per_line):
+                lines.append(text[i:i + chars_per_line])
+        else:
+            lines = text.split('\n')
+        
+        # 如果文本行数超过可见行数，需要滚动显示
+        total_lines = len(lines)
+        start_line = 0
+        
+        def draw_current_page():
+            """绘制当前页面"""
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制当前可见的行
+            y = 10
+            for i in range(start_line, min(start_line + visible_lines, total_lines)):
+                draw.text((10, y), lines[i], font=font, fill=255)
+                y += 20  # 行间距
+            
+            # 绘制滚动指示器
+            if start_line > 0:  # 顶部箭头
+                draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+            if start_line + visible_lines < total_lines:  # 底部箭头
+                draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+            
+            self._display_image(image)
         
         # 保存按钮和摇杆状态
         button_state = {
@@ -588,6 +559,9 @@ class DisplayManager:
             'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
             'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
         }
+        
+        # 绘制初始页面
+        draw_current_page()
         
         while True:
             # 检查按钮1
@@ -600,16 +574,18 @@ class DisplayManager:
             # 检查摇杆上
             current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
             if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
-                if text_controller['up']():
-                    text_controller['draw']()
+                if start_line > 0:
+                    start_line = max(0, start_line - visible_lines)
+                    draw_current_page()
                     time.sleep(0.2)
             button_state['UP'] = current_up
             
             # 检查摇杆下
             current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
             if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
-                if text_controller['down']():
-                    text_controller['draw']()
+                if start_line + visible_lines < total_lines:
+                    start_line = min(total_lines - visible_lines, start_line + visible_lines)
+                    draw_current_page()
                     time.sleep(0.2)
             button_state['DOWN'] = current_down
             

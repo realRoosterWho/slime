@@ -262,7 +262,7 @@ class DeriveStateMachine:
         self.logger.log_prompt("image", slime_prompt)
         
         output = replicate_client.run(
-            "black-forest-labs/flux-schnell",
+            "black-forest-labs/flux-1.1-pro",
             input={
                 "prompt": slime_prompt,
                 "prompt_upsampling": True,
