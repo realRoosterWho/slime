@@ -322,11 +322,11 @@ class DeriveStateMachine:
             DeriveState.ANALYZE_PHOTO: DeriveState.SHOW_ANALYSIS,
             DeriveState.SHOW_ANALYSIS: DeriveState.GEN_PERSONALITY,
             DeriveState.GEN_PERSONALITY: DeriveState.SHOW_PERSONALITY,
-            DeriveState.SHOW_PERSONALITY: DeriveState.GEN_GREETING,
+            DeriveState.SHOW_PERSONALITY: DeriveState.GEN_IMAGE,    # 改变顺序：生成性格后直接生成图片
             DeriveState.GEN_IMAGE: DeriveState.SHOW_IMAGE,
-            DeriveState.SHOW_IMAGE: DeriveState.CLEANUP,
+            DeriveState.SHOW_IMAGE: DeriveState.GEN_GREETING,      # 显示图片后生成问候
             DeriveState.GEN_GREETING: DeriveState.SHOW_GREETING,
-            DeriveState.SHOW_GREETING: DeriveState.GEN_IMAGE,
+            DeriveState.SHOW_GREETING: DeriveState.CLEANUP,        # 显示问候后清理
             DeriveState.CLEANUP: DeriveState.EXIT
         }
         

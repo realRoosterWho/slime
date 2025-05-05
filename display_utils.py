@@ -523,7 +523,7 @@ class DisplayManager:
         """显示加载消息（不包含延时）"""
         self.show_text_oled(message)
 
-    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=9, visible_lines=3):
+    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=18, visible_lines=3):
         """显示文本并等待按钮按下，支持摇杆控制滚动
         Args:
             controller: InputController实例
