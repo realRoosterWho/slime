@@ -40,19 +40,34 @@ def test_image_generation():
             }
         )
         
-        print(f"API 返回: {output}")
+        print(f"API 返回类型: {type(output)}")
+        print(f"API 返回内容: {output}")
+        print(f"API 返回内容的详细信息:")
+        print(f"- dir(output): {dir(output)}")
+        if hasattr(output, '__dict__'):
+            print(f"- output.__dict__: {output.__dict__}")
         
-        # 如果返回是字符串（URL），直接使用
-        if isinstance(output, str):
-            image_url = output
-        # 如果返回是列表，使用第一个元素
-        elif isinstance(output, list) and output:
+        # 如果返回是列表，获取第一个元素
+        if isinstance(output, list):
             image_url = output[0]
+            print(f"从列表中获取第一个URL: {image_url}")
+        # 如果返回是字符串（URL），直接使用
+        elif isinstance(output, str):
+            image_url = output
+            print(f"直接获取URL: {image_url}")
         else:
-            raise Exception(f"无效的 API 返回格式: {output}")
+            # 尝试转换为字符串
+            try:
+                image_url = str(output)
+                print(f"转换为字符串后的URL: {image_url}")
+            except:
+                raise Exception(f"无法处理的API返回格式: {type(output)}")
             
         # 下载图片
+        print("开始下载图片...")
         response = requests.get(image_url)
+        print(f"下载状态码: {response.status_code}")
+        
         if response.status_code == 200:
             # 保存原始图片
             img = Image.open(BytesIO(response.content))
