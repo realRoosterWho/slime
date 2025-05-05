@@ -211,6 +211,7 @@ class DeriveStateMachine:
             'timestamped_image': None,
             'slime_image': None,
             'slime_description': None,
+            'slime_appearance': None,  # 新增：保存史莱姆外观的详细描述，用于保持一致性
             # 新增数据项，用于后续流程
             'new_photo_description': None,
             'is_obsession_matched': None,
@@ -412,6 +413,10 @@ class DeriveStateMachine:
         self.data['slime_description'] = self.generate_text('slime_description', text=self.data['personality'])
         self.logger.log_step("外观描述", self.data['slime_description'])
         
+        # 保存详细的外观描述用于保持一致性
+        self.data['slime_appearance'] = f"一个可爱的史莱姆生物。{self.data['slime_description']} 。"
+        self.logger.log_step("一致性外观描述", self.data['slime_appearance'])
+        
         self.oled_display.show_text_oled("性格设定完成")
         time.sleep(1)
 
@@ -420,7 +425,7 @@ class DeriveStateMachine:
         prompts = {
             'slime': f"一个奇幻的史莱姆生物。{self.data['slime_description']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。",
             'reward': f"一个奇幻的奖励物品。{self.data['reward_description']} 儿童绘本风格，色彩丰富，特写镜头。",
-            'feedback': f"一个史莱姆的情绪反应。史莱姆表情生动，{self.data['feedback_description']} 儿童绘本风格，色彩鲜艳可爱。" 
+            'feedback': f"一个史莱姆的情绪反应。{self.data['slime_appearance']} 表情生动，{self.data['feedback_description']} 儿童绘本风格，色彩鲜艳可爱。" 
         }
         
         return prompts.get(prompt_type, '')
@@ -713,7 +718,7 @@ class DeriveStateMachine:
         self.data['new_photo_description'] = self.chat_with_continuity(input_content)
         
         self.logger.log_step("新照片分析", self.data['new_photo_description'])
-        self.wait_for_button(f"分析结果：\n{self.data['new_photo_description'][:100]}...")
+        self.oled_display.show_text_oled("分析完成！")
 
     def handle_analyze_reward(self):
         """处理分析奖励状态"""
@@ -764,7 +769,7 @@ class DeriveStateMachine:
         # 根据奖励类型生成不同的提示词
         if self.data['reward_type'] == 'accessory':
             prompt = f"""一个奇幻的史莱姆装饰品。{self.data['reward_description']} 
-            精致细腻，色彩鲜艳，儿童绘本风格，白色背景，特写镜头。这个装饰品适合用在史莱姆身上。"""
+            精致细腻，色彩鲜艳，儿童绘本风格，白色背景，特写镜头。这个装饰品适合用在史莱姆身上：{self.data['slime_appearance']}"""
         else:  # egg类型
             prompt = f"""一个神秘的史莱姆蛋。{self.data['reward_description']} 
             表面有闪光和微妙的纹理，儿童绘本风格，白色背景，特写镜头。"""
@@ -861,8 +866,8 @@ class DeriveStateMachine:
         self.logger.log_step("反馈描述", self.data['feedback_description'])
         
         # 生成反馈图片
-        feedback_prompt = f"""一个生动的史莱姆表情反应。{self.data['feedback_description']} 
-        儿童风格插画，明亮的背景，色彩鲜艳。史莱姆是一个可爱的半透明生物，有大眼睛和表情丰富的面部。"""
+        feedback_prompt = f"""一个生动的史莱姆表情反应。{self.data['slime_appearance']} 
+        表情生动，{self.data['feedback_description']} 儿童绘本风格，明亮的背景，色彩鲜艳。"""
         
         self.logger.log_prompt("feedback_image_prompt", feedback_prompt)
         self.generate_image(feedback_prompt, 'feedback_image', 'feedback')
@@ -957,7 +962,7 @@ class DeriveStateMachine:
             
             # 生成总结图片
             summary_image_prompt = f"""
-            一个可爱的史莱姆正在告别。{self.data['slime_description']}
+            一个可爱的史莱姆正在告别。{self.data['slime_appearance']}
             史莱姆表情带有一丝不舍但很满足，背景有漂流中收集到的物品和记忆。
             如果有获得装饰物奖励，史莱姆应该佩戴着这些装饰。
             画面温馨感人，色彩明亮但带有一丝离别的感伤。

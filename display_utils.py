@@ -573,8 +573,8 @@ class DisplayManager:
             if start_line + visible_lines < total_lines:  # 底部箭头
                 draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
             
-            # 在右上角添加按钮提示
-            draw.text((90, 2), "按BTN1继续", font=small_font, fill=255)
+            # 在右上角添加按钮提示 - 使用更简洁的提示
+            draw.text((105, 2), "BT1 >", font=small_font, fill=255)
             
             self._display_image(image)
         
@@ -629,80 +629,57 @@ class DisplayManager:
         draw = ImageDraw.Draw(image)
         
         try:
-            title_font = ImageFont.truetype(self.font_path, 14)
-            option_font = ImageFont.truetype(self.font_path, 12)
+            font = ImageFont.truetype(self.font_path, 12)
             small_font = ImageFont.truetype(self.font_path, 8)  # 小字体用于提示
         except:
             print("警告：无法加载中文字体，将使用默认字体")
-            title_font = ImageFont.load_default()
-            option_font = ImageFont.load_default()
+            font = ImageFont.load_default()
             small_font = ImageFont.load_default()
         
-        selected_option = 0  # 0表示"是"，1表示"否"
-        options = ["是", "否"]
+        # 处理文本换行 - 将问题文本分行显示
+        lines = self.split_text(question, 18)  # 18个字符一行
         
-        def draw_options():
+        def draw_question():
             # 清空图像
             draw.rectangle((0, 0, self.width, self.height), fill=0)
             
-            # 绘制问题
-            draw.text((10, 10), question, font=title_font, fill=255)
+            # 绘制问题文本
+            y = 10
+            for line in lines:
+                draw.text((10, y), line, font=font, fill=255)
+                y += 15  # 行间距
             
-            # 绘制选项
-            y = 40
-            for i, option in enumerate(options):
-                if i == selected_option:
-                    # 绘制选中选项的背景
-                    draw.rectangle((40, y-2, 90, y+12), fill=255)
-                    draw.text((50, y), option, font=option_font, fill=0)  # 黑底白字
-                else:
-                    draw.text((50, y), option, font=option_font, fill=255)  # 白底黑字
-                y += 20
+            # 在底部显示按钮选项
+            draw.text((10, 50), "按BT1继续漂流", font=font, fill=255)
+            draw.text((10, 50+15), "按BT2结束漂流", font=font, fill=255)
             
             # 在右上角添加按钮提示
-            draw.text((85, 2), "BTN1:选择 BTN2:切换", font=small_font, fill=255)
+            draw.text((90, 2), "BT1:Y BT2:N", font=small_font, fill=255)
             
             self._display_image(image)
         
         # 保存按钮状态
         button_state = {
             'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
-            'BTN2': GPIO.input(controller.BUTTON_PINS['BTN2']),
-            'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
-            'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            'BTN2': GPIO.input(controller.BUTTON_PINS['BTN2'])
         }
         
-        # 绘制初始选项
-        draw_options()
+        # 绘制界面
+        draw_question()
         
         while True:
-            # 检查按钮1 (确认选择)
+            # 检查按钮1 (继续漂流)
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
             if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
                 time.sleep(0.1)  # 防抖
-                return selected_option == 0  # 返回布尔值，是否继续
+                return True
             button_state['BTN1'] = current_btn1
             
-            # 检查按钮2或摇杆上下 (切换选项)
+            # 检查按钮2 (结束漂流)
             current_btn2 = GPIO.input(controller.BUTTON_PINS['BTN2'])
-            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
-            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
-            
-            option_changed = False
-            
-            if (current_btn2 == 0 and button_state['BTN2'] == 1) or \
-               (current_up == 0 and button_state['UP'] == 1) or \
-               (current_down == 0 and button_state['DOWN'] == 1):
-                # 切换选项
-                selected_option = 1 - selected_option  # 在0和1之间切换
-                option_changed = True
+            if current_btn2 == 0 and button_state['BTN2'] == 1:  # 按钮被按下
                 time.sleep(0.1)  # 防抖
-            
+                return False
             button_state['BTN2'] = current_btn2
-            button_state['UP'] = current_up
-            button_state['DOWN'] = current_down
-            
-            if option_changed:
-                draw_options()
             
             time.sleep(0.1)  # 降低CPU使用率 
