@@ -85,13 +85,19 @@ class DeriveLogger:
 
 def chat_with_gpt(input_content, system_content=None, previous_response_id=None):
     """与GPT进行对话"""
-    input_data = [{"role": "user", "content": input_content}]
+    # 如果输入是列表（包含图片），直接使用
+    if isinstance(input_content, list):
+        messages = input_content
+    else:
+        # 否则构建普通文本消息
+        messages = [{"type": "input_text", "text": input_content}]
+        
     if system_content:
-        input_data.insert(0, {"role": "system", "content": system_content})
+        messages.insert(0, {"type": "input_text", "text": system_content})
         
     response = client.responses.create(
         model="gpt-4o-mini",
-        input=input_data,
+        input=messages,
         previous_response_id=previous_response_id
     )
     return response
@@ -157,7 +163,7 @@ class DeriveState(Enum):
 
 class DeriveStateMachine:
     def __init__(self, initial_text):
-        # 初始化 GPIO 模式
+        # 在类初始化时设置 GPIO 模式
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         
@@ -167,7 +173,7 @@ class DeriveStateMachine:
         self.controller = InputController()
         self.state = DeriveState.INIT
         self.initial_text = initial_text
-        self.response_id = None  # 用于追踪对话
+        self.response_id = None
         self.data = {
             'personality': None,
             'greeting': None,
@@ -237,7 +243,7 @@ class DeriveStateMachine:
                 "根据这个性格描述打个招呼：{text}"
             ),
             'photo_question': (
-                "你是一个可爱的史莱姆。请用活泼的语气询问是否可以拍照，中文，不超过15个字。",
+                "你是一个可爱的史莱姆。请用活泼的语气询问是否可以一张风景照，带它去漂流，中文，不超过15个字。",
                 "根据这个性格，询问能不能拍照：{text}"
             ),
             'destination': (
@@ -431,15 +437,20 @@ class DeriveStateMachine:
         base64_image = encode_image(self.data['timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
         
-        # 创建包含图片的输入
+        # 修改输入格式
         input_content = [
-            {"type": "text", "text": "请简短描述这张照片的主要内容。"},
-            {"type": "image_url", "image_url": data_url}
+            {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
+            {"type": "input_image", "image_url": data_url}
         ]
         
         # 使用修改后的 chat_with_continuity
-        response_text = self.chat_with_continuity(input_content)
-        self.data['photo_description'] = response_text
+        response = self.chat_with_continuity(input_content)
+        
+        # 确保我们正确获取响应文本
+        if hasattr(response.output[0].content[0], 'text'):
+            self.data['photo_description'] = response.output[0].content[0].text.strip()
+        else:
+            self.data['photo_description'] = response.output[0].content[0]
         
         self.logger.log_step("照片分析", self.data['photo_description'])
         self.wait_for_button(f"分析结果：\n{self.data['photo_description']}")
