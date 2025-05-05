@@ -511,9 +511,72 @@ class DisplayManager:
             chars_per_line: 每行字符数
             visible_lines: 同时显示的行数
         """
+        def split_text(text, chars_per_line):
+            """处理文本换行，支持中英文混合"""
+            if '\n' in text:
+                # 处理手动换行
+                paragraphs = text.split('\n')
+                lines = []
+                for para in paragraphs:
+                    if not para:  # 处理空行
+                        lines.append('')
+                        continue
+                        
+                    # 处理英文单词换行
+                    words = para.split()
+                    current_line = []
+                    current_length = 0
+                    
+                    for word in words:
+                        # 计算单词长度（中文字符算2个长度）
+                        word_length = sum(2 if ord(c) > 127 else 1 for c in word)
+                        
+                        if current_length + word_length + (1 if current_line else 0) <= chars_per_line:
+                            # 当前行还能容纳这个单词
+                            if current_line:
+                                current_line.append(' ')
+                                current_length += 1
+                            current_line.append(word)
+                            current_length += word_length
+                        else:
+                            # 当前行容纳不下，换行
+                            if current_line:
+                                lines.append(''.join(current_line))
+                            current_line = [word]
+                            current_length = word_length
+                    
+                    if current_line:
+                        lines.append(''.join(current_line))
+                return lines
+            else:
+                # 无手动换行，直接处理
+                words = text.split()
+                lines = []
+                current_line = []
+                current_length = 0
+                
+                for word in words:
+                    word_length = sum(2 if ord(c) > 127 else 1 for c in word)
+                    
+                    if current_length + word_length + (1 if current_line else 0) <= chars_per_line:
+                        if current_line:
+                            current_line.append(' ')
+                            current_length += 1
+                        current_line.append(word)
+                        current_length += word_length
+                    else:
+                        if current_line:
+                            lines.append(''.join(current_line))
+                        current_line = [word]
+                        current_length = word_length
+                
+                if current_line:
+                    lines.append(''.join(current_line))
+                return lines
+        
         # 设置文本显示控制器
         text_controller = self.show_text_oled_interactive(
-            text, 
+            '\n'.join(split_text(text, chars_per_line)), 
             chars_per_line=chars_per_line,
             visible_lines=visible_lines
         )
