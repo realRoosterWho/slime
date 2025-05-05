@@ -286,11 +286,24 @@ class DeriveStateMachine:
                 raise  # 所有重试失败，抛出异常
 
     def wait_for_button(self, display_text):
-        """等待按钮点击的通用函数"""
-        self.oled_display.wait_for_button_with_text(
-            self.controller,
-            display_text
+        """等待按钮点击的通用函数 - 添加右上角提示"""
+        # 在文本末尾添加按钮提示
+        if not display_text.endswith("按下按钮继续"):
+            if "\n\n" in display_text:
+                display_text = display_text.rsplit("\n\n", 1)[0] + "\n\n按下按钮继续"
+            else:
+                display_text += "\n\n按下按钮继续"
+        
+        # 添加右上角提示
+        corner_hint = "▶按钮1"
+        
+        self.oled_display.show_text_oled(
+            display_text, 
+            corner_text=corner_hint  # 假设DisplayManager支持这个参数
         )
+        
+        # 等待按钮按下
+        self.controller.wait_for_specific_button(1)
 
     def generate_text_prompt(self, prompt_type):
         """生成不同类型文本的提示词模板 - 优化后的版本"""
@@ -894,22 +907,22 @@ class DeriveStateMachine:
             time.sleep(2)
 
     def handle_ask_continue(self):
-        """处理询问是否继续状态"""
+        """处理询问是否继续状态 - 改进用户交互"""
         # 生成继续询问文本
         continue_question = self.generate_text(
             'continue_question',
             personality=self.data['personality'],
-            tone=self.data['slime_attributes']['tone']  # 添加tone参数
+            tone=self.data['slime_attributes']['tone']
         )
         
         self.logger.log_step("询问继续", f"询问文本: {continue_question}")
         
         # 显示询问并等待选择
-        self.oled_display.show_text_oled(f"史莱姆说：\n{continue_question}")
-        time.sleep(1)
+        display_text = f"史莱姆说：\n{continue_question}\n\n按1继续漂流\n按2结束漂流"
+        corner_hint = "▶按1:继续 ▶按2:结束"
         
-        # 使用按钮1和按钮2分别代表继续和结束
-        self.oled_display.show_text_oled("按1继续漂流\n按2结束漂流")
+        self.oled_display.show_text_oled(display_text, corner_text=corner_hint)
+        time.sleep(1)
         
         # 等待用户选择
         button = self.controller.wait_for_button()

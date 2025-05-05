@@ -374,62 +374,39 @@ class DisplayManager:
         
         return lines
 
-    def show_text_oled(self, text, font_size=12, chars_per_line=18, visible_lines=3):
-        """专门为OLED优化的文本显示，支持长文本滚动
-        Args:
-            text: 要显示的文本
-            font_size: 字体大小，默认12
-            chars_per_line: 每行字符数，默认9
-            visible_lines: 同时显示的行数，默认3
-        """
-        # 创建新图像
-        image = Image.new("1", (self.width, self.height))
-        draw = ImageDraw.Draw(image)
-        
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
         try:
-            font = ImageFont.truetype(self.font_path, font_size)
-        except:
-            print("警告：无法加载中文字体，将使用默认字体")
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
             font = ImageFont.load_default()
-
-        # 处理文本换行
-        lines = self.split_text(text, chars_per_line)
-        
-        # 如果文本行数超过可见行数，需要滚动显示
-        total_lines = len(lines)
-        if total_lines > visible_lines:
-            start_line = 0
-            while True:
-                # 清空图像
-                draw.rectangle((0, 0, self.width, self.height), fill=0)
-                
-                # 绘制当前可见的行
-                y = 10
-                for i in range(start_line, min(start_line + visible_lines, total_lines)):
-                    draw.text((10, y), lines[i], font=font, fill=255)
-                    y += 20  # 行间距
-                
-                # 绘制滚动指示器
-                if start_line > 0:  # 顶部箭头
-                    draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
-                if start_line + visible_lines < total_lines:  # 底部箭头
-                    draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
-                
-                self._display_image(image)
-                time.sleep(3)  # 每页显示3秒
-                
-                # 更新起始行
-                start_line += visible_lines
-                if start_line >= total_lines:
-                    start_line = 0
-        else:
-            # 如果文本行数不超过可见行数，直接显示
-            y = 10
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
             for line in lines:
-                draw.text((10, y), line, font=font, fill=255)
-                y += 20
-
-            self._display_image(image)
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
 
     def show_text_oled_interactive(self, text, font_size=12, chars_per_line=9, visible_lines=3):
         """支持摇杆控制的OLED文本显示"""
@@ -528,85 +505,4752 @@ class DisplayManager:
         """显示加载消息（不包含延时）"""
         self.show_text_oled(message)
 
-    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=18, visible_lines=3):
-        """显示文本并等待按钮按下，支持摇杆控制滚动
-        Args:
-            controller: InputController实例
-            text: 要显示的文本
-            font_size: 字体大小，默认12
-            chars_per_line: 每行字符数，默认9
-            visible_lines: 同时显示的行数，默认3
-        """
-        # 创建新图像
-        image = Image.new("1", (self.width, self.height))
-        draw = ImageDraw.Draw(image)
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
         
-        try:
-            font = ImageFont.truetype(self.font_path, font_size)
-        except:
-            print("警告：无法加载中文字体，将使用默认字体")
-            font = ImageFont.load_default()
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
 
-        # 处理文本换行
-        lines = self.split_text(text, chars_per_line)
+    def wait_for_button(self, display_text):
+        """等待按钮点击的通用函数 - 添加右上角提示"""
+        # 在文本末尾添加按钮提示
+        if not display_text.endswith("按下按钮继续"):
+            if "\n\n" in display_text:
+                display_text = display_text.rsplit("\n\n", 1)[0] + "\n\n按下按钮继续"
+            else:
+                display_text += "\n\n按下按钮继续"
         
-        # 如果文本行数超过可见行数，需要滚动显示
-        total_lines = len(lines)
-        start_line = 0
+        # 添加右上角提示
+        corner_hint = "▶按钮1"
         
-        def draw_current_page():
-            """绘制当前页面"""
-            # 清空图像
-            draw.rectangle((0, 0, self.width, self.height), fill=0)
-            
-            # 绘制当前可见的行
-            y = 10
-            for i in range(start_line, min(start_line + visible_lines, total_lines)):
-                draw.text((10, y), lines[i], font=font, fill=255)
-                y += 20  # 行间距
-            
-            # 绘制滚动指示器
-            if start_line > 0:  # 顶部箭头
-                draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
-            if start_line + visible_lines < total_lines:  # 底部箭头
-                draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
-            
-            self._display_image(image)
+        self.show_text_oled(display_text, corner_text=corner_hint)
         
-        # 保存按钮和摇杆状态
-        button_state = {
-            'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
-            'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
-            'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
-        }
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def handle_ask_continue(self):
+        """处理询问是否继续状态 - 改进用户交互"""
+        # 生成继续询问文本
+        continue_question = self.generate_text(
+            'continue_question',
+            personality=self.data['personality'],
+            tone=self.data['slime_attributes']['tone']
+        )
         
-        # 绘制初始页面
-        draw_current_page()
+        self.logger.log_step("询问继续", f"询问文本: {continue_question}")
         
-        while True:
-            # 检查按钮1
-            current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
-            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
-                time.sleep(0.1)  # 防抖
-                return
-            button_state['BTN1'] = current_btn1
+        # 显示询问并等待选择
+        display_text = f"史莱姆说：\n{continue_question}\n\n按1继续漂流\n按2结束漂流"
+        corner_hint = "▶按1:继续 ▶按2:结束"
+        
+        self.show_text_oled(display_text, corner_text=corner_hint)
+        time.sleep(1)
+        
+        # 等待用户选择
+        button = self.controller.wait_for_button()
+        if button == 1:
+            self.data['continue_derive'] = True
+            self.logger.log_step("用户选择", "继续漂流")
+        else:
+            self.data['continue_derive'] = False
+            self.logger.log_step("用户选择", "结束漂流")
+        
+        # 确认用户选择
+        if self.data['continue_derive']:
+            self.show_text_oled("准备继续漂流...")
+        else:
+            self.show_text_oled("准备结束漂流...")
+        time.sleep(1)
+
+    def generate_text(self, template, **kwargs):
+        # This method should be implemented to generate text based on a template and keyword arguments
+        # It's a placeholder and should be replaced with the actual implementation
+        return "Generated text"
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
             
-            # 检查摇杆上
-            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
-            if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
-                if start_line > 0:
-                    start_line = max(0, start_line - visible_lines)
-                    draw_current_page()
-                    time.sleep(0.1)
-            button_state['UP'] = current_up
+            # 绘制主文本
+            font = ImageFont.load_default()
             
-            # 检查摇杆下
-            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
-            if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
-                if start_line + visible_lines < total_lines:
-                    start_line = min(total_lines - visible_lines, start_line + visible_lines)
-                    draw_current_page()
-                    time.sleep(0.1)
-            button_state['DOWN'] = current_down
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
             
-            time.sleep(0.1)  # 降低CPU使用率 
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (128 - corner_width - 2, 0),  # 右上角位置，微调2像素
+                    corner_text,
+                    font=font,
+                    fill=255
+                )
+            
+            # 显示
+            self.oled.image(self.image)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED显示文本出错: {e}")
+
+    def wait_for_button_with_text(self, controller, text, corner_text="▶按钮1"):
+        """显示文本并等待按钮点击，右上角显示提示"""
+        # 显示文本和角落提示
+        self.show_text_oled(text, corner_text=corner_text)
+        
+        # 等待按钮按下
+        controller.wait_for_specific_button(1)
+
+    def show_text_oled(self, text, corner_text=None):
+        """在OLED上显示文本，可选择在右上角显示提示"""
+        try:
+            # 清屏
+            self.clear()
+            
+            # 绘制主文本
+            font = ImageFont.load_default()
+            
+            # 分割文本行
+            lines = text.split('\n')
+            y_offset = 0
+            
+            for line in lines:
+                self.draw.text((0, y_offset), line, font=font, fill=255)
+                y_offset += 10  # 行间距
+            
+            # 如果有右上角提示，则显示
+            if corner_text:
+                # 计算文本宽度以放置在右上角
+                corner_width = self.draw.textlength(corner_text, font=font)
+                self.draw.text(
+                    (12
