@@ -587,7 +587,7 @@ class DisplayManager:
             # 检查按钮1
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
             if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
-                time.sleep(0.2)  # 防抖
+                time.sleep(0.1)  # 防抖
                 return
             button_state['BTN1'] = current_btn1
             
@@ -597,7 +597,7 @@ class DisplayManager:
                 if start_line > 0:
                     start_line = max(0, start_line - visible_lines)
                     draw_current_page()
-                    time.sleep(0.2)
+                    time.sleep(0.1)
             button_state['UP'] = current_up
             
             # 检查摇杆下
@@ -606,7 +606,7 @@ class DisplayManager:
                 if start_line + visible_lines < total_lines:
                     start_line = min(total_lines - visible_lines, start_line + visible_lines)
                     draw_current_page()
-                    time.sleep(0.2)
+                    time.sleep(0.1)
             button_state['DOWN'] = current_down
             
             time.sleep(0.1)  # 降低CPU使用率 
