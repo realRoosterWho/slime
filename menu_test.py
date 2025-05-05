@@ -69,7 +69,7 @@ class MenuSystem:
         try:
             # 清理当前资源
             self.controller.cleanup()
-            self.oled.clear()
+            self.oled.show_loading("正在启动漂流...")
             
             # 获取openai_test.py的路径
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -271,27 +271,23 @@ class MenuSystem:
     def system_reboot(self):
         """重启系统"""
         try:
-            self.oled.show_text_oled("系统正在重启...")
-            time.sleep(1)
+            self.oled.show_message("系统正在重启...")
             self.cleanup()
             subprocess.run(['sudo', 'reboot'], check=True)
         except Exception as e:
-            self.oled.show_text_oled("重启失败!")
             print(f"重启错误: {e}")
-            time.sleep(2)
+            self.oled.show_message("重启失败!")
             self.display_menu()
 
     def system_shutdown(self):
         """关闭系统"""
         try:
-            self.oled.show_text_oled("系统正在关闭...")
-            time.sleep(1)
+            self.oled.show_message("系统正在关闭...")
             self.cleanup()
             subprocess.run(['sudo', 'shutdown', '-h', 'now'], check=True)
         except Exception as e:
-            self.oled.show_text_oled("关机失败!")
             print(f"关机错误: {e}")
-            time.sleep(2)
+            self.oled.show_message("关机失败!")
             self.display_menu()
 
     def on_confirm(self):
@@ -301,10 +297,7 @@ class MenuSystem:
         if selected_item == "扫描可用wifi":
             self.scan_wifi()
         elif selected_item == "进入漂流":
-            self.oled.show_text_oled("正在启动漂流...")
-            time.sleep(1)
             self.run_openai_test()
-            self.display_menu()
         elif selected_item == "使用默认wifi":
             self.connect_default_wifi()
         elif selected_item == "使用热点wifi":
@@ -318,8 +311,7 @@ class MenuSystem:
         elif selected_item == "关闭系统":
             self.system_shutdown()
         else:  # 退出漂流
-            self.oled.show_text_oled("再见！")
-            time.sleep(1)
+            self.oled.show_message("再见！")
             self.cleanup()
             sys.exit(0)
     

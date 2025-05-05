@@ -391,4 +391,17 @@ class DisplayManager:
             fill=255 if self.display_type == "OLED" else "white"
         )
         
-        return image 
+        return image
+
+    def show_message(self, message, duration=1):
+        """显示临时消息，等待指定时间后自动消失
+        Args:
+            message: 要显示的消息
+            duration: 显示持续时间（秒）
+        """
+        self.show_text_oled(message)
+        time.sleep(duration)
+
+    def show_loading(self, message):
+        """显示加载消息（不包含延时）"""
+        self.show_text_oled(message) 
