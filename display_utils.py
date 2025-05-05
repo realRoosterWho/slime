@@ -504,13 +504,13 @@ class DisplayManager:
         self.show_text_oled(message)
 
     def wait_for_button_with_text(self, controller, text, chars_per_line=9, visible_lines=3):
-        """显示文本并等待按钮按下，支持摇杆控制滚动"""
-        button_pressed = False
-        
-        def on_button1():  # 移除 pin 参数
-            nonlocal button_pressed
-            button_pressed = True
-        
+        """显示文本并等待按钮按下，支持摇杆控制滚动
+        Args:
+            controller: InputController实例
+            text: 要显示的文本
+            chars_per_line: 每行字符数
+            visible_lines: 同时显示的行数
+        """
         # 设置文本显示控制器
         text_controller = self.show_text_oled_interactive(
             text, 
@@ -519,37 +519,35 @@ class DisplayManager:
         )
         text_controller['draw']()
         
-        # 保存原有的回调
-        original_callbacks = {
-            'BTN1': controller.button_callbacks.get('BTN1', {}).get('press'),
-            'UP': controller.joystick_callbacks.get('UP'),
-            'DOWN': controller.joystick_callbacks.get('DOWN')
+        # 保存按钮和摇杆状态
+        button_state = {
+            'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
+            'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
+            'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
         }
         
-        # 注册新的回调
-        controller.register_button_callback('BTN1', lambda pin: on_button1(), 'press')  # 使用 lambda 处理 pin 参数
-        
-        def on_up():
-            if text_controller['up']():
-                text_controller['draw']()
-                time.sleep(0.2)
-        
-        def on_down():
-            if text_controller['down']():
-                text_controller['draw']()
-                time.sleep(0.2)
-        
-        controller.register_joystick_callback('UP', on_up)
-        controller.register_joystick_callback('DOWN', on_down)
-        
-        # 等待按钮按下
-        while not button_pressed:
-            controller.check_inputs()
-            time.sleep(0.1)
-        
-        # 恢复原有的回调
-        controller.register_button_callback('BTN1', original_callbacks['BTN1'], 'press')
-        controller.register_joystick_callback('UP', original_callbacks['UP'])
-        controller.register_joystick_callback('DOWN', original_callbacks['DOWN'])
-        
-        time.sleep(0.2)  # 防抖 
+        while True:
+            # 检查按钮1
+            current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
+            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
+                time.sleep(0.2)  # 防抖
+                return
+            button_state['BTN1'] = current_btn1
+            
+            # 检查摇杆上
+            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
+            if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
+                if text_controller['up']():
+                    text_controller['draw']()
+                    time.sleep(0.2)
+            button_state['UP'] = current_up
+            
+            # 检查摇杆下
+            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
+                if text_controller['down']():
+                    text_controller['draw']()
+                    time.sleep(0.2)
+            button_state['DOWN'] = current_down
+            
+            time.sleep(0.1)  # 降低CPU使用率 
