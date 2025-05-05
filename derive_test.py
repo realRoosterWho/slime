@@ -199,7 +199,11 @@ class DeriveStateMachine:
             previous_response_id=self.response_id
         )
         self.response_id = response.id
-        return response  # 直接返回完整的响应对象
+        
+        # 从响应中提取文本内容
+        if hasattr(response.output[0].content[0], 'text'):
+            return response.output[0].content[0].text.strip()
+        return response.output[0].content[0]
 
     def wait_for_button(self, display_text):
         """等待按钮点击的通用函数"""
@@ -435,15 +439,13 @@ class DeriveStateMachine:
         base64_image = encode_image(self.data['timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
         
-        # 修改输入格式，参考 openai_test.py 的实现
         input_content = [
             {"type": "input_text", "text": "请简短描述这张照片的主要内容。"},
             {"type": "input_image", "image_url": data_url}
         ]
         
-        response = self.chat_with_continuity(input_content)
-        # 从响应中获取文本内容
-        self.data['photo_description'] = response.output[0].content[0].text.strip()
+        # 现在直接获取到文本内容
+        self.data['photo_description'] = self.chat_with_continuity(input_content)
         
         self.logger.log_step("照片分析", self.data['photo_description'])
         self.wait_for_button(f"分析结果：\n{self.data['photo_description']}")
