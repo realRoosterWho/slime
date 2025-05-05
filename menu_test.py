@@ -347,7 +347,7 @@ def cleanup_handler(signum, frame):
     if 'menu' in globals():
         menu.oled.show_text_oled("系统正在停止...")
         menu.cleanup()
-        os._exit(0)  # 使用 os._exit 强制退出
+    os._exit(0)  # 使用 os._exit 强制退出
 
 def signal_handler(signum, frame):
     """处理用户中断信号(Ctrl+C)"""
@@ -355,7 +355,7 @@ def signal_handler(signum, frame):
     if 'menu' in globals():
         menu.oled.show_text_oled("正在退出...")
         menu.cleanup()
-        os._exit(0)  # 使用 os._exit 强制退出
+    os._exit(0)  # 使用 os._exit 强制退出
 
 if __name__ == "__main__":
     # 设置信号处理
@@ -370,4 +370,4 @@ if __name__ == "__main__":
         if 'menu' in globals():
             menu.oled.show_text_oled("发生错误\n正在退出...")
             menu.cleanup()
-            os._exit(1)  # 使用 os._exit 强制退出 
+        os._exit(1)  # 使用 os._exit 强制退出 
