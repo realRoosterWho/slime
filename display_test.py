@@ -1,6 +1,6 @@
 from display_utils import DisplayManager
 import time
-from input_controller import InputController
+from button_utils import InputController
 
 def test_lcd():
     print("测试LCD显示屏...")
