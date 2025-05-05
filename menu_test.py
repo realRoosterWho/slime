@@ -56,13 +56,13 @@ class MenuSystem:
         """向上选择"""
         if self.oled.menu_up():
             self.display_menu()
-            time.sleep(0.5)
+            time.sleep(0.2)
     
     def on_down(self):
         """向下选择"""
         if self.oled.menu_down(len(self.menu_items)):
             self.display_menu()
-            time.sleep(0.5)
+            time.sleep(0.2)
     
     def run_openai_test(self):
         """运行OpenAI测试程序"""
