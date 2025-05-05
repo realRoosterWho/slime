@@ -426,7 +426,7 @@ class DeriveStateMachine:
         return prompts.get(prompt_type, '')
 
     def generate_image(self, prompt, save_key, filename_prefix):
-        """通用的图片生成函数 - 修复API响应处理"""
+        """通用的图片生成函数 - 修复FileOutput处理"""
         max_retries = 3  # 最大重试次数
         
         for attempt in range(max_retries):
@@ -462,6 +462,7 @@ class DeriveStateMachine:
                 )
                 
                 print(f"API 返回: {output}")
+                print(f"返回类型: {type(output)}")
                 
                 # 修复图片URL获取逻辑
                 if isinstance(output, list) and len(output) > 0:
@@ -469,12 +470,15 @@ class DeriveStateMachine:
                 elif isinstance(output, str) and output.startswith('http'):
                     # 处理API直接返回URL的情况
                     image_url = output
+                elif hasattr(output, 'url'):  # 处理FileOutput对象
+                    image_url = output.url
+                    print(f"从FileOutput对象提取URL: {image_url}")
                 else:
                     error_msg = f"生成图片失败，返回内容格式不支持: {type(output)}"
                     print(f"\n❌ {error_msg}")
                     self.logger.log_step("错误", error_msg)
                     if attempt < max_retries - 1:
-                        time.sleep(2)  # 等待一段时间后重试
+                        time.sleep(2)
                         continue
                     self.oled_display.show_text_oled("图片生成失败")
                     time.sleep(2)
@@ -894,7 +898,8 @@ class DeriveStateMachine:
         # 生成继续询问文本
         continue_question = self.generate_text(
             'continue_question',
-            personality=self.data['personality']
+            personality=self.data['personality'],
+            tone=self.data['slime_attributes']['tone']  # 添加tone参数
         )
         
         self.logger.log_step("询问继续", f"询问文本: {continue_question}")
@@ -1127,22 +1132,15 @@ class DeriveStateMachine:
                 traceback.print_exc()
 
     def extract_slime_attributes(self, personality_text):
-        """从性格描述中提取史莱姆的属性 - 优化错误处理"""
+        """从性格描述中提取史莱姆的属性 - 修改提示词格式"""
         # 尝试使用GPT提取关键属性
         prompt = f"""
-        请从以下史莱姆的性格描述中提取四个关键属性，并严格按照JSON格式返回：
-        
-        1. 执念(Obsession): 史莱姆想要寻找的东西
-        2. 幻想癖好(Quirk): 当找到执念时的反应
-        3. 偏执反应(Reflex): 当未找到执念时的反应
-        4. 互动语气(Tone): 与玩家交流的语气特点
-        
-        只需返回这四个属性的值，不要添加其他内容。
+        请从以下史莱姆的性格描述中提取四个关键属性。你的回复必须是严格的JSON格式，不要添加任何其他文本、标记或注释。
         
         性格描述:
         {personality_text}
         
-        请以下面的格式返回(不要有多余的解释):
+        请仅返回以下JSON格式(不要有任何其他内容，如markdown标记、代码块等):
         {{
             "obsession": "执念内容",
             "quirk": "幻想癖好内容",
@@ -1156,12 +1154,17 @@ class DeriveStateMachine:
             for attempt in range(3):
                 try:
                     response = self.chat_with_continuity(
-                        system_content="你是一个数据提取助手。你的任务是准确提取文本中的关键信息，并以JSON格式返回，不添加任何其他内容。",
+                        system_content="你是一个数据提取助手。你的任务是准确提取文本中的关键信息，并以JSON格式返回，不添加任何其他内容，如代码块标记、注释等。",
                         prompt=prompt
                     )
                     
                     # 尝试解析JSON
-                    attributes = json.loads(response)
+                    # 清理可能的markdown标记
+                    cleaned_response = response
+                    if "```json" in cleaned_response:
+                        cleaned_response = cleaned_response.replace("```json", "").replace("```", "")
+                    
+                    attributes = json.loads(cleaned_response)
                     
                     # 验证所有必需的键是否存在
                     required_keys = ['obsession', 'quirk', 'reflex', 'tone']
