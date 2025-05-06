@@ -1309,7 +1309,7 @@ def main():
     signal.signal(signal.SIGTERM, cleanup_handler)
     
     # 这里需要传入初始文本
-    initial_text = "今天我心情有点不好，我有点忧郁。你能带我在这个氛围里面漂流吗？"  # 这里替换为实际的输入文本
+    initial_text = "感觉空气布满了水雾，有一种看不清前方道路的错觉，觉得很放松。你能带我在这个氛围里面漂流吗？"  # 这里替换为实际的输入文本
     
     # 运行状态机
     state_machine = DeriveStateMachine(initial_text)
