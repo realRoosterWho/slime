@@ -85,7 +85,11 @@ class MenuSystem:
             
             # 运行derive_test.py
             print("启动漂流程序...")
-            subprocess.run([sys.executable, derive_script], check=True)
+            result = subprocess.run([sys.executable, derive_script], check=False)
+            
+            # 检查退出码是否为42（表示长按返回）
+            if result.returncode == 42:
+                print("检测到长按返回菜单")
             
         except subprocess.CalledProcessError as e:
             print(f"漂流程序运行出错: {e}")
