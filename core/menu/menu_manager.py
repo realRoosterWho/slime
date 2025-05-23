@@ -76,28 +76,47 @@ class MenuSystem:
             time.sleep(0.2)
     
     def run_derive_test(self):
-        """运行漂流程序"""
+        """运行漂流程序 - 使用新架构"""
         try:
             # 清理当前资源
             self.controller.cleanup()
             self.oled.show_loading("正在启动漂流...")
             
-            # 获取derive_test.py的路径
-            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            derive_script = os.path.join(current_dir, "derive", "derive_test.py")
+            # 获取新启动脚本的路径
+            current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            new_derive_script = os.path.join(current_dir, "start_new_derive.py")
             
-            # 运行derive_test.py
-            print("启动漂流程序...")
+            # 检查新启动脚本是否存在
+            if not os.path.exists(new_derive_script):
+                # 如果新脚本不存在，回退到旧版本
+                self.oled.show_text_oled("新版本不可用\n使用旧版本")
+                time.sleep(2)
+                derive_script = os.path.join(current_dir, "core", "derive", "derive_test.py")
+            else:
+                derive_script = new_derive_script
+            
+            # 运行漂流程序
+            print(f"启动漂流程序: {derive_script}")
             result = subprocess.run([sys.executable, derive_script], check=False)
             
-            # 检查退出码是否为42（表示长按返回）
+            # 检查退出码
             if result.returncode == 42:
                 print("检测到长按返回菜单")
+            elif result.returncode == 0:
+                print("漂流程序正常结束")
+            else:
+                print(f"漂流程序异常结束，退出码: {result.returncode}")
+                self.oled.show_text_oled("程序异常结束")
+                time.sleep(2)
             
         except subprocess.CalledProcessError as e:
             print(f"漂流程序运行出错: {e}")
+            self.oled.show_text_oled("启动失败")
+            time.sleep(2)
         except Exception as e:
             print(f"发生错误: {e}")
+            self.oled.show_text_oled("发生错误")
+            time.sleep(2)
         finally:
             # 重新初始化资源
             self.__init__()
