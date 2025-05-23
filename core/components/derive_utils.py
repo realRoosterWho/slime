@@ -13,10 +13,16 @@ from PIL import Image
 from io import BytesIO
 import replicate
 
+# 导入性能优化器
+from .performance_optimizer import global_optimizer, cached_api_call
+
 # 加载环境变量
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    timeout=90.0  # 增加超时时间到90秒，避免长时间API调用超时
+)
 
 def chat_with_gpt(input_content, system_content=None, previous_response_id=None):
     """与GPT进行对话"""
@@ -36,50 +42,43 @@ class DeriveChatUtils:
     
     def __init__(self, initial_response_id=None):
         self.response_id = initial_response_id
+        # 集成性能优化器
+        self.optimizer = global_optimizer
     
+    @cached_api_call(global_optimizer, "gpt_chat", cache_duration=300, rate_limit=1.0)
     def chat_with_continuity(self, prompt, system_content=None):
-        """带连续性的对话函数"""
-        max_retries = 3
-        for attempt in range(max_retries):
+        """带连续性的对话函数 - 优化版本"""
+        try:
+            print(f"\n🤖 发送对话请求")
+            if isinstance(prompt, list):
+                print(f"对话输入: [复杂输入，包含 {len(prompt)} 个元素]")
+            else:
+                print(f"对话输入: {prompt[:100]}...")
+            
+            response = chat_with_gpt(
+                input_content=prompt,
+                system_content=system_content,
+                previous_response_id=self.response_id
+            )
+            self.response_id = response.id
+            
+            # 从响应中提取文本内容
             try:
-                print(f"\n🤖 发送对话请求 (尝试 {attempt+1}/{max_retries})")
-                if isinstance(prompt, list):
-                    print(f"对话输入: [复杂输入，包含 {len(prompt)} 个元素]")
+                if hasattr(response.output[0].content[0], 'text'):
+                    result = response.output[0].content[0].text.strip()
                 else:
-                    print(f"对话输入: {prompt[:100]}...")
-                
-                response = chat_with_gpt(
-                    input_content=prompt,
-                    system_content=system_content,
-                    previous_response_id=self.response_id
-                )
-                self.response_id = response.id
-                
-                # 从响应中提取文本内容
-                try:
-                    if hasattr(response.output[0].content[0], 'text'):
-                        result = response.output[0].content[0].text.strip()
-                    else:
-                        result = response.output[0].content[0]
-                    print(f"对话响应: {result[:100]}...")
-                    return result
-                except (IndexError, AttributeError) as e:
-                    error_msg = f"解析对话响应时出错: {str(e)}, 响应结构: {response}"
-                    print(f"\n❌ {error_msg}")
-                    if attempt < max_retries - 1:
-                        time.sleep(2)
-                        continue
-                    raise
-            except Exception as e:
-                error_msg = f"对话请求失败 (尝试 {attempt+1}/{max_retries}): {str(e)}"
+                    result = response.output[0].content[0]
+                print(f"对话响应: {result[:100]}...")
+                return result
+            except (IndexError, AttributeError) as e:
+                error_msg = f"解析对话响应时出错: {str(e)}, 响应结构: {response}"
                 print(f"\n❌ {error_msg}")
-                import traceback
-                traceback.print_exc()
-                
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-                    continue
                 raise
+                
+        except Exception as e:
+            error_msg = f"对话请求失败: {str(e)}"
+            print(f"\n❌ {error_msg}")
+            raise
     
     def generate_text(self, prompt_type, **kwargs):
         """通用的文本生成函数"""
@@ -94,7 +93,7 @@ class DeriveChatUtils:
         )
     
     def parse_json_response(self, response_text, default_values=None):
-        """解析JSON格式的响应"""
+        """解析JSON格式的响应 - 增强版"""
         try:
             return json.loads(response_text)
         except json.JSONDecodeError:
@@ -134,99 +133,77 @@ class DeriveChatUtils:
             return default_values or {}
     
     def get_text_prompt(self, prompt_type):
-        """生成不同类型文本的提示词模板"""
+        """获取文本提示词模板"""
         prompts = {
             'personality': (
-                """你是一个专业的角色设定师。我们正在制作一个名为"史莱姆漂流"的互动体验，用户与虚拟史莱姆一起拍照探索。
-                根据用户初始心情描述，请帮我设计一个有趣独特的史莱姆角色。请注意以下关键属性，并在你的回复中清晰标注：
-
-                - 【整体描述】：这个史莱姆的主要性格特点和形象，完整而生动。
-                - 【执念】：史莱姆漂流中想寻找的具体事物或场景，是引导探索的核心。
-                - 【幻想癖好】：当找到符合执念的景象时，史莱姆会表现出的特殊行为或反应。
-                - 【偏执反应】：当找到的景象与执念不符时，史莱姆的有趣反应或态度。
-                - 【互动语气】：史莱姆与用户对话的独特语气和说话方式。
-
-                这些属性会直接影响用户体验和后续奖励机制：当照片匹配执念时会获得装饰奖励；不匹配则获得史莱姆蛋奖励。
-
-                范例：
-                > 【玻璃青柠的史莱姆】："他迷恋所有半透明、透亮的东西，常常盯着它们出神，幻想着'如果把它们打碎，会不会冒出柠檬味的香气？'然后记下来，准备做成一杯独一无二的果汁。"
-                > 
-                > - **执念**：透明的东西里面一定藏着独特的香气，需要寻找透明的东西
-                > - **幻想癖好**：随身携带"幻想果汁本"，记录看到的每一份灵感。
-                > - **偏执反应**：即使是不透明的，也要幻想碎开后的味道。
-                > - **互动语气**：总爱问"你不想知道它的味道吗？"、"这会是什么颜色的果汁呢？"
-                
-                请根据用户心情，创造一个有明确执念和独特性格的史莱姆。回复请严格保持范例格式，以便系统正确识别各个属性。""",
-                "根据这个描述设定史莱姆的性格：{text}"
-            ),
-            'slime_description': (
-                "你是一个专业的角色视觉描述师。请根据这个史莱姆的性格特点，描述它的外观细节，包括颜色、质地、表情、特殊特征以及能体现性格的视觉元素。描述要精确具体，适合用于AI图像生成，控制在100字内。不要使用过于抽象的描述，要有具体的视觉元素。",
-                "根据这个性格描述一下史莱姆的外观：{text}"
+                "你是一个创意史莱姆性格生成器。根据用户的心情描述，生成一个独特的史莱姆性格。",
+                "根据这个心情描述：\"{mood}\"\n\n请生成一个史莱姆的性格，包含：1. 外观描述 2. 性格特点 3. 对应这种心情的特殊能力或特质。要有创意且贴合心情。"
             ),
             'greeting': (
-                "你是一个可爱的史莱姆，拥有独特的互动语气。请根据你的性格，用你的标志性语气说一句简短的打招呼语，不超过15个字，展现你的个性特点。",
-                "根据这个性格描述打个招呼：{text}"
+                "你是一个刚刚诞生的史莱姆，要用你独特的性格和语气跟用户打招呼。",
+                "史莱姆性格：{personality}\n\n请生成一个有趣的打招呼语，体现你的性格特点，让用户感到有趣和新奇。控制在50字以内。"
             ),
-            'photo_question': (
-                "你是一个希望探索执念的史莱姆。请用你特有的语气，询问玩家是否可以拍照寻找你感兴趣的东西。询问要展现出你的执念和期待，控制在15字以内，要亲切有趣。",
-                "根据这个性格，询问能不能拍照：{text}"
+            'analysis': (
+                "你是一个善于观察的史莱姆，能够敏锐地分析图片内容。",
+                "请分析这张图片：{image_description}\n\n描述你看到的内容，包括环境、物体、氛围等，用简洁生动的语言，约50字。"
+            ),
+            'suggestion': (
+                "你是一个充满想象力的史莱姆，根据图片内容给出漂流建议。",
+                "史莱姆性格：{personality}\n看到的场景：{scene}\n\n请建议一个漂流目的地或活动，要贴合当前场景和你的性格。控制在60字以内，要有趣且有创意。"
             )
         }
-        
         return prompts.get(prompt_type, (None, None))
 
 class DeriveImageUtils:
     """漂流图像工具类，封装图像生成和处理功能"""
     
     def __init__(self):
-        # 设置 Replicate API
-        replicate_api_key = os.getenv("REPLICATE_API_KEY")
-        if not replicate_api_key:
-            raise Exception("没有找到REPLICATE_API_KEY，请检查.env文件设置！")
-        self.replicate_client = replicate.Client(api_token=replicate_api_key)
+        # 集成性能优化器
+        self.optimizer = global_optimizer
+        # 缓存图片生成提示词，避免重复生成相同内容
+        self.prompt_cache = {}
     
+    @cached_api_call(global_optimizer, "replicate_image", cache_duration=600, rate_limit=2.0)
     def generate_image(self, prompt, save_key, image_type, context):
-        """生成图像并保存"""
+        """生成图像并保存 - 优化版本"""
         try:
-            # 显示正在生成图像的信息
-            context.oled_display.show_text_oled(f"正在生成{image_type}图像...")
+            print(f"\n🎨 生成{image_type}图像")
+            print(f"提示词: {prompt[:100]}...")
             
-            # 使用Replicate API生成图像
-            output = self.replicate_client.run(
-                "black-forest-labs/flux-1.1-pro",
+            # 检查是否有相同的提示词缓存
+            prompt_hash = hash(prompt)
+            if prompt_hash in self.prompt_cache:
+                print(f"🎯 使用相似提示词的缓存结果")
+                cached_path = self.prompt_cache[prompt_hash]
+                if os.path.exists(cached_path):
+                    context.set_data(save_key, cached_path)
+                    return cached_path
+            
+            # 生成图像
+            output = replicate.run(
+                "stability-ai/stable-diffusion:27b93a2413e7f36cd83da926f3656280b2931564ff050bf9575f1fdf9bcd7478",
                 input={
                     "prompt": prompt,
-                    "prompt_upsampling": True,
-                    "width": 427,
-                    "height": 320,
-                    "num_outputs": 1,
-                    "scheduler": "K_EULER",
-                    "num_inference_steps": 25,
+                    "width": 512,
+                    "height": 512,
+                    "num_inference_steps": 25,  # 减少推理步数，提高速度
                     "guidance_scale": 7.5,
+                    "num_outputs": 1
                 }
             )
             
-            if not output:
-                raise Exception("未能生成图像")
-            
-            # 处理不同类型的返回值
+            # 处理输出
             image_content = self._process_output(output)
             
-            if image_content is None:
-                raise Exception("未能获取图像内容")
-                
             # 保存图像
             image_path = self._save_image(image_content, image_type, context)
             
-            # 显示生成的图像
-            img = Image.open(image_path)
-            max_size = (320, 240)
-            img.thumbnail(max_size, Image.LANCZOS)
-            context.lcd_display.show_image(img)
+            # 缓存提示词和路径的映射
+            self.prompt_cache[prompt_hash] = image_path
             
-            context.logger.log_step("图像生成", f"{image_type}图像已生成并保存: {image_path}")
-            
+            context.set_data(save_key, image_path)
             return image_path
+            
         except Exception as e:
             error_msg = f"生成{image_type}图像失败: {str(e)}"
             print(f"\n❌ {error_msg}")
@@ -236,7 +213,7 @@ class DeriveImageUtils:
             return None
     
     def _process_output(self, output):
-        """处理API输出，提取图像内容"""
+        """处理API输出，提取图像内容 - 优化版本"""
         # 如果是FileOutput对象
         if hasattr(output, 'read'):
             return output.read()
@@ -249,56 +226,115 @@ class DeriveImageUtils:
             first_item = output[0]
             
             if isinstance(first_item, str):
-                response = download_with_retry(first_item)
-                if response is None:
-                    raise Exception("无法下载生成的图像")
-                return response.content
+                return self._download_image(first_item)
             
             elif hasattr(first_item, 'read'):
                 return first_item.read()
             
             else:
                 image_url = str(first_item)
-                response = download_with_retry(image_url)
-                if response is None:
-                    raise Exception("无法下载生成的图像")
-                return response.content
+                return self._download_image(image_url)
         
         # 如果是字符串（URL）
         elif isinstance(output, str):
-            response = download_with_retry(output)
-            if response is None:
-                raise Exception("无法下载生成的图像")
-            return response.content
+            return self._download_image(output)
         
         else:
             image_url = str(output)
-            response = download_with_retry(image_url)
-            if response is None:
-                raise Exception("无法下载生成的图像")
-            return response.content
+            return self._download_image(image_url)
+    
+    def _download_image(self, url: str):
+        """下载图像 - 使用智能重试"""
+        def download_func():
+            response = requests.get(url, timeout=30)  # 增加超时时间
+            if response.status_code == 200:
+                return response.content
+            else:
+                raise Exception(f"下载失败，状态码: {response.status_code}")
+        
+        return self.optimizer.smart_retry(
+            download_func,
+            max_retries=3,
+            base_delay=2.0,
+            operation_name="image_download"
+        )
     
     def _save_image(self, image_content, image_type, context):
         """保存图像到文件"""
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if image_content is None:
+            raise Exception("未能获取图像内容")
+        
+        # 创建保存目录
+        current_dir = context.get_project_root()
         image_dir = os.path.join(current_dir, "generated_images")
         
         if not os.path.exists(image_dir):
             os.makedirs(image_dir)
-            
+        
+        # 生成文件名
         timestamp = context.logger.timestamp
         image_filename = f"{image_type}_{timestamp}.png"
         image_path = os.path.join(image_dir, image_filename)
         
+        # 保存图像
         with open(image_path, "wb") as f:
             f.write(image_content)
-            
+        
         print(f"图像已保存到: {image_path}")
         
         # 保存图像到日志目录
-        context.logger.save_image(image_path, image_type)
+        try:
+            context.logger.save_image(image_path, image_type)
+        except Exception as e:
+            print(f"保存图像到日志目录失败: {e}")
         
         return image_path
+
+def download_with_retry(url, max_retries=3, delay=1):
+    """带重试机制的下载函数 - 使用全局优化器"""
+    def download_func():
+        print(f"下载URL: {url[:100]}...")
+        response = requests.get(url, timeout=30)  # 增加超时时间
+        
+        if response.status_code == 200:
+            print(f"下载成功: 内容大小 {len(response.content)} 字节")
+            return response
+        
+        error_msg = f"下载失败，状态码: {response.status_code}"
+        print(f"❌ {error_msg}")
+        raise Exception(error_msg)
+    
+    return global_optimizer.smart_retry(
+        download_func,
+        max_retries=max_retries,
+        base_delay=delay,
+        operation_name="download_with_retry"
+    )
+
+def cleanup_handler(signum, frame):
+    """清理资源并优雅退出 - 优化版本"""
+    print("\n🛑 检测到中断信号，正在清理资源...")
+    try:
+        # 清理全局资源管理器
+        from .performance_optimizer import global_resource_manager
+        global_resource_manager.release_all()
+        
+        # 如果存在 state_machine 实例，保存日志并清理
+        if 'state_machine' in globals():
+            state_machine.logger.log_step("中断", "检测到中断信号，程序退出")
+            state_machine.logger.save_log()
+            state_machine.handle_cleanup()
+        else:
+            # 如果没有 state_machine，只清理显示设备
+            if 'lcd_display' in globals():
+                lcd_display.clear()
+            if 'oled_display' in globals():
+                oled_display.clear()
+        print("✅ 已清理资源")
+    except Exception as e:
+        print(f"清理过程中出错: {e}")
+    finally:
+        sys.exit(0)
 
 def run_camera_test():
     """拍照函数"""
@@ -317,57 +353,4 @@ def run_camera_test():
 def encode_image(image_path):
     """编码图片成base64"""
     with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
-
-def cleanup_handler(signum, frame):
-    """清理资源并优雅退出"""
-    print("\n🛑 检测到中断信号，正在清理资源...")
-    try:
-        # 如果存在 state_machine 实例，保存日志并清理
-        if 'state_machine' in globals():
-            state_machine.logger.log_step("中断", "检测到中断信号，程序退出")
-            state_machine.logger.save_log()
-            state_machine.handle_cleanup()
-        else:
-            # 如果没有 state_machine，只清理显示设备
-            if 'lcd_display' in globals():
-                lcd_display.clear()
-            if 'oled_display' in globals():
-                oled_display.clear()
-        print("✅ 已清理资源")
-    except Exception as e:
-        print(f"清理过程中出错: {e}")
-    finally:
-        sys.exit(0)
-
-def download_with_retry(url, max_retries=3, delay=1):
-    """带重试机制的下载函数"""
-    for attempt in range(max_retries):
-        try:
-            print(f"下载URL (尝试 {attempt+1}/{max_retries}): {url[:100]}...")
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                print(f"下载成功: 内容大小 {len(response.content)} 字节")
-                return response
-            
-            error_msg = f"下载失败，状态码: {response.status_code}, 响应: {response.text[:200]}..."
-            print(f"❌ {error_msg}")
-            
-            if attempt < max_retries - 1:
-                print(f"等待 {delay} 秒后重试...")
-                time.sleep(delay)
-                continue
-        except requests.exceptions.RequestException as e:
-            error_msg = f"下载请求异常 (尝试 {attempt+1}/{max_retries}): {e}"
-            print(f"❌ {error_msg}")
-            import traceback
-            traceback.print_exc()
-            
-            if attempt < max_retries - 1:
-                print(f"等待 {delay} 秒后重试...")
-                time.sleep(delay)
-                continue
-    
-    print("所有下载尝试均失败")
-    return None 
+        return base64.b64encode(f.read()).decode("utf-8") 

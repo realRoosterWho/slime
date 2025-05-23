@@ -33,13 +33,16 @@ class ShowRewardState(AbstractState):
             # 显示奖励图片（如果有的话）
             if reward_image_path:
                 try:
-                    # 在OLED上显示图片，同时显示文字
-                    display_text = f"{congrats_text}\n\n{reward_description[:40]}..."
-                    context.oled_display.show_image_with_text(
-                        reward_image_path,
-                        display_text
-                    )
+                    # 先在LCD上显示奖励图片
+                    from PIL import Image
+                    img = Image.open(reward_image_path)
+                    context.lcd_display.show_image(img)
                     context.logger.log_step("显示奖励", f"奖励图片已显示: {reward_image_path}")
+                    
+                    # 在OLED上显示祝贺文字
+                    context.oled_display.show_text_oled(f"{congrats_text}\n获得奖励！")
+                    context.sleep(2)
+                    
                 except Exception as e:
                     context.logger.log_step("错误", f"显示奖励图片失败: {str(e)}")
                     # 如果图片显示失败，只显示文字

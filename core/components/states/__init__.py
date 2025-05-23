@@ -16,6 +16,15 @@ from .analyze_reward_state import AnalyzeRewardState
 from .generate_reward_image_state import GenerateRewardImageState
 from .show_reward_state import ShowRewardState
 
+# 反馈系统状态
+from .generate_feedback_state import GenerateFeedbackState
+from .show_feedback_state import ShowFeedbackState
+from .ask_continue_state import AskContinueState
+
+# 结束系统状态
+from .summary_state import SummaryState
+from .cleanup_state import CleanupState
+
 __all__ = [
     'InitState',
     'GenSlimeImageState', 
@@ -31,4 +40,9 @@ __all__ = [
     'AnalyzeRewardState',
     'GenerateRewardImageState',
     'ShowRewardState',
+    'GenerateFeedbackState',
+    'ShowFeedbackState',
+    'AskContinueState',
+    'SummaryState',
+    'CleanupState',
 ] 

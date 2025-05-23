@@ -6,7 +6,9 @@ from .states import (
     ShowGreetingState, AskPhotoState, TakePhotoState,
     AnalyzePhotoState, SuggestDestinationState,
     WaitForNewPhotoState, TakeNewPhotoState, AnalyzeNewPhotoState,
-    AnalyzeRewardState, GenerateRewardImageState, ShowRewardState
+    AnalyzeRewardState, GenerateRewardImageState, ShowRewardState,
+    GenerateFeedbackState, ShowFeedbackState, AskContinueState,
+    SummaryState, CleanupState
 )
 
 class DeriveStateMachine(AbstractStateMachine):
@@ -41,8 +43,17 @@ class DeriveStateMachine(AbstractStateMachine):
         self.register_state(GenerateRewardImageState())
         self.register_state(ShowRewardState())
         
-        print("✅ 状态机初始化完成，已注册 14 个状态")
-        print("📋 基础流程 8 个状态 + 奖励系统 6 个状态")
+        # 注册反馈系统状态
+        self.register_state(GenerateFeedbackState())
+        self.register_state(ShowFeedbackState())
+        self.register_state(AskContinueState())
+        
+        # 注册结束系统状态
+        self.register_state(SummaryState())
+        self.register_state(CleanupState())
+        
+        print("✅ 状态机初始化完成，已注册 19 个状态")
+        print("📋 基础流程 8 个 + 奖励系统 6 个 + 反馈系统 3 个 + 结束系统 2 个状态")
     
     def get_initial_state(self) -> DeriveState:
         """获取初始状态"""
