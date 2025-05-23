@@ -1,0 +1,35 @@
+{
+  "timestamp": "20250505_182220",
+  "steps": [
+    {
+      "time": "18:22:20",
+      "step": "初始化",
+      "message": "开始新的漂流..."
+    },
+    {
+      "time": "18:22:20",
+      "step": "初始化显示",
+      "message": "初始化显示设备..."
+    },
+    {
+      "time": "18:22:22",
+      "step": "拍照",
+      "message": "准备拍照..."
+    },
+    {
+      "time": "18:22:43",
+      "step": "图片识别",
+      "message": "开始分析图片..."
+    },
+    {
+      "time": "18:22:47",
+      "step": "错误",
+      "message": "程序运行出错: Error code: 400 - {'error': {'message': \"Model 'gpt-4-0613' does not support image inputs. Try again with a vision model. To find out which models are vision-enabled, visit our our models documentation: https://platform.openai.com/docs/models\", 'type': 'invalid_request_error', 'param': 'input', 'code': None}}"
+    }
+  ],
+  "images": {
+    "original": "current_image.jpg"
+  },
+  "prompts": {},
+  "responses": {}
+}

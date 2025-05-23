@@ -1,0 +1,42 @@
+{
+  "timestamp": "20250505_183102",
+  "steps": [
+    {
+      "time": "18:31:02",
+      "step": "初始化",
+      "message": "开始新的漂流..."
+    },
+    {
+      "time": "18:31:02",
+      "step": "初始化显示",
+      "message": "初始化显示设备..."
+    },
+    {
+      "time": "18:31:02",
+      "step": "拍照",
+      "message": "准备拍照..."
+    },
+    {
+      "time": "18:31:23",
+      "step": "图片识别",
+      "message": "开始分析图片..."
+    },
+    {
+      "time": "18:31:29",
+      "step": "识别结果",
+      "message": "识别结果：照片显示了一台电脑显示器，上面有一些文本和图标，旁边有一些电缆和设备。整体环境似乎是办公或工作台。"
+    },
+    {
+      "time": "18:31:30",
+      "step": "错误",
+      "message": "程序运行出错: 'InputController' object has no attribute 'is_pressed'"
+    }
+  ],
+  "images": {
+    "original": "current_image_20250505_183102.jpg"
+  },
+  "prompts": {},
+  "responses": {
+    "image_description": "照片显示了一台电脑显示器，上面有一些文本和图标，旁边有一些电缆和设备。整体环境似乎是办公或工作台。"
+  }
+}

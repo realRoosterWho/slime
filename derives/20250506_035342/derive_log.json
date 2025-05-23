@@ -1,0 +1,38 @@
+{
+  "timestamp": "20250506_035342",
+  "steps": [
+    {
+      "time": "03:53:42",
+      "step": "初始化",
+      "message": "根据文本开始新的漂流..."
+    },
+    {
+      "time": "03:53:59",
+      "step": "错误",
+      "message": "对话请求失败 (尝试 1/3): Connection error."
+    },
+    {
+      "time": "03:54:17",
+      "step": "错误",
+      "message": "对话请求失败 (尝试 2/3): Connection error."
+    },
+    {
+      "time": "03:54:36",
+      "step": "错误",
+      "message": "对话请求失败 (尝试 3/3): Connection error."
+    },
+    {
+      "time": "03:54:36",
+      "step": "错误",
+      "message": "状态 INIT 处理出错: Connection error."
+    },
+    {
+      "time": "03:54:36",
+      "step": "清理",
+      "message": "程序结束，清理资源"
+    }
+  ],
+  "images": {},
+  "prompts": {},
+  "responses": {}
+}
