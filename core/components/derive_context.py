@@ -114,6 +114,23 @@ class DeriveContext:
         
         return False
     
+    def should_return_to_menu(self) -> bool:
+        """检查是否应该返回菜单"""
+        # 检查按钮2长按
+        if self.check_btn2_long_press():
+            return True
+        
+        # 检查返回菜单标志
+        return self.return_to_menu
+    
+    def sleep(self, seconds: float) -> None:
+        """等待指定时间，期间检查按钮状态"""
+        end_time = time.time() + seconds
+        while time.time() < end_time:
+            if self.check_btn2_long_press():
+                break
+            time.sleep(0.1)
+    
     def cleanup(self):
         """清理资源"""
         try:
