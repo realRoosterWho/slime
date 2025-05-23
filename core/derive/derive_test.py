@@ -476,16 +476,76 @@ class DeriveStateMachine:
             )
             
             # 确保输出是有效的
-            if not output or len(output) == 0:
+            if not output:
                 raise Exception("未能生成图像")
-                
-            image_url = output[0]
-            print(f"生成的图像URL: {image_url}")
             
-            # 下载图像
-            response = download_with_retry(image_url)
-            if response is None:
-                raise Exception("无法下载生成的图像")
+            # 打印调试信息
+            print(f"API 返回类型: {type(output)}")
+            print(f"API 返回内容: {output}")
+            
+            # 处理不同类型的返回值
+            image_content = None
+            
+            # 如果是FileOutput对象
+            if hasattr(output, 'read'):
+                print("检测到FileOutput对象，使用read()方法读取")
+                image_content = output.read()
+                
+            # 如果是列表
+            elif isinstance(output, list):
+                if len(output) == 0:
+                    raise Exception("API返回空列表")
+                    
+                first_item = output[0]
+                
+                # 列表中的元素可能是URL字符串
+                if isinstance(first_item, str):
+                    print(f"从列表中获取URL: {first_item}")
+                    response = download_with_retry(first_item)
+                    if response is None:
+                        raise Exception("无法下载生成的图像")
+                    image_content = response.content
+                    
+                # 列表中的元素可能是FileOutput对象
+                elif hasattr(first_item, 'read'):
+                    print("列表中包含FileOutput对象")
+                    image_content = first_item.read()
+                    
+                else:
+                    # 尝试转换为字符串作为URL
+                    try:
+                        image_url = str(first_item)
+                        print(f"尝试将列表项转换为URL: {image_url}")
+                        response = download_with_retry(image_url)
+                        if response is None:
+                            raise Exception("无法下载生成的图像")
+                        image_content = response.content
+                    except Exception as e:
+                        raise Exception(f"无法处理列表项类型: {type(first_item)}")
+                        
+            # 如果是字符串（URL）
+            elif isinstance(output, str):
+                print(f"检测到URL字符串: {output}")
+                response = download_with_retry(output)
+                if response is None:
+                    raise Exception("无法下载生成的图像")
+                image_content = response.content
+                
+            else:
+                # 尝试转换为字符串作为URL
+                try:
+                    image_url = str(output)
+                    print(f"尝试转换为URL: {image_url}")
+                    response = download_with_retry(image_url)
+                    if response is None:
+                        raise Exception("无法下载生成的图像")
+                    image_content = response.content
+                except Exception as e:
+                    raise Exception(f"无法处理的API返回格式: {type(output)}")
+            
+            # 确保获得了图像内容
+            if image_content is None:
+                raise Exception("未能获取图像内容")
                 
             # 保存图像
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -499,7 +559,7 @@ class DeriveStateMachine:
             image_path = os.path.join(image_dir, image_filename)
             
             with open(image_path, "wb") as f:
-                f.write(response.content)
+                f.write(image_content)
                 
             print(f"图像已保存到: {image_path}")
             
