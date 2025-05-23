@@ -80,8 +80,8 @@ class MenuSystem:
             self.oled.show_loading("正在启动漂流...")
             
             # 获取derive_test.py的路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            derive_script = os.path.join(current_dir, "derive_test.py")
+            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            derive_script = os.path.join(current_dir, "derive", "derive_test.py")
             
             # 运行derive_test.py
             print("启动漂流程序...")
@@ -108,8 +108,8 @@ class MenuSystem:
             self.oled.show_loading("正在启动功能测试...")
             
             # 获取openai_test.py的路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            openai_script = os.path.join(current_dir, "openai_test.py")
+            current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            openai_script = os.path.join(current_dir, "tests", "integration", "openai_test.py")
             
             # 运行openai_test.py
             print("启动功能测试程序...")

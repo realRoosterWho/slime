@@ -35,9 +35,10 @@ replicate_client = replicate.Client(api_token=replicate_api_key)
 
 class DeriveLogger:
     def __init__(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = os.path.join(self.current_dir, "derives", self.timestamp)
+        self.log_dir = os.path.join(project_root, "derives", self.timestamp)
         os.makedirs(self.log_dir, exist_ok=True)
         
         self.log_data = {
@@ -111,8 +112,9 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
 
 def run_camera_test():
     """拍照函数"""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    camera_script = os.path.join(current_dir, "camera_test.py")
+    # 获取项目根目录
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    camera_script = os.path.join(project_root, "core", "camera", "camera_test.py")
 
     try:
         print("启动拍照脚本...")

@@ -1,20 +1,38 @@
 import subprocess
 import os
+from picamera2 import Picamera2
+import time
+
+class CameraManager:
+    def __init__(self):
+        self.picam2 = Picamera2()
+        
+    def take_photo(self, filename="current_image.jpg"):
+        """拍摄照片并保存"""
+        try:
+            print("启动相机...")
+            self.picam2.start()
+            time.sleep(2)  # 等待相机初始化
+            
+            print(f"正在拍摄照片: {filename}")
+            self.picam2.capture_file(filename)
+            print(f"照片已保存: {filename}")
+            
+            self.picam2.stop()
+            return True
+        except Exception as e:
+            print(f"拍照失败: {e}")
+            return False
+        finally:
+            try:
+                self.picam2.stop()
+            except:
+                pass
 
 def run_camera_test():
-    # 获取当前脚本所在目录
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # 拼接camera_test.py的完整路径
-    camera_script = os.path.join(current_dir, "./camera_test.py")
-
-    # 调用camera_test.py
-    try:
-        print("启动拍照脚本...")
-        subprocess.run(["/usr/bin/python3", camera_script], check=True)
-        print("拍照完成。")
-    except subprocess.CalledProcessError as e:
-        print(f"拍照脚本运行出错: {e}")
+    """拍照函数 - 为了保持向后兼容性"""
+    camera = CameraManager()
+    return camera.take_photo()
 
 if __name__ == "__main__":
     run_camera_test()
