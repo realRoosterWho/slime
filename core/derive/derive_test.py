@@ -154,16 +154,32 @@ def download_with_retry(url, max_retries=3, delay=1):
     """带重试机制的下载函数"""
     for attempt in range(max_retries):
         try:
+            print(f"下载URL (尝试 {attempt+1}/{max_retries}): {url[:100]}...")
             response = requests.get(url, timeout=10)
+            
             if response.status_code == 200:
+                print(f"下载成功: 内容大小 {len(response.content)} 字节")
                 return response
-            print(f"下载失败，状态码: {response.status_code}，尝试重试...")
-        except requests.exceptions.RequestException as e:
-            print(f"下载出错 (尝试 {attempt + 1}/{max_retries}): {e}")
+            
+            error_msg = f"下载失败，状态码: {response.status_code}, 响应: {response.text[:200]}..."
+            print(f"❌ {error_msg}")
+            
             if attempt < max_retries - 1:
+                print(f"等待 {delay} 秒后重试...")
                 time.sleep(delay)
                 continue
-            raise
+        except requests.exceptions.RequestException as e:
+            error_msg = f"下载请求异常 (尝试 {attempt+1}/{max_retries}): {e}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()  # 打印堆栈
+            
+            if attempt < max_retries - 1:
+                print(f"等待 {delay} 秒后重试...")
+                time.sleep(delay)
+                continue
+    
+    print("所有下载尝试均失败")
     return None
 
 class DeriveState(Enum):
@@ -192,7 +208,7 @@ class DeriveState(Enum):
 class DeriveStateMachine:
     def __init__(self, initial_text):
         # 初始化 GPIO 设置
-        GPIO.setmode(GPIO.BCM)  # 使用BCM模式
+        GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         
         self.logger = DeriveLogger()
@@ -445,25 +461,25 @@ class DeriveStateMachine:
             
             # 使用Replicate API生成图像
             output = replicate_client.run(
-                "black-forest-labs/flux-schnell",  # 使用与openai_test.py相同的模型
+                "stability-ai/sdxl:c221b2b8ef527988fb59bf24a8b97c4561f1c671f73bd389f866bfb27c061316",
                 input={
                     "prompt": prompt,
-                    "prompt_upsampling": True,
-                    "width": 320,        # 匹配LCD宽度
-                    "height": 240,       # 匹配LCD高度
-                    "num_inference_steps": 4  # flux-schnell模型最大支持4步
+                    "negative_prompt": "模糊的，扭曲的，变形的，低质量的，低分辨率的，糟糕的艺术，糟糕的照片，糟糕的比例",
+                    "width": 1024,
+                    "height": 1024,
+                    "num_outputs": 1,
+                    "scheduler": "K_EULER",
+                    "num_inference_steps": 40,
+                    "guidance_scale": 7.5,
+                    "apply_watermark": False
                 }
             )
             
             # 确保输出是有效的
-            if not output:
+            if not output or len(output) == 0:
                 raise Exception("未能生成图像")
                 
-            # 处理输出，确保我们获取到URL
-            image_url = output[0] if isinstance(output, list) else output
-            if not isinstance(image_url, str):
-                raise Exception(f"无效的图像URL格式: {type(image_url)}")
-                
+            image_url = output[0]
             print(f"生成的图像URL: {image_url}")
             
             # 下载图像
