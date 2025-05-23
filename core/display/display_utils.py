@@ -183,7 +183,15 @@ class DisplayManager:
             for line in lines:
                 draw.text((x, y_text), line, font=font, 
                          fill=255 if self.display_type == "OLED" else "white")
-                y_text += font.getsize(line)[1] + 5  # 行间距为5像素
+                # 使用getbbox方法替代getsize，兼容新版本Pillow
+                try:
+                    # 尝试使用新方法
+                    bbox = font.getbbox(line)
+                    line_height = bbox[3] - bbox[1]  # bottom - top
+                except AttributeError:
+                    # 回退到旧方法（兼容老版本）
+                    line_height = font.getsize(line)[1]
+                y_text += line_height + 5  # 行间距为5像素
 
         # 不需要在这里旋转，因为会在_display_image中处理
         self._display_image(image)
@@ -203,7 +211,15 @@ class DisplayManager:
         for line in lines:
             draw.text((x, y_text), line, font=font, 
                      fill=255 if self.display_type == "OLED" else "white")
-            y_text += font.getsize(line)[1] + 5  # 行间距为5像素
+            # 使用getbbox方法替代getsize，兼容新版本Pillow
+            try:
+                # 尝试使用新方法
+                bbox = font.getbbox(line)
+                line_height = bbox[3] - bbox[1]  # bottom - top
+            except AttributeError:
+                # 回退到旧方法（兼容老版本）
+                line_height = font.getsize(line)[1]
+            y_text += line_height + 5  # 行间距为5像素
 
     def show_image(self, image_input):
         """显示图片
