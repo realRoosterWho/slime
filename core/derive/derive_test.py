@@ -342,8 +342,8 @@ class DeriveStateMachine:
             if log_success_msg:
                 self.logger.log_step("显示图片", log_success_msg)
             
-            # 等待按钮按下
-            self.wait_for_button(f"{text}\n\n{button_text}")
+            # 等待按钮按下 - 只显示简短的按钮提示，避免重复显示长文本
+            self.wait_for_button(button_text)
             
         except Exception as e:
             self.handle_error(f"显示图片时出错: {str(e)}", "图片显示失败...")
@@ -709,7 +709,7 @@ class DeriveStateMachine:
         self.display_image_with_text(
             'slime_image',
             "史莱姆\n绘制完成！",
-            "按下按钮\n继续...",
+            "按BT1继续",
             "史莱姆图片显示成功",
             "跳过图片显示：图片未生成"
         )
@@ -964,7 +964,7 @@ class DeriveStateMachine:
         self.display_image_with_text(
             'reward_image',
             f"奖励:\n{self.data['reward_text']}",
-            "按下按钮继续",
+            "按BT1继续",
             "奖励图片显示成功",
             "跳过奖励图片显示：图片未生成"
         )
@@ -1049,12 +1049,12 @@ class DeriveStateMachine:
             self.display_image_with_text(
                 'feedback_image',
                 f"史莱姆说：\n{self.data['feedback_text']}",
-                "按下按钮继续",
+                "按BT1继续",
                 "反馈图片显示成功"
             )
         else:
             self.logger.log_step("显示反馈", "跳过反馈图片显示：图片未生成")
-            self.wait_for_button(f"史莱姆说：\n{self.data['feedback_text']}")
+            self.wait_for_button(f"史莱姆说：\n{self.data['feedback_text']}\n\n按BT1继续")
 
     def handle_ask_continue(self):
         """处理询问是否继续状态"""
@@ -1139,10 +1139,11 @@ class DeriveStateMachine:
                 self.display_image_with_text(
                     'summary_image',
                     f"史莱姆说：\n{self.data['summary']}",
-                    "按下按钮结束"
+                    "按BT1结束漂流",
+                    "总结图片显示成功"
                 )
             else:
-                self.wait_for_button(f"史莱姆说：\n{self.data['summary']}\n\n按下按钮结束")
+                self.wait_for_button(f"史莱姆说：\n{self.data['summary']}\n\n按BT1结束漂流")
                 
             # 再见图像
             final_text = "感谢体验\n史莱姆漂流!"
@@ -1156,7 +1157,7 @@ class DeriveStateMachine:
             # 使用默认总结
             self.data['summary'] = "谢谢你陪我漂流！希望我们的旅程给你带来了快乐，下次再见！"
             self.logger.log_step("漂流总结", f"使用默认总结: {self.data['summary']}")
-            self.wait_for_button(f"史莱姆说：\n{self.data['summary']}\n\n按下按钮结束")
+            self.wait_for_button(f"史莱姆说：\n{self.data['summary']}\n\n按BT1结束漂流")
 
     def handle_cleanup(self):
         """处理清理状态"""
