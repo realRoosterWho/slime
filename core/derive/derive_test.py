@@ -9,17 +9,21 @@ import json
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
-from display_utils import DisplayManager
+from core.display.display_utils import DisplayManager
 import signal
 import shutil
-from button_utils import InputController
+from core.input.button_utils import InputController
 from enum import Enum, auto
-import RPi.GPIO as GPIO  # 添加这个导入
+import RPi.GPIO as GPIO
 from PIL import Image
 from io import BytesIO
 
 # 加载环境变量
 load_dotenv()
+
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 replicate_api_key = os.getenv("REPLICATE_API_KEY")

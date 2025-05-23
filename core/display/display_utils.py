@@ -1,3 +1,5 @@
+import os
+import sys
 from luma.core.interface.serial import spi
 from PIL import Image, ImageDraw, ImageFont
 import time
@@ -5,6 +7,10 @@ import board
 import busio
 from adafruit_ssd1306 import SSD1306_I2C
 import RPi.GPIO as GPIO
+
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 
 class BitBangLCD:
     def __init__(self):

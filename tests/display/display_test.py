@@ -1,6 +1,13 @@
-from display_utils import DisplayManager
+import os
+import sys
+
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+
+from core.display.display_utils import DisplayManager
 import time
-from button_utils import InputController
+from core.input.button_utils import InputController
 
 def test_lcd():
     print("测试LCD显示屏...")
