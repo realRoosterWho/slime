@@ -154,32 +154,16 @@ def download_with_retry(url, max_retries=3, delay=1):
     """带重试机制的下载函数"""
     for attempt in range(max_retries):
         try:
-            print(f"下载URL (尝试 {attempt+1}/{max_retries}): {url[:100]}...")
             response = requests.get(url, timeout=10)
-            
             if response.status_code == 200:
-                print(f"下载成功: 内容大小 {len(response.content)} 字节")
                 return response
-            
-            error_msg = f"下载失败，状态码: {response.status_code}, 响应: {response.text[:200]}..."
-            print(f"❌ {error_msg}")
-            
-            if attempt < max_retries - 1:
-                print(f"等待 {delay} 秒后重试...")
-                time.sleep(delay)
-                continue
+            print(f"下载失败，状态码: {response.status_code}，尝试重试...")
         except requests.exceptions.RequestException as e:
-            error_msg = f"下载请求异常 (尝试 {attempt+1}/{max_retries}): {e}"
-            print(f"❌ {error_msg}")
-            import traceback
-            traceback.print_exc()  # 打印堆栈
-            
+            print(f"下载出错 (尝试 {attempt + 1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
-                print(f"等待 {delay} 秒后重试...")
                 time.sleep(delay)
                 continue
-    
-    print("所有下载尝试均失败")
+            raise
     return None
 
 class DeriveState(Enum):
