@@ -325,18 +325,36 @@ def main():
         print("   - 奖励系统")
         print("   - 反馈循环")
         
+        user_choice = 'n'  # 默认跳过
+        
         if hardware:
-            hardware[0].show_text_oled("是否进行\n完整流程测试?\n\nBT1=是 BT2=否")
-            
-        user_choice = input("\n输入 'y' 进行完整测试，其他键跳过: ").lower().strip()
+            # 使用OLED显示选择界面并等待按钮
+            choice = hardware[0].show_continue_drift_option(
+                hardware[2], 
+                "是否进行完整流程测试？"
+            )
+            user_choice = 'y' if choice else 'n'
+            print(f"✅ 用户选择：{'进行测试' if choice else '跳过测试'}")
+        else:
+            # 如果硬件初始化失败，使用键盘输入
+            user_choice = input("输入 'y' 进行完整测试，其他键跳过: ").lower().strip()
         
         if user_choice == 'y':
             print("\n选择测试模式:")
             print("1. 测试模式 (快速，模拟交互)")
             print("2. 真实模式 (完整，需要真实交互)")
             
-            mode_choice = input("输入选择 (1 或 2): ").strip()
-            test_mode = mode_choice != '2'
+            if hardware:
+                # 使用OLED显示模式选择
+                choice = hardware[0].show_continue_drift_option(
+                    hardware[2], 
+                    "选择测试模式\n\nBT1=测试模式(快速)\nBT2=真实模式(完整)"
+                )
+                test_mode = choice  # True=测试模式，False=真实模式
+                print(f"✅ 选择：{'测试模式（快速）' if test_mode else '真实模式（完整）'}")
+            else:
+                mode_choice = input("输入选择 (1 或 2): ").strip()
+                test_mode = mode_choice != '2'
             
             if test_complete_flow(test_mode):
                 tests_passed += 1
