@@ -15,7 +15,7 @@ class ShowGreetingState(AbstractState):
         # 使用聊天工具生成打招呼语句
         chat_utils = DeriveChatUtils(context.response_id)
         
-        greeting = chat_utils.generate_text('greeting', text=context.get_data('personality'))
+        greeting = chat_utils.generate_text('greeting', personality=context.get_data('personality'))
         context.set_data('greeting', greeting)
         context.response_id = chat_utils.response_id
         
