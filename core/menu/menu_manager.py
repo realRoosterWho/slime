@@ -1,5 +1,5 @@
-from button_utils import InputController
-from display_utils import DisplayManager
+from core.input.button_utils import InputController
+from core.display.display_utils import DisplayManager
 from adafruit_ssd1306 import SSD1306_I2C
 import time
 import signal
