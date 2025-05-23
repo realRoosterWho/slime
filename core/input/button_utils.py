@@ -90,6 +90,95 @@ class InputController:
             
         return input_states
     
+    def wait_for_button(self, button_name: str, timeout: float = None) -> bool:
+        """等待指定按钮被按下
+        
+        Args:
+            button_name: 按钮名称 ('BTN1', 'BTN2')
+            timeout: 超时时间（秒），None表示无限等待
+            
+        Returns:
+            bool: True表示按钮被按下，False表示超时
+        """
+        if button_name not in self.BUTTON_PINS:
+            raise ValueError(f"未知的按钮名称: {button_name}")
+        
+        pin = self.BUTTON_PINS[button_name]
+        start_time = time.time()
+        
+        print(f"⏳ 等待按钮 {button_name} 被按下...")
+        
+        # 获取初始状态
+        last_state = GPIO.input(pin)
+        
+        while True:
+            current_state = GPIO.input(pin)
+            
+            # 检测按钮按下事件（从高电平到低电平）
+            if current_state == 0 and last_state == 1:
+                print(f"✅ 按钮 {button_name} 被按下")
+                time.sleep(0.1)  # 防抖
+                return True
+            
+            last_state = current_state
+            
+            # 检查超时
+            if timeout is not None and (time.time() - start_time) > timeout:
+                print(f"⏰ 等待按钮 {button_name} 超时")
+                return False
+            
+            time.sleep(0.05)  # 减少CPU使用率
+    
+    def wait_for_any_button(self, timeout: float = None) -> str:
+        """等待任意按钮被按下
+        
+        Args:
+            timeout: 超时时间（秒），None表示无限等待
+            
+        Returns:
+            str: 被按下的按钮名称，或None（超时）
+        """
+        start_time = time.time()
+        
+        print("⏳ 等待任意按钮被按下...")
+        
+        # 获取所有按钮的初始状态
+        last_states = {name: GPIO.input(pin) for name, pin in self.BUTTON_PINS.items()}
+        
+        while True:
+            for button_name, pin in self.BUTTON_PINS.items():
+                current_state = GPIO.input(pin)
+                
+                # 检测按钮按下事件（从高电平到低电平）
+                if current_state == 0 and last_states[button_name] == 1:
+                    print(f"✅ 按钮 {button_name} 被按下")
+                    time.sleep(0.1)  # 防抖
+                    return button_name
+                
+                last_states[button_name] = current_state
+            
+            # 检查超时
+            if timeout is not None and (time.time() - start_time) > timeout:
+                print("⏰ 等待按钮超时")
+                return None
+            
+            time.sleep(0.05)  # 减少CPU使用率
+    
+    def get_button_state(self, button_name: str) -> bool:
+        """获取按钮当前状态
+        
+        Args:
+            button_name: 按钮名称
+            
+        Returns:
+            bool: True表示按钮被按下，False表示未按下
+        """
+        if button_name not in self.BUTTON_PINS:
+            raise ValueError(f"未知的按钮名称: {button_name}")
+        
+        pin = self.BUTTON_PINS[button_name]
+        return GPIO.input(pin) == 0  # 低电平表示按下
+    
     def cleanup(self):
         """清理GPIO资源"""
         GPIO.cleanup()
