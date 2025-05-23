@@ -8,17 +8,11 @@ import subprocess
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-should_exit = False  # 退出标志位
-
-def signal_handler(signum, frame):
-    global should_exit
-    should_exit = True
-    print("\n🛑 检测到退出信号，准备退出...")
-
 class MenuSystem:
     def __init__(self):
         # 添加指示器帧计数（移到最前面）
         self.indicator_frame = 0
+        self.should_exit = False  # 将退出标志移到类内部
         
         # WiFi配置
         self.wifi_configs = {
@@ -59,6 +53,15 @@ class MenuSystem:
         
         # 显示初始菜单
         self.display_menu()
+        
+        # 设置信号处理器
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+    
+    def signal_handler(self, signum, frame):
+        """信号处理函数"""
+        print("\n🛑 检测到退出信号，准备退出...")
+        self.should_exit = True
     
     def on_up(self):
         """向上选择"""
@@ -359,9 +362,12 @@ class MenuSystem:
     
     def run_step(self):
         """执行一次主循环"""
+        if self.should_exit:
+            return False
         self.controller.check_inputs()
         self.display_menu()  # 刷新显示
         time.sleep(0.1)  # 避免CPU占用过高
+        return True
     
     def cleanup(self):
         """清理资源"""
@@ -397,7 +403,7 @@ class MenuSystem:
         self.controller.register_joystick_callback('DOWN', on_down)
         
         # 等待按钮1被按下
-        while not should_exit:
+        while not self.should_exit:
             self.controller.check_inputs()
             time.sleep(0.1)
         
@@ -406,18 +412,14 @@ class MenuSystem:
         self.controller.register_joystick_callback('DOWN', original_down)
 
 if __name__ == "__main__":
-    # 设置信号处理
-    signal.signal(signal.SIGINT, signal_handler)     # Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)    # systemd
-
     try:
         menu = MenuSystem()
         print("菜单系统运行中...")
         print("使用上下摇杆选择，按钮1确认")
         print("按 Ctrl+C 退出")
         
-        while not should_exit:
-            menu.run_step()
+        while menu.run_step():
+            pass
             
         print("🧹 正在清理...")
         menu.cleanup()
