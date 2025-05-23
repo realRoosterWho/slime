@@ -24,7 +24,7 @@ class InitState(AbstractState):
         # 生成史莱姆性格
         personality = chat_utils.generate_text(
             'personality', 
-            text=context.initial_text
+            mood=context.initial_text
         )
         context.set_data('personality', personality)
         context.response_id = chat_utils.response_id

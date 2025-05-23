@@ -38,8 +38,17 @@ class CleanupState(AbstractState):
             context.sleep(2)
             
             # 最终清理显示
-            context.oled_display.show_text_oled("史莱姆漂流\n体验结束\n\n感谢游玩！")
-            context.sleep(3)
+            context.oled_display.show_text_oled("史莱姆漂流\n体验结束\n\n感谢游玩！\n\n按BT1退出")
+            
+            # 等待用户按钮确认退出
+            print("漂流体验结束，等待用户按钮确认...")
+            try:
+                # 使用wait_for_button等待用户确认
+                context.controller.wait_for_button('BTN1', timeout=10)
+                print("用户已确认退出")
+            except Exception as e:
+                print(f"等待按钮时出错: {e}")
+                context.sleep(3)  # 如果按钮等待失败，至少等待3秒
             
         except Exception as e:
             context.logger.log_step("清理错误", f"清理过程出错: {str(e)}")
