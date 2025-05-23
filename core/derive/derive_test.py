@@ -114,8 +114,9 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
 def run_camera_test():
     """拍照函数"""
     # 获取项目根目录
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    camera_script = os.path.join(project_root, "core", "camera", "camera_test.py")
+    current_file = os.path.abspath(__file__)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+    camera_script = os.path.join(project_root, "core", "camera", "camera_manager.py")
 
     try:
         print("启动拍照脚本...")
@@ -225,6 +226,9 @@ class DeriveStateMachine:
         self.btn2_long_press_threshold = 2.0  # 长按阈值（秒）
         self.return_to_menu = False  # 返回菜单的标志
         
+        # 缓存项目根目录路径
+        self._project_root = None
+        
         self.data = {
             'personality': None,
             'greeting': None,
@@ -262,6 +266,109 @@ class DeriveStateMachine:
         if not replicate_api_key:
             raise Exception("没有找到REPLICATE_API_KEY，请检查.env文件设置！")
         os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
+
+    def get_default_slime_attributes(self):
+        """获取默认的史莱姆属性值"""
+        return {
+            'obsession': '寻找美丽和独特的事物',
+            'quirk': '兴奋地跳跃并记录下来',
+            'reflex': '好奇地观察并寻找其他有趣的特点',
+            'tone': '友好热情，充满好奇'
+        }
+
+    def get_project_root(self):
+        """获取项目根目录路径（缓存版本）"""
+        if self._project_root is None:
+            self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return self._project_root
+
+    def handle_error(self, error_msg, display_msg=None, step_name="错误"):
+        """统一的错误处理方法"""
+        print(f"\n❌ {error_msg}")
+        self.logger.log_step(step_name, error_msg)
+        if display_msg:
+            self.oled_display.show_text_oled(display_msg)
+            time.sleep(2)
+
+    def create_timestamped_filename(self, base_filename, suffix=""):
+        """创建带时间戳的文件名"""
+        name, ext = os.path.splitext(base_filename)
+        if suffix:
+            return f"{name}_{suffix}_{self.logger.timestamp}{ext}"
+        else:
+            return f"{name}_{self.logger.timestamp}{ext}"
+
+    def generate_image_with_retry(self, prompt, save_key, image_type, max_retries=2):
+        """带重试机制的图像生成方法"""
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    self.oled_display.show_text_oled(f"重试生成\n{image_type}...")
+                
+                image_path = self.generate_image(prompt, save_key, image_type)
+                
+                if image_path and os.path.exists(image_path):
+                    self.logger.log_step(f"生成{image_type}", f"{image_type}图片已生成: {image_path}")
+                    return image_path
+                else:
+                    if attempt < max_retries - 1:
+                        self.handle_error(f"{image_type}图片生成失败，准备重试", f"生成{image_type}失败\n准备重试...")
+                    else:
+                        raise Exception(f"{image_type}图片生成重试失败")
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    self.handle_error(f"{image_type}图片生成出错: {str(e)}", f"生成{image_type}出错\n准备重试...")
+                else:
+                    self.handle_error(f"{image_type}图片生成重试失败: {str(e)}", f"生成{image_type}失败\n请稍后再试")
+                    raise
+        return None
+
+    def display_image_with_text(self, image_key, text, button_text="按下按钮继续", log_success_msg=None, skip_msg=None):
+        """统一的图片显示方法"""
+        if not self.data.get(image_key) or not os.path.exists(self.data[image_key]):
+            if skip_msg:
+                self.logger.log_step("显示图片", skip_msg)
+            return
+            
+        try:
+            # 显示文本
+            self.oled_display.show_text_oled(text)
+            time.sleep(1)
+            
+            # 显示图片
+            img = Image.open(self.data[image_key])
+            self.lcd_display.show_image(img)
+            
+            if log_success_msg:
+                self.logger.log_step("显示图片", log_success_msg)
+            
+            # 等待按钮按下
+            self.wait_for_button(f"{text}\n\n{button_text}")
+            
+        except Exception as e:
+            self.handle_error(f"显示图片时出错: {str(e)}", "图片显示失败...")
+
+    def save_photo_with_timestamp(self, photo_path, is_new_photo=False):
+        """保存带时间戳的照片副本"""
+        filename = os.path.basename(photo_path)
+        suffix = "new" if is_new_photo else ""
+        timestamped_filename = self.create_timestamped_filename(filename, suffix)
+        timestamped_path = os.path.join(self.get_project_root(), timestamped_filename)
+        
+        # 复制照片
+        shutil.copy2(photo_path, timestamped_path)
+        
+        # 保存到相应的数据键
+        if is_new_photo:
+            self.data['new_image_path'] = photo_path
+            self.data['new_timestamped_image'] = timestamped_path
+            self.logger.save_image(timestamped_path, 'new_photo')
+            return 'new_timestamped_image'
+        else:
+            self.data['image_path'] = photo_path
+            self.data['timestamped_image'] = timestamped_path
+            self.logger.save_image(timestamped_path, 'original_photo')
+            return 'timestamped_image'
 
     def chat_with_continuity(self, prompt, system_content=None):
         """带连续性的对话函数 - 增强版"""
@@ -461,17 +568,16 @@ class DeriveStateMachine:
             
             # 使用Replicate API生成图像
             output = replicate_client.run(
-                "stability-ai/sdxl:c221b2b8ef527988fb59bf24a8b97c4561f1c671f73bd389f866bfb27c061316",
+                "black-forest-labs/flux-1.1-pro",
                 input={
                     "prompt": prompt,
-                    "negative_prompt": "模糊的，扭曲的，变形的，低质量的，低分辨率的，糟糕的艺术，糟糕的照片，糟糕的比例",
-                    "width": 1024,
-                    "height": 1024,
+                    "prompt_upsampling": True,
+                    "width": 427,      # 按比例调整：320/240 * 320 ≈ 427
+                    "height": 320,     # 使用允许的最小值的稍大值
                     "num_outputs": 1,
                     "scheduler": "K_EULER",
-                    "num_inference_steps": 40,
+                    "num_inference_steps": 25,
                     "guidance_scale": 7.5,
-                    "apply_watermark": False
                 }
             )
             
@@ -594,46 +700,19 @@ class DeriveStateMachine:
         # 生成史莱姆的图片
         slime_prompt = self.generate_image_prompt('slime')
         self.logger.log_prompt("slime_image_prompt", slime_prompt)
-        slime_image = self.generate_image(slime_prompt, 'slime_image', 'slime')
         
-        # 确保图片生成成功
-        if not slime_image or not os.path.exists(slime_image):
-            error_msg = "史莱姆图片生成失败"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
-            
-            # 重试一次
-            self.oled_display.show_text_oled("重试生成\n史莱姆形象...")
-            slime_image = self.generate_image(slime_prompt, 'slime_image', 'slime')
-            
-            if not slime_image or not os.path.exists(slime_image):
-                raise Exception("史莱姆图片生成重试失败")
-        
-        self.logger.log_step("生成史莱姆", f"史莱姆图片已生成: {slime_image}")
+        # 使用统一的图片生成方法
+        self.generate_image_with_retry(slime_prompt, 'slime_image', 'slime')
 
     def handle_show_slime_image(self):
         """处理显示史莱姆图片状态"""
-        if not self.data['slime_image'] or not os.path.exists(self.data['slime_image']):
-            self.logger.log_step("显示图片", "跳过图片显示：图片未生成")
-            return
-            
-        try:
-            self.oled_display.show_text_oled("史莱姆\n绘制完成！")
-            time.sleep(1)
-            
-            img = Image.open(self.data['slime_image'])
-            self.lcd_display.show_image(img)
-            self.logger.log_step("显示图片", "史莱姆图片显示成功")
-            
-            # 等待按钮按下才继续
-            self.wait_for_button("按下按钮\n继续...")
-            
-        except Exception as e:
-            error_msg = f"显示图片时出错: {str(e)}"
-            print(error_msg)
-            self.logger.log_step("错误", error_msg)
-            self.oled_display.show_text_oled("图片显示失败...")
-            time.sleep(2)
+        self.display_image_with_text(
+            'slime_image',
+            "史莱姆\n绘制完成！",
+            "按下按钮\n继续...",
+            "史莱姆图片显示成功",
+            "跳过图片显示：图片未生成"
+        )
 
     def handle_show_greeting(self):
         """处理显示打招呼状态"""
@@ -651,18 +730,25 @@ class DeriveStateMachine:
         self.logger.log_step("询问拍照", photo_question)
         self.wait_for_button(f"史莱姆说：\n{photo_question}")
 
-    def handle_take_photo(self):
-        """处理拍照状态"""
-        self.oled_display.show_text_oled("准备拍照\n请按下BT1按钮")
+    def _take_photo_common(self, is_new_photo=False):
+        """统一的拍照处理方法
+        Args:
+            is_new_photo (bool): True表示是新照片，False表示是第一张照片
+        """
+        # 根据是否为新照片显示不同的提示文本
+        if is_new_photo:
+            display_text = "准备拍摄新照片\n请按下BT1按钮"
+            button_text = "按下BT1按钮拍照"
+            log_step = "新照片"
+        else:
+            display_text = "准备拍照\n请按下BT1按钮"
+            button_text = "按下BT1按钮拍照"
+            log_step = "拍照"
+        
+        self.oled_display.show_text_oled(display_text)
         
         # 等待用户按下按钮1拍照
-        self.wait_for_button("按下BT1按钮拍照")
-        
-        # 显示拍照倒计时
-        self.oled_display.show_text_oled("拍照倒计时")
-        for i in range(3, 0, -1):
-            self.lcd_display.show_text(str(i), font_size=100, x=120, y=80)
-            time.sleep(1)
+        self.wait_for_button(button_text)
         
         self.oled_display.show_text_oled("正在拍照...")
         
@@ -670,57 +756,38 @@ class DeriveStateMachine:
         run_camera_test()
         
         # 查找最新拍摄的照片
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        photo_dir = os.path.join(current_dir, "photos")
-        
         try:
-            if not os.path.exists(photo_dir):
-                os.makedirs(photo_dir)
-                raise FileNotFoundError("照片目录不存在，已创建")
-                
-            # 获取最新的照片
-            photos = sorted(
-                [os.path.join(photo_dir, f) for f in os.listdir(photo_dir) if f.endswith(('.jpg', '.jpeg', '.png'))],
-                key=os.path.getmtime,
-                reverse=True
-            )
+            # 先检查项目根目录是否有照片
+            photo_path = os.path.join(self.get_project_root(), "current_image.jpg")
+            if not os.path.exists(photo_path):
+                raise FileNotFoundError("未找到拍摄的照片")
             
-            if not photos:
-                raise FileNotFoundError("未找到任何照片")
-                
-            self.data['image_path'] = photos[0]
-            
-            # 创建带时间戳的副本以避免覆盖
-            filename = os.path.basename(self.data['image_path'])
-            name, ext = os.path.splitext(filename)
-            timestamped_filename = f"{name}_{self.logger.timestamp}{ext}"
-            timestamped_path = os.path.join(photo_dir, timestamped_filename)
-            
-            # 复制照片并保存带时间戳的版本
-            shutil.copy2(self.data['image_path'], timestamped_path)
-            self.data['timestamped_image'] = timestamped_path
-            
-            # 保存照片到日志目录
-            self.logger.save_image(self.data['timestamped_image'], 'original_photo')
+            # 保存带时间戳的照片副本
+            timestamped_key = self.save_photo_with_timestamp(photo_path, is_new_photo)
             
             # 在LCD上显示照片
-            img = Image.open(self.data['image_path'])
+            img = Image.open(photo_path)
             self.lcd_display.show_image(img)
             
-            self.logger.log_step("拍照", f"照片已保存: {self.data['timestamped_image']}")
+            self.logger.log_step(log_step, f"{'新' if is_new_photo else ''}照片已保存: {self.data[timestamped_key]}")
             
             # 等待用户确认照片
             self.oled_display.show_text_oled("照片已拍摄\n按BT1继续")
             self.wait_for_button("按BT1继续")
             
         except Exception as e:
-            error_msg = f"处理照片时出错: {str(e)}"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
-            self.oled_display.show_text_oled("照片处理失败\n请重试")
-            time.sleep(2)
-            # 出错时不终止，而是重新拍照
-            return self.handle_take_photo()
+            error_msg = f"处理{'新' if is_new_photo else ''}照片时出错: {str(e)}"
+            self.handle_error(error_msg, "照片处理失败\n请重试")
+            # 出错时递归重试
+            return self._take_photo_common(is_new_photo)
+
+    def handle_take_photo(self):
+        """处理拍照状态"""
+        return self._take_photo_common(is_new_photo=False)
+
+    def handle_take_new_photo(self):
+        """处理拍摄新照片状态"""
+        return self._take_photo_common(is_new_photo=True)
 
     def handle_analyze_photo(self):
         """处理分析照片状态"""
@@ -781,9 +848,8 @@ class DeriveStateMachine:
             self.wait_for_button(display_text)
             
         except Exception as e:
-            error_msg = f"生成建议时出错: {str(e)}"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
+            # 使用统一错误处理
+            self.handle_error(f"生成建议时出错: {str(e)}")
             
             # 使用备用建议
             default_suggestion = "去寻找更多有趣的东西吧！"
@@ -803,86 +869,11 @@ class DeriveStateMachine:
         self.logger.log_step("等待新照片", waiting_prompt)
         self.wait_for_button(f"史莱姆说：\n{waiting_prompt}\n\n按下按钮1继续拍照")
 
-    def handle_take_new_photo(self):
-        """处理拍摄新照片状态"""
-        self.oled_display.show_text_oled("准备拍摄新照片\n请按下BT1按钮")
-        
-        # 等待用户按下按钮1拍照
-        self.wait_for_button("按下BT1按钮拍照")
-        
-        # 显示拍照倒计时
-        self.oled_display.show_text_oled("拍照倒计时")
-        for i in range(3, 0, -1):
-            self.lcd_display.show_text(str(i), font_size=100, x=120, y=80)
-            time.sleep(1)
-        
-        self.oled_display.show_text_oled("正在拍照...")
-        
-        # 运行相机脚本拍照
-        run_camera_test()
-        
-        # 查找最新拍摄的照片
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        photo_dir = os.path.join(current_dir, "photos")
-        
-        try:
-            if not os.path.exists(photo_dir):
-                os.makedirs(photo_dir)
-                raise FileNotFoundError("照片目录不存在，已创建")
-                
-            # 获取最新的照片
-            photos = sorted(
-                [os.path.join(photo_dir, f) for f in os.listdir(photo_dir) if f.endswith(('.jpg', '.jpeg', '.png'))],
-                key=os.path.getmtime,
-                reverse=True
-            )
-            
-            if not photos:
-                raise FileNotFoundError("未找到任何照片")
-                
-            # 使用不同的变量存储新照片，避免覆盖原始照片
-            new_image_path = photos[0]
-            
-            # 创建带时间戳的副本以避免覆盖
-            filename = os.path.basename(new_image_path)
-            name, ext = os.path.splitext(filename)
-            new_timestamped_filename = f"{name}_new_{self.logger.timestamp}{ext}"
-            new_timestamped_path = os.path.join(photo_dir, new_timestamped_filename)
-            
-            # 复制照片并保存带时间戳的版本
-            shutil.copy2(new_image_path, new_timestamped_path)
-            
-            # 记录新照片的路径
-            self.data['new_image_path'] = new_image_path
-            self.data['new_timestamped_image'] = new_timestamped_path
-            
-            # 保存照片到日志目录
-            self.logger.save_image(self.data['new_timestamped_image'], 'new_photo')
-            
-            # 在LCD上显示照片
-            img = Image.open(new_image_path)
-            self.lcd_display.show_image(img)
-            
-            self.logger.log_step("新照片", f"新照片已保存: {self.data['new_timestamped_image']}")
-            
-            # 等待用户确认照片
-            self.oled_display.show_text_oled("照片已拍摄\n按BT1继续")
-            self.wait_for_button("按BT1继续")
-            
-        except Exception as e:
-            error_msg = f"处理新照片时出错: {str(e)}"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
-            self.oled_display.show_text_oled("照片处理失败\n请重试")
-            time.sleep(2)
-            # 出错时不终止，而是重新拍照
-            return self.handle_take_new_photo()
-
     def handle_analyze_new_photo(self):
         """处理分析新照片状态"""
         self.oled_display.show_text_oled("正在分析\n照片...")
         
-        base64_image = encode_image(self.data['timestamped_image'])
+        base64_image = encode_image(self.data['new_timestamped_image'])
         data_url = f"data:image/jpeg;base64,{base64_image}"
         
         # 使用与前面相同的格式来分析图片
@@ -952,22 +943,9 @@ class DeriveStateMachine:
             表面有闪光和微妙的纹理，儿童绘本风格，白色背景，特写镜头。"""
         
         self.logger.log_prompt("reward_image_prompt", prompt)
-        reward_image = self.generate_image(prompt, 'reward_image', 'reward')
         
-        # 确保奖励图片生成成功
-        if not reward_image or not os.path.exists(reward_image):
-            error_msg = "奖励图片生成失败"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
-            
-            # 重试一次
-            self.oled_display.show_text_oled("重试生成\n奖励物品...")
-            reward_image = self.generate_image(prompt, 'reward_image', 'reward')
-            
-            if not reward_image or not os.path.exists(reward_image):
-                raise Exception("奖励图片生成重试失败")
-        
-        self.logger.log_step("生成奖励", f"奖励图片已生成: {reward_image}")
+        # 使用统一的图片生成方法
+        reward_image = self.generate_image_with_retry(prompt, 'reward_image', 'reward')
         
         # 记录奖励到总列表
         reward_record = {
@@ -983,28 +961,13 @@ class DeriveStateMachine:
 
     def handle_show_reward(self):
         """处理显示奖励状态"""
-        if not self.data['reward_image'] or not os.path.exists(self.data['reward_image']):
-            self.logger.log_step("显示奖励", "跳过奖励图片显示：图片未生成")
-            return
-            
-        try:
-            # 显示奖励文本和图片
-            self.oled_display.show_text_oled(f"奖励:\n{self.data['reward_text']}")
-            time.sleep(1)
-            
-            img = Image.open(self.data['reward_image'])
-            self.lcd_display.show_image(img)
-            self.logger.log_step("显示奖励", "奖励图片显示成功")
-            
-            # 等待按钮按下才继续
-            self.wait_for_button(f"奖励:\n{self.data['reward_text']}\n\n按下按钮继续")
-            
-        except Exception as e:
-            error_msg = f"显示奖励图片时出错: {str(e)}"
-            print(error_msg)
-            self.logger.log_step("错误", error_msg)
-            self.oled_display.show_text_oled("奖励显示失败...")
-            time.sleep(2)
+        self.display_image_with_text(
+            'reward_image',
+            f"奖励:\n{self.data['reward_text']}",
+            "按下按钮继续",
+            "奖励图片显示成功",
+            "跳过奖励图片显示：图片未生成"
+        )
 
     def handle_generate_feedback(self):
         """处理生成反馈状态"""
@@ -1075,48 +1038,23 @@ class DeriveStateMachine:
         表情生动，{self.data['feedback_description']} 儿童绘本风格，明亮的背景，色彩鲜艳。"""
         
         self.logger.log_prompt("feedback_image_prompt", feedback_prompt)
-        feedback_image = self.generate_image(feedback_prompt, 'feedback_image', 'feedback')
         
-        # 确保反馈图片生成成功
-        if not feedback_image or not os.path.exists(feedback_image):
-            error_msg = "反馈图片生成失败"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
-            
-            # 重试一次
-            self.oled_display.show_text_oled("重试生成\n反馈图片...")
-            feedback_image = self.generate_image(feedback_prompt, 'feedback_image', 'feedback')
-            
-            if not feedback_image or not os.path.exists(feedback_image):
-                raise Exception("反馈图片生成重试失败")
-        
-        self.logger.log_step("生成反馈图片", f"反馈图片已生成: {feedback_image}")
+        # 使用统一的图片生成方法
+        self.generate_image_with_retry(feedback_prompt, 'feedback_image', 'feedback')
 
     def handle_show_feedback(self):
         """处理显示反馈状态"""
-        if not self.data['feedback_image'] or not os.path.exists(self.data['feedback_image']):
+        # 如果图片存在，使用统一显示方法；否则只显示文本
+        if self.data.get('feedback_image') and os.path.exists(self.data['feedback_image']):
+            self.display_image_with_text(
+                'feedback_image',
+                f"史莱姆说：\n{self.data['feedback_text']}",
+                "按下按钮继续",
+                "反馈图片显示成功"
+            )
+        else:
             self.logger.log_step("显示反馈", "跳过反馈图片显示：图片未生成")
             self.wait_for_button(f"史莱姆说：\n{self.data['feedback_text']}")
-            return
-            
-        try:
-            # 显示反馈文本和图片
-            self.oled_display.show_text_oled(f"史莱姆说：\n{self.data['feedback_text']}")
-            time.sleep(1)
-            
-            img = Image.open(self.data['feedback_image'])
-            self.lcd_display.show_image(img)
-            self.logger.log_step("显示反馈", "反馈图片显示成功")
-            
-            # 等待按钮按下才继续
-            self.wait_for_button(f"史莱姆说：\n{self.data['feedback_text']}\n\n按下按钮继续")
-            
-        except Exception as e:
-            error_msg = f"显示反馈图片时出错: {str(e)}"
-            print(error_msg)
-            self.logger.log_step("错误", error_msg)
-            self.oled_display.show_text_oled("反馈显示失败...")
-            time.sleep(2)
 
     def handle_ask_continue(self):
         """处理询问是否继续状态"""
@@ -1189,22 +1127,22 @@ class DeriveStateMachine:
             儿童绘本风格，高质量插画，细节丰富。
             """
             
-            self.generate_image(summary_image_prompt, 'summary_image', 'summary')
-            
-            # 显示总结文本和图片
+            # 尝试生成总结图片，不强制要求成功
             try:
-                if self.data.get('summary_image') and os.path.exists(self.data['summary_image']):
-                    img = Image.open(self.data['summary_image'])
-                    self.lcd_display.show_image(img)
-                    
+                self.generate_image_with_retry(summary_image_prompt, 'summary_image', 'summary')
+            except Exception:
+                # 图片生成失败不影响总结流程
+                self.logger.log_step("总结图片", "总结图片生成失败，将只显示文字")
+            
+            # 显示总结（优先显示图片，否则只显示文字）
+            if self.data.get('summary_image') and os.path.exists(self.data['summary_image']):
+                self.display_image_with_text(
+                    'summary_image',
+                    f"史莱姆说：\n{self.data['summary']}",
+                    "按下按钮结束"
+                )
+            else:
                 self.wait_for_button(f"史莱姆说：\n{self.data['summary']}\n\n按下按钮结束")
-                
-            except Exception as e:
-                error_msg = f"显示总结时出错: {str(e)}"
-                print(error_msg)
-                self.logger.log_step("错误", error_msg)
-                self.oled_display.show_text_oled("总结显示失败...")
-                time.sleep(2)
                 
             # 再见图像
             final_text = "感谢体验\n史莱姆漂流!"
@@ -1212,9 +1150,8 @@ class DeriveStateMachine:
             time.sleep(3)
         
         except Exception as e:
-            error_msg = f"生成总结时出错: {str(e)}"
-            print(f"\n❌ {error_msg}")
-            self.logger.log_step("错误", error_msg)
+            # 使用统一的错误处理
+            self.handle_error(f"生成总结时出错: {str(e)}")
             
             # 使用默认总结
             self.data['summary'] = "谢谢你陪我漂流！希望我们的旅程给你带来了快乐，下次再见！"
@@ -1332,23 +1269,20 @@ class DeriveStateMachine:
                     
                     except Exception as e:
                         error_msg = f"状态 {self.state.name} 处理出错: {str(e)}"
-                        print(f"\n❌ {error_msg}")
                         import traceback
                         traceback.print_exc()
-                        self.logger.log_step("错误", error_msg)
+                        self.handle_error(error_msg, step_name="状态错误")
                         self.state = DeriveState.CLEANUP
                 else:
                     error_msg = f"未知状态: {self.state}"
-                    print(f"\n❌ {error_msg}")
-                    self.logger.log_step("错误", error_msg)
+                    self.handle_error(error_msg, step_name="状态错误")
                     self.state = DeriveState.CLEANUP
                     
         except Exception as e:
             error_msg = f"状态机运行出错: {str(e)}"
-            print(f"\n❌ {error_msg}")
             import traceback
             traceback.print_exc()
-            self.logger.log_step("严重错误", error_msg)
+            self.handle_error(error_msg, step_name="严重错误")
             self.logger.save_log()  # 确保在错误发生时也保存日志
         
         finally:
@@ -1459,29 +1393,18 @@ class DeriveStateMachine:
                     self.data['slime_attributes'][attr] = attributes[attr]
                 else:
                     # 如果未能提取，设置默认值
-                    default_values = {
-                        'obsession': '寻找美丽和独特的事物',
-                        'quirk': '兴奋地跳跃并记录下来',
-                        'reflex': '好奇地观察并寻找其他有趣的特点',
-                        'tone': '友好热情，充满好奇'
-                    }
+                    default_values = self.get_default_slime_attributes()
                     self.data['slime_attributes'][attr] = default_values[attr]
                     self.logger.log_step("属性提取", f"未能提取{attr}，使用默认值")
             
             self.logger.log_step("属性提取", f"文本匹配提取结果: {self.data['slime_attributes']}")
                 
         except Exception as e:
-            error_msg = f"提取属性时出错: {e}"
-            self.logger.log_step("错误", error_msg)
-            print(f"❌ {error_msg}")
+            # 使用统一的错误处理
+            self.handle_error(f"提取属性时出错: {e}", step_name="属性提取错误")
             
             # 设置默认值确保程序可以继续
-            default_attributes = {
-                'obsession': '寻找美丽和独特的事物',
-                'quirk': '兴奋地跳跃并记录下来',
-                'reflex': '好奇地观察并寻找其他有趣的特点',
-                'tone': '友好热情，充满好奇'
-            }
+            default_attributes = self.get_default_slime_attributes()
             
             for attr, value in default_attributes.items():
                 if not self.data['slime_attributes'][attr]:
