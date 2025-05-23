@@ -1,7 +1,11 @@
 from .abstract_state_machine import AbstractStateMachine
 from .derive_states import DeriveState
 from .derive_context import DeriveContext
-from .states import InitState, GenSlimeImageState, ShowSlimeImageState
+from .states import (
+    InitState, GenSlimeImageState, ShowSlimeImageState,
+    ShowGreetingState, AskPhotoState, TakePhotoState,
+    AnalyzePhotoState, SuggestDestinationState
+)
 
 class DeriveStateMachine(AbstractStateMachine):
     """史莱姆漂流状态机实现"""
@@ -17,12 +21,17 @@ class DeriveStateMachine(AbstractStateMachine):
     
     def initialize_states(self) -> None:
         """初始化所有状态"""
-        # 目前只注册已实现的三个状态
+        # 注册已实现的状态
         self.register_state(InitState())
         self.register_state(GenSlimeImageState())
         self.register_state(ShowSlimeImageState())
+        self.register_state(ShowGreetingState())
+        self.register_state(AskPhotoState())
+        self.register_state(TakePhotoState())
+        self.register_state(AnalyzePhotoState())
+        self.register_state(SuggestDestinationState())
         
-        print("✅ 状态机初始化完成，已注册 3 个状态")
+        print("✅ 状态机初始化完成，已注册 8 个状态")
     
     def get_initial_state(self) -> DeriveState:
         """获取初始状态"""
