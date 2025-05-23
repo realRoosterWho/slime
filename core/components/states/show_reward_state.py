@@ -16,15 +16,13 @@ class ShowRewardState(AbstractState):
             reward_description = context.get_data('reward_description', '一个特别的奖励')
             reward_reason = context.get_data('reward_reason', '感谢你的探索')
             reward_image_path = context.get_data('reward_image_path')
-            reward_level = context.get_data('reward_level', 'normal')
+            reward_level = context.get_data('reward_level', 'encouragement')
             
             context.logger.log_step("显示奖励", f"展示 {reward_level} 级奖励")
             
             # 根据奖励等级添加不同的祝贺词
             congratulations = {
                 'great': '太棒了！',
-                'good': '很不错！',
-                'normal': '不错哦！',
                 'encouragement': '继续加油！'
             }
             

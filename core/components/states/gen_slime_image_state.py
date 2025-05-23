@@ -56,4 +56,28 @@ class GenSlimeImageState(AbstractState):
     def _generate_slime_prompt(self, context) -> str:
         """生成史莱姆图片的提示词"""
         slime_description = context.get_data('slime_description', '')
-        return f"一个奇幻的史莱姆生物。{slime_description} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。" 
+        
+        # 构建复古彩色像素风格的史莱姆提示词
+        prompt = f"""
+        A cute slime character with the following traits: {slime_description}
+        
+        Art style requirements:
+        - Retro colorful pixel art style
+        - 16-bit or 32-bit game character aesthetic  
+        - Vibrant, saturated colors with limited color palette
+        - Clean pixel edges with no anti-aliasing
+        - Simple but expressive design
+        - Large eyes and small mouth for kawaii appeal
+        - Soft, rounded blob-like body shape
+        - Clear, simple silhouette suitable for game character
+        
+        The slime should be:
+        - Centered in frame
+        - Clean background or simple pattern
+        - Bright and cheerful appearance
+        - Easily recognizable as a friendly slime character
+        
+        Style: retro pixel art, colorful, game character, nostalgic 16-bit aesthetic
+        """
+        
+        return prompt 

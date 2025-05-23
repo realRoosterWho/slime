@@ -39,10 +39,8 @@ class AnalyzeRewardState(AbstractState):
             3. 奖励的具体内容是什么？
             
             奖励类型选择:
-            - "great": 完全符合执念，给出特别奖励
-            - "good": 部分符合执念，给出不错的奖励  
-            - "normal": 基本符合或有趣，给出普通奖励
-            - "encouragement": 不太符合但要鼓励，给出鼓励奖励
+            - "great": 完全符合执念，给出特别奖励，比如某种神秘装扮或者符合执念的物件之类的
+            - "encouragement": 不太符合但要鼓励，给出意外奖励，符合当前风景的一个史莱姆蛋
             
             回复格式:
             {{
@@ -62,7 +60,7 @@ class AnalyzeRewardState(AbstractState):
             reward_data = self._parse_reward_response(response)
             
             # 保存奖励分析结果
-            context.set_data('reward_level', reward_data.get('reward_level', 'normal'))
+            context.set_data('reward_level', reward_data.get('reward_level', 'encouragement'))
             context.set_data('reward_description', reward_data.get('reward_description', '一个小小的奖励'))
             context.set_data('reward_reason', reward_data.get('reward_reason', '感谢你的探索'))
             
@@ -82,7 +80,7 @@ class AnalyzeRewardState(AbstractState):
             context.logger.log_step("错误", f"分析奖励失败: {str(e)}")
             
             # 设置默认奖励
-            context.set_data('reward_level', 'normal')
+            context.set_data('reward_level', 'encouragement')
             context.set_data('reward_description', '一个神秘的奖励')
             context.set_data('reward_reason', '感谢你的陪伴和探索')
             
@@ -116,7 +114,7 @@ class AnalyzeRewardState(AbstractState):
             
             # 解析失败，返回默认值
             return {
-                "reward_level": "normal",
-                "reward_description": "一个特别的奖励",
-                "reward_reason": "感谢你的努力探索"
+                "reward_level": "encouragement",
+                "reward_description": "一个小小的奖励",
+                "reward_reason": "感谢你的探索"
             } 

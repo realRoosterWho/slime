@@ -23,7 +23,7 @@ class SummaryState(AbstractState):
             
             # 添加当前轮次的奖励到总奖励列表
             current_reward = {
-                'level': context.get_data('reward_level', 'normal'),
+                'level': context.get_data('reward_level', 'encouragement'),
                 'description': context.get_data('reward_description', '一个奖励'),
                 'cycle': cycle_count
             }
@@ -87,8 +87,6 @@ class SummaryState(AbstractState):
         for i, reward in enumerate(rewards, 1):
             level_text = {
                 'great': '极佳',
-                'good': '很好', 
-                'normal': '不错',
                 'encouragement': '鼓励'
             }.get(reward['level'], '普通')
             

@@ -16,7 +16,7 @@ class GenerateFeedbackState(AbstractState):
         
         try:
             # 获取相关数据
-            reward_level = context.get_data('reward_level', 'normal')
+            reward_level = context.get_data('reward_level', 'encouragement')
             reward_description = context.get_data('reward_description', '一个奖励')
             new_photo_analysis = context.get_data('new_photo_analysis', '')
             slime_tone = context.get_slime_attribute('tone')
