@@ -208,7 +208,7 @@ class DeriveState(Enum):
 class DeriveStateMachine:
     def __init__(self, initial_text):
         # 初始化 GPIO 设置
-        GPIO.setmode(GPIO.BCM)
+        GPIO.setmode(GPIO.BCM)  # 使用BCM模式
         GPIO.setwarnings(False)
         
         self.logger = DeriveLogger()
@@ -476,10 +476,14 @@ class DeriveStateMachine:
             )
             
             # 确保输出是有效的
-            if not output or len(output) == 0:
+            if not output:
                 raise Exception("未能生成图像")
                 
-            image_url = output[0]
+            # 处理输出，确保我们获取到URL
+            image_url = output[0] if isinstance(output, list) else output
+            if not isinstance(image_url, str):
+                raise Exception(f"无效的图像URL格式: {type(image_url)}")
+                
             print(f"生成的图像URL: {image_url}")
             
             # 下载图像
