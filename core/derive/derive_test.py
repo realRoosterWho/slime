@@ -461,17 +461,13 @@ class DeriveStateMachine:
             
             # 使用Replicate API生成图像
             output = replicate_client.run(
-                "stability-ai/sdxl:c221b2b8ef527988fb59bf24a8b97c4561f1c671f73bd389f866bfb27c061316",
+                "black-forest-labs/flux-schnell",  # 使用与openai_test.py相同的模型
                 input={
                     "prompt": prompt,
-                    "negative_prompt": "模糊的，扭曲的，变形的，低质量的，低分辨率的，糟糕的艺术，糟糕的照片，糟糕的比例",
-                    "width": 1024,
-                    "height": 1024,
-                    "num_outputs": 1,
-                    "scheduler": "K_EULER",
-                    "num_inference_steps": 40,
-                    "guidance_scale": 7.5,
-                    "apply_watermark": False
+                    "prompt_upsampling": True,
+                    "width": 320,        # 匹配LCD宽度
+                    "height": 240,       # 匹配LCD高度
+                    "num_inference_steps": 4  # flux-schnell模型最大支持4步
                 }
             )
             
