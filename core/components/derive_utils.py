@@ -45,7 +45,6 @@ class DeriveChatUtils:
         # 集成性能优化器
         self.optimizer = global_optimizer
     
-    @cached_api_call(global_optimizer, "gpt_chat", cache_duration=300, rate_limit=1.0)
     def chat_with_continuity(self, prompt, system_content=None):
         """带连续性的对话函数 - 优化版本"""
         try:
@@ -54,6 +53,24 @@ class DeriveChatUtils:
                 print(f"对话输入: [复杂输入，包含 {len(prompt)} 个元素]")
             else:
                 print(f"对话输入: {prompt[:100]}...")
+            
+            # 生成基于输入的缓存键（仅用于简单的文本提示）
+            cache_key = None
+            if isinstance(prompt, str) and system_content:
+                cache_key = self.optimizer.cache_key("gpt_chat", prompt, system_content)
+                cached_result = self.optimizer.get_cache(cache_key)
+                if cached_result:
+                    print(f"🎯 使用缓存的对话结果")
+                    return cached_result
+            
+            # 检查频率限制
+            if self.optimizer.is_api_rate_limited("gpt_chat", 1.0):
+                wait_time = 1.0 - (time.time() - self.optimizer.api_call_times.get("gpt_chat", 0))
+                print(f"⏳ API频率限制，等待 {wait_time:.1f} 秒...")
+                time.sleep(wait_time)
+            
+            # 记录API调用
+            self.optimizer.record_api_call("gpt_chat")
             
             response = chat_with_gpt(
                 input_content=prompt,
@@ -69,6 +86,11 @@ class DeriveChatUtils:
                 else:
                     result = response.output[0].content[0]
                 print(f"对话响应: {result[:100]}...")
+                
+                # 缓存结果（仅对简单文本提示）
+                if cache_key:
+                    self.optimizer.set_cache(cache_key, result)
+                
                 return result
             except (IndexError, AttributeError) as e:
                 error_msg = f"解析对话响应时出错: {str(e)}, 响应结构: {response}"
@@ -171,32 +193,43 @@ class DeriveImageUtils:
         # 缓存图片生成提示词，避免重复生成相同内容
         self.prompt_cache = {}
     
-    @cached_api_call(global_optimizer, "replicate_image", cache_duration=600, rate_limit=2.0)
     def generate_image(self, prompt, save_key, image_type, context):
         """生成图像并保存 - 优化版本"""
         try:
             print(f"\n🎨 生成{image_type}图像")
             print(f"提示词: {prompt[:100]}...")
             
-            # 检查是否有相同的提示词缓存
-            prompt_hash = hash(prompt)
-            if prompt_hash in self.prompt_cache:
-                print(f"🎯 使用相似提示词的缓存结果")
-                cached_path = self.prompt_cache[prompt_hash]
-                if os.path.exists(cached_path):
-                    context.set_data(save_key, cached_path)
-                    return cached_path
+            # 生成基于提示词的缓存键
+            prompt_cache_key = self.optimizer.cache_key("image_generation", prompt, image_type)
+            
+            # 检查缓存
+            cached_result = self.optimizer.get_cache(prompt_cache_key)
+            if cached_result and os.path.exists(cached_result):
+                print(f"🎯 使用缓存的图像: {cached_result}")
+                context.set_data(save_key, cached_result)
+                return cached_result
+            
+            # 检查频率限制
+            if self.optimizer.is_api_rate_limited("replicate_image", 2.0):
+                wait_time = 2.0 - (time.time() - self.optimizer.api_call_times.get("replicate_image", 0))
+                print(f"⏳ API频率限制，等待 {wait_time:.1f} 秒...")
+                time.sleep(wait_time)
+            
+            # 记录API调用
+            self.optimizer.record_api_call("replicate_image")
             
             # 生成图像
             output = replicate.run(
-                "stability-ai/stable-diffusion:27b93a2413e7f36cd83da926f3656280b2931564ff050bf9575f1fdf9bcd7478",
+                "black-forest-labs/flux-1.1-pro",
                 input={
                     "prompt": prompt,
-                    "width": 512,
-                    "height": 512,
-                    "num_inference_steps": 25,  # 减少推理步数，提高速度
+                    "prompt_upsampling": True,
+                    "width": 427,
+                    "height": 320,
+                    "num_outputs": 1,
+                    "scheduler": "K_EULER",
+                    "num_inference_steps": 25,
                     "guidance_scale": 7.5,
-                    "num_outputs": 1
                 }
             )
             
@@ -206,8 +239,8 @@ class DeriveImageUtils:
             # 保存图像
             image_path = self._save_image(image_content, image_type, context)
             
-            # 缓存提示词和路径的映射
-            self.prompt_cache[prompt_hash] = image_path
+            # 缓存结果
+            self.optimizer.set_cache(prompt_cache_key, image_path)
             
             context.set_data(save_key, image_path)
             return image_path

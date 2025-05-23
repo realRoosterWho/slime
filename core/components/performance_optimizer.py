@@ -30,15 +30,65 @@ class PerformanceOptimizer:
             os.makedirs(self.cache_dir)
     
     def cache_key(self, func_name: str, *args, **kwargs) -> str:
-        """生成缓存键"""
-        # 将参数序列化并生成哈希
-        cache_data = {
-            'func': func_name,
-            'args': args,
-            'kwargs': kwargs
-        }
-        cache_str = pickle.dumps(cache_data, protocol=pickle.HIGHEST_PROTOCOL)
-        return hashlib.md5(cache_str).hexdigest()
+        """生成缓存键 - 安全版本，处理不可序列化对象"""
+        try:
+            # 过滤出可序列化的参数
+            serializable_args = []
+            serializable_kwargs = {}
+            
+            # 处理位置参数
+            for arg in args:
+                if self._is_serializable(arg):
+                    serializable_args.append(arg)
+                else:
+                    # 对于不可序列化的对象，使用其类型和id作为标识
+                    serializable_args.append(f"<{type(arg).__name__}:{id(arg)}>")
+            
+            # 处理关键字参数
+            for key, value in kwargs.items():
+                if self._is_serializable(value):
+                    serializable_kwargs[key] = value
+                else:
+                    # 对于不可序列化的对象，使用其类型和id作为标识
+                    serializable_kwargs[key] = f"<{type(value).__name__}:{id(value)}>"
+            
+            # 构建缓存数据
+            cache_data = {
+                'func': func_name,
+                'args': tuple(serializable_args),
+                'kwargs': serializable_kwargs
+            }
+            
+            # 尝试序列化
+            cache_str = pickle.dumps(cache_data, protocol=pickle.HIGHEST_PROTOCOL)
+            return hashlib.md5(cache_str).hexdigest()
+            
+        except Exception as e:
+            # 如果还是序列化失败，使用字符串表示
+            fallback_str = f"{func_name}_{str(args)}_{str(kwargs)}"
+            return hashlib.md5(fallback_str.encode('utf-8')).hexdigest()
+    
+    def _is_serializable(self, obj) -> bool:
+        """检查对象是否可序列化"""
+        try:
+            # 基本类型直接返回True
+            if isinstance(obj, (str, int, float, bool, type(None))):
+                return True
+            
+            # 容器类型递归检查
+            if isinstance(obj, (list, tuple)):
+                return all(self._is_serializable(item) for item in obj)
+            
+            if isinstance(obj, dict):
+                return all(self._is_serializable(k) and self._is_serializable(v) 
+                          for k, v in obj.items())
+            
+            # 尝试pickle测试
+            pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+            return True
+            
+        except (TypeError, pickle.PicklingError, AttributeError):
+            return False
     
     def get_cache(self, key: str) -> Optional[Any]:
         """获取缓存"""
