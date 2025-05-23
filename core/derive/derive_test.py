@@ -1,6 +1,11 @@
 import subprocess
 import os
 import sys
+
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+
 import base64
 import replicate
 import requests
@@ -20,10 +25,6 @@ from io import BytesIO
 
 # 加载环境变量
 load_dotenv()
-
-# 添加项目根目录到 Python 路径
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, project_root)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 replicate_api_key = os.getenv("REPLICATE_API_KEY")
