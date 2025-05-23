@@ -62,6 +62,11 @@ def test_phase_2_state_machine_creation():
         initial_state = state_machine.get_initial_state()
         print(f"✅ 初始状态: {initial_state}")
         
+        # 初始化状态（注册所有状态）
+        print("📋 正在初始化状态...")
+        state_machine.initialize_states()
+        print("✅ 状态初始化完成")
+        
         return True, state_machine
         
     except Exception as e:
