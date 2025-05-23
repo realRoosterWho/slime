@@ -4,7 +4,9 @@ from .derive_context import DeriveContext
 from .states import (
     InitState, GenSlimeImageState, ShowSlimeImageState,
     ShowGreetingState, AskPhotoState, TakePhotoState,
-    AnalyzePhotoState, SuggestDestinationState
+    AnalyzePhotoState, SuggestDestinationState,
+    WaitForNewPhotoState, TakeNewPhotoState, AnalyzeNewPhotoState,
+    AnalyzeRewardState, GenerateRewardImageState, ShowRewardState
 )
 
 class DeriveStateMachine(AbstractStateMachine):
@@ -21,7 +23,7 @@ class DeriveStateMachine(AbstractStateMachine):
     
     def initialize_states(self) -> None:
         """初始化所有状态"""
-        # 注册已实现的状态
+        # 注册基础流程状态
         self.register_state(InitState())
         self.register_state(GenSlimeImageState())
         self.register_state(ShowSlimeImageState())
@@ -31,7 +33,16 @@ class DeriveStateMachine(AbstractStateMachine):
         self.register_state(AnalyzePhotoState())
         self.register_state(SuggestDestinationState())
         
-        print("✅ 状态机初始化完成，已注册 8 个状态")
+        # 注册奖励系统状态
+        self.register_state(WaitForNewPhotoState())
+        self.register_state(TakeNewPhotoState())
+        self.register_state(AnalyzeNewPhotoState())
+        self.register_state(AnalyzeRewardState())
+        self.register_state(GenerateRewardImageState())
+        self.register_state(ShowRewardState())
+        
+        print("✅ 状态机初始化完成，已注册 14 个状态")
+        print("📋 基础流程 8 个状态 + 奖励系统 6 个状态")
     
     def get_initial_state(self) -> DeriveState:
         """获取初始状态"""

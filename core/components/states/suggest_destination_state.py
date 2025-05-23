@@ -67,9 +67,8 @@ class SuggestDestinationState(AbstractState):
             self._wait_for_button(context, f"史莱姆说：\n{default_suggestion}")
     
     def get_next_state(self, context) -> Optional[DeriveState]:
-        """返回下一个状态：等待新照片（暂时返回None表示结束）"""
-        # 这里应该是流程的第一阶段结束点，后续需要继续扩展
-        return None
+        """返回下一个状态：等待新照片"""
+        return DeriveState.WAIT_FOR_NEW_PHOTO
     
     def _parse_suggestion_response(self, response_text):
         """解析建议响应"""

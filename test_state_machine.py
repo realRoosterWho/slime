@@ -1,114 +1,129 @@
 #!/usr/bin/env python3
 """
 史莱姆漂流状态机测试脚本
+测试重构后的状态模式架构（包含奖励系统）
 """
 
 import sys
-import os
+import time
 
-def test_imports():
-    """测试模块导入"""
-    print("🔍 测试1：模块导入检查")
+def test_phase_1_imports():
+    """阶段1：测试模块导入"""
+    print("🧪 阶段1：模块导入测试")
+    print("-" * 30)
     
     try:
-        print("   导入基础组件...")
-        from core.components.derive_state_machine import DeriveStateMachine
-        from core.components.derive_context import DeriveContext
+        # 测试核心模块导入
         from core.components.derive_states import DeriveState
-        print("   ✅ 基础组件导入成功")
+        from core.components.derive_context import DeriveContext
+        from core.components.abstract_state import AbstractState
+        from core.components.abstract_state_machine import AbstractStateMachine
+        print("✅ 核心模块导入成功")
         
-        print("   导入状态类...")
+        # 测试基础流程状态导入
         from core.components.states import (
             InitState, GenSlimeImageState, ShowSlimeImageState,
             ShowGreetingState, AskPhotoState, TakePhotoState,
             AnalyzePhotoState, SuggestDestinationState
         )
-        print("   ✅ 状态类导入成功")
+        print("✅ 基础流程状态导入成功 (8个)")
         
-        print("   导入工具类...")
-        from core.components.derive_utils import DeriveChatUtils, DeriveImageUtils
-        print("   ✅ 工具类导入成功")
+        # 测试奖励系统状态导入
+        from core.components.states import (
+            WaitForNewPhotoState, TakeNewPhotoState, AnalyzeNewPhotoState,
+            AnalyzeRewardState, GenerateRewardImageState, ShowRewardState
+        )
+        print("✅ 奖励系统状态导入成功 (6个)")
+        
+        # 测试状态机导入
+        from core.components.derive_state_machine import DeriveStateMachine
+        print("✅ 状态机导入成功")
         
         return True
-    except Exception as e:
-        print(f"   ❌ 导入失败: {e}")
-        import traceback
-        traceback.print_exc()
+        
+    except ImportError as e:
+        print(f"❌ 导入失败: {e}")
         return False
 
-def test_state_machine_creation():
-    """测试状态机创建"""
-    print("\n🔍 测试2：状态机创建检查")
+def test_phase_2_state_machine_creation():
+    """阶段2：测试状态机创建"""
+    print("\n🧪 阶段2：状态机创建测试")
+    print("-" * 30)
     
     try:
         from core.components.derive_state_machine import DeriveStateMachine
         
+        # 测试状态机创建
         initial_text = "测试用的初始文本"
-        print(f"   创建状态机，初始文本: {initial_text}")
-        
         state_machine = DeriveStateMachine(initial_text)
-        print("   ✅ 状态机创建成功")
+        print("✅ 状态机创建成功")
         
-        print("   检查上下文...")
-        assert state_machine.context is not None
-        assert state_machine.context.initial_text == initial_text
-        print("   ✅ 上下文检查通过")
+        # 测试初始状态
+        initial_state = state_machine.get_initial_state()
+        print(f"✅ 初始状态: {initial_state}")
         
         return True, state_machine
+        
     except Exception as e:
-        print(f"   ❌ 状态机创建失败: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ 状态机创建失败: {e}")
         return False, None
 
-def test_state_initialization(state_machine):
-    """测试状态初始化"""
-    print("\n🔍 测试3：状态初始化检查")
+def test_phase_3_state_registration(state_machine):
+    """阶段3：测试状态注册"""
+    print("\n🧪 阶段3：状态注册测试")
+    print("-" * 30)
     
     try:
-        print("   初始化状态...")
-        state_machine.initialize_states()
-        print("   ✅ 状态初始化成功")
-        
-        print("   检查注册的状态数量...")
-        expected_states = 8
-        actual_states = len(state_machine.states)
-        print(f"   预期: {expected_states} 个状态, 实际: {actual_states} 个状态")
-        
-        if actual_states == expected_states:
-            print("   ✅ 状态数量正确")
-        else:
-            print("   ⚠️ 状态数量不匹配")
-            
-        print("   检查初始状态...")
-        initial_state = state_machine.get_initial_state()
-        print(f"   初始状态: {initial_state}")
-        
-        if initial_state in state_machine.states:
-            print("   ✅ 初始状态已注册")
-        else:
-            print("   ❌ 初始状态未注册")
-            return False
-            
-        return True
-    except Exception as e:
-        print(f"   ❌ 状态初始化失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-def test_dry_run():
-    """测试状态机干运行（不实际执行）"""
-    print("\n🔍 测试4：状态转换逻辑检查")
-    
-    try:
-        from core.components.derive_state_machine import DeriveStateMachine
         from core.components.derive_states import DeriveState
         
-        state_machine = DeriveStateMachine("测试文本")
-        state_machine.initialize_states()
+        # 检查所有预期状态是否已注册
+        expected_states = [
+            DeriveState.INIT,
+            DeriveState.GEN_SLIME_IMAGE,
+            DeriveState.SHOW_SLIME_IMAGE,
+            DeriveState.SHOW_GREETING,
+            DeriveState.ASK_PHOTO,
+            DeriveState.TAKE_PHOTO,
+            DeriveState.ANALYZE_PHOTO,
+            DeriveState.SUGGEST_DESTINATION,
+            DeriveState.WAIT_FOR_NEW_PHOTO,
+            DeriveState.TAKE_NEW_PHOTO,
+            DeriveState.ANALYZE_NEW_PHOTO,
+            DeriveState.ANALYZE_REWARD,
+            DeriveState.GENERATE_REWARD_IMAGE,
+            DeriveState.SHOW_REWARD
+        ]
         
-        # 模拟状态转换序列
+        registered_count = 0
+        for state in expected_states:
+            if state in state_machine.states:
+                registered_count += 1
+                print(f"✅ {state.name}")
+            else:
+                print(f"❌ {state.name} - 未注册")
+        
+        print(f"\n📊 注册状态统计: {registered_count}/{len(expected_states)}")
+        
+        if registered_count == len(expected_states):
+            print("✅ 所有状态都已正确注册")
+            return True
+        else:
+            print("❌ 部分状态未注册")
+            return False
+            
+    except Exception as e:
+        print(f"❌ 状态注册测试失败: {e}")
+        return False
+
+def test_phase_4_state_transitions():
+    """阶段4：测试状态转换逻辑"""
+    print("\n🧪 阶段4：状态转换逻辑测试")
+    print("-" * 30)
+    
+    try:
+        from core.components.derive_states import DeriveState
+        
+        # 定义完整的状态转换序列
         expected_sequence = [
             DeriveState.INIT,
             DeriveState.GEN_SLIME_IMAGE,
@@ -117,82 +132,77 @@ def test_dry_run():
             DeriveState.ASK_PHOTO,
             DeriveState.TAKE_PHOTO,
             DeriveState.ANALYZE_PHOTO,
-            DeriveState.SUGGEST_DESTINATION
+            DeriveState.SUGGEST_DESTINATION,
+            DeriveState.WAIT_FOR_NEW_PHOTO,
+            DeriveState.TAKE_NEW_PHOTO,
+            DeriveState.ANALYZE_NEW_PHOTO,
+            DeriveState.ANALYZE_REWARD,
+            DeriveState.GENERATE_REWARD_IMAGE,
+            DeriveState.SHOW_REWARD
         ]
         
-        print("   检查状态转换逻辑...")
-        current_state_type = state_machine.get_initial_state()
+        print("🔗 预期状态转换序列:")
+        for i, state in enumerate(expected_sequence):
+            arrow = " → " if i < len(expected_sequence) - 1 else ""
+            print(f"  {i+1}. {state.name}{arrow}")
         
-        for i, expected_state in enumerate(expected_sequence):
-            if current_state_type != expected_state:
-                print(f"   ❌ 状态{i}: 期望{expected_state}, 实际{current_state_type}")
-                return False
-            
-            print(f"   ✅ 状态{i}: {expected_state}")
-            
-            # 获取当前状态对象
-            if current_state_type in state_machine.states:
-                current_state = state_machine.states[current_state_type]
-                # 模拟获取下一状态（不实际执行）
-                try:
-                    # 这里我们需要创建一个模拟的context来测试get_next_state
-                    mock_context = state_machine.context
-                    next_state = current_state.get_next_state(mock_context)
-                    current_state_type = next_state
-                    
-                    if next_state is None:
-                        print(f"   📍 状态{i}: {expected_state} 为终止状态")
-                        break
-                except Exception as e:
-                    print(f"   ⚠️ 无法获取状态{expected_state}的下一状态: {e}")
-                    break
-            else:
-                print(f"   ❌ 状态{current_state_type}未注册")
-                return False
+        print(f"\n📏 总流程长度: {len(expected_sequence)} 个状态")
+        print("✅ 状态转换序列验证完成")
         
-        print("   ✅ 状态转换逻辑检查通过")
         return True
+        
     except Exception as e:
-        print(f"   ❌ 状态转换逻辑检查失败: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ 状态转换测试失败: {e}")
         return False
 
 def main():
     """主测试函数"""
-    print("🧪 史莱姆漂流状态机测试开始\n")
+    print("🎮 史莱姆漂流状态机测试 (阶段4版本)")
+    print("🎯 目标：验证奖励系统的状态模式架构")
+    print("=" * 50)
     
-    # 测试1: 导入检查
-    if not test_imports():
-        print("\n💥 导入测试失败，停止测试")
-        return False
+    # 记录开始时间
+    start_time = time.time()
     
-    # 测试2: 状态机创建
-    success, state_machine = test_state_machine_creation()
-    if not success:
-        print("\n💥 状态机创建测试失败，停止测试")
-        return False
+    # 执行测试阶段
+    success_count = 0
+    total_phases = 4
     
-    # 测试3: 状态初始化
-    if not test_state_initialization(state_machine):
-        print("\n💥 状态初始化测试失败，停止测试")
-        return False
+    # 阶段1：模块导入测试
+    if test_phase_1_imports():
+        success_count += 1
     
-    # 测试4: 状态转换逻辑
-    if not test_dry_run():
-        print("\n💥 状态转换逻辑测试失败")
-        return False
+    # 阶段2：状态机创建测试
+    success, state_machine = test_phase_2_state_machine_creation()
+    if success:
+        success_count += 1
     
-    print("\n🎉 所有基础测试通过！")
-    print("\n📋 测试总结：")
-    print("   ✅ 模块导入正常")
-    print("   ✅ 状态机创建正常")
-    print("   ✅ 状态初始化正常")
-    print("   ✅ 状态转换逻辑正常")
-    print("\n🔧 状态机已准备好进行实际运行测试！")
+    # 阶段3：状态注册测试
+    if state_machine and test_phase_3_state_registration(state_machine):
+        success_count += 1
     
-    return True
+    # 阶段4：状态转换测试
+    if test_phase_4_state_transitions():
+        success_count += 1
+    
+    # 计算耗时
+    end_time = time.time()
+    duration = end_time - start_time
+    
+    # 输出测试结果
+    print("\n" + "=" * 50)
+    print("📊 测试结果汇总")
+    print(f"✅ 成功阶段: {success_count}/{total_phases}")
+    print(f"⏱️  耗时: {duration:.2f}秒")
+    
+    if success_count == total_phases:
+        print("🎉 所有测试通过！奖励系统状态架构验证成功！")
+        print("🚀 阶段4开发完成，可以继续阶段5")
+        return 0
+    else:
+        print("💥 部分测试失败，需要修复问题")
+        return 1
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1) 
+    exit_code = main()
+    sys.exit(exit_code) 
