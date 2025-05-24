@@ -397,7 +397,7 @@ class DisplayManager:
         return lines
 
     def show_text_oled(self, text, font_size=12, chars_per_line=18, visible_lines=3):
-        """专门为OLED优化的文本显示，简化版本，不自动滚动
+        """专门为OLED优化的文本显示，滚动一遍后结束
         Args:
             text: 要显示的文本
             font_size: 字体大小，默认12
@@ -417,21 +417,51 @@ class DisplayManager:
         # 处理文本换行
         lines = self.split_text(text, chars_per_line)
         
-        # 只显示前几行，不进行自动滚动
         total_lines = len(lines)
-        display_lines = min(total_lines, visible_lines)
         
-        # 绘制文本行
-        y = 10
-        for i in range(display_lines):
-            draw.text((10, y), lines[i], font=font, fill=255)
-            y += 20  # 行间距
-        
-        # 如果有更多内容，在底部显示省略号
-        if total_lines > visible_lines:
-            draw.text((10, y), "...", font=font, fill=255)
-        
-        self._display_image(image)
+        # 如果文本行数不超过可见行数，直接显示
+        if total_lines <= visible_lines:
+            y = 10
+            for line in lines:
+                draw.text((10, y), line, font=font, fill=255)
+                y += 20  # 行间距
+            self._display_image(image)
+        else:
+            # 如果文本行数超过可见行数，滚动显示一遍
+            # 计算需要滚动的次数
+            total_pages = (total_lines + visible_lines - 1) // visible_lines
+            
+            for page in range(total_pages):
+                # 清空图像
+                draw.rectangle((0, 0, self.width, self.height), fill=0)
+                
+                # 计算当前页的起始行
+                start_line = page * visible_lines
+                end_line = min(start_line + visible_lines, total_lines)
+                
+                # 绘制当前页的行
+                y = 10
+                for i in range(start_line, end_line):
+                    draw.text((10, y), lines[i], font=font, fill=255)
+                    y += 20  # 行间距
+                
+                # 绘制页码指示器
+                page_info = f"({page + 1}/{total_pages})"
+                draw.text((90, 55), page_info, font=font, fill=255)
+                
+                # 绘制滚动指示器
+                if page > 0:  # 不是第一页，显示顶部箭头
+                    draw.polygon([(120, 5), (123, 2), (126, 5)], fill=255)
+                if page < total_pages - 1:  # 不是最后一页，显示底部箭头
+                    draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
+                
+                self._display_image(image)
+                
+                # 每页显示时间：第一页和最后一页稍长，中间页较短
+                if page == 0 or page == total_pages - 1:
+                    time.sleep(2.5)  # 首页和末页停留2.5秒
+                else:
+                    time.sleep(1.5)  # 中间页停留1.5秒
 
     def show_text_oled_interactive(self, text, font_size=12, chars_per_line=9, visible_lines=3):
         """支持摇杆控制的OLED文本显示"""
