@@ -311,8 +311,8 @@ class DeriveImageUtils:
                 input={
                     "prompt": prompt,
                     "prompt_upsampling": True,
-                    "width": 427,
-                    "height": 320,
+                    "width": 427,    # 修正为适配320x240 LCD的比例
+                    "height": 320,   # 修正为适配320x240 LCD的比例
                     "num_outputs": 1,
                     "scheduler": "K_EULER",
                     "num_inference_steps": 25,
