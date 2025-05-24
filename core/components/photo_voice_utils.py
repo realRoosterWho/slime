@@ -21,7 +21,7 @@ except ImportError as e:
 from .derive_utils import run_camera_test
 
 class PhotoVoiceManager:
-    """拍照+语音录制管理器 - 处理15秒拍照倒计时和并行语音录制"""
+    """拍照+语音录制管理器 - 处理拍照脚本和并行语音录制（25秒）"""
     
     def __init__(self, context):
         self.context = context
@@ -40,13 +40,13 @@ class PhotoVoiceManager:
         
     def take_photo_with_voice(self) -> Tuple[bool, Optional[str], Optional[str]]:
         """
-        执行15秒拍照倒计时 + 并行语音录制
+        执行拍照脚本 + 并行语音录制（25秒）
         
         Returns:
             Tuple[bool, Optional[str], Optional[str]]: (拍照成功, 语音文本, 错误信息)
         """
         try:
-            self.context.logger.log_step("拍照+语音", "开始15秒拍照倒计时和语音录制")
+            self.context.logger.log_step("拍照+语音", "开始拍照脚本和25秒语音录制")
             
             # 重置状态
             self._reset_state()
