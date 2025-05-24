@@ -87,7 +87,7 @@ class MenuSystem:
                 logo_image = Image.open(logo_path)
                 
                 # 旋转图像180度以解决颠倒问题
-                rotated_logo = logo_image.rotate(180, expand=True)
+                #rotated_logo = logo_image.rotate(180, expand=True)
                 
                 # 显示旋转后的logo
                 self.lcd.show_image(rotated_logo)
