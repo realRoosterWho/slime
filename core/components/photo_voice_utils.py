@@ -106,7 +106,7 @@ class PhotoVoiceManager:
             )
             
             # 显示开始提示
-            self.context.oled_display.show_text_oled("即将开始\n摆pose+说话...")
+            self.context.oled_display.show_text_oled("即将开始\n对准周围环境+说话...")
             time.sleep(1)
             
             # 先启动拍照脚本

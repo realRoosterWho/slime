@@ -46,25 +46,53 @@ class ProcessPhotoVoiceState(AbstractState):
         
         try:
             # 添加详细的调试信息
-            context.logger.log_step("照片路径检查", f"照片路径: {photo_path}")
+            context.logger.log_step("🔍 调试信息", f"开始分析照片+语音")
+            context.logger.log_step("📁 照片路径", f"原始路径: {photo_path}")
+            context.logger.log_step("🗣️ 语音文本", f"文本长度: {len(voice_text)}, 内容: {voice_text[:100]}...")
             
             # 检查照片文件是否存在
             if not os.path.exists(photo_path):
                 raise FileNotFoundError(f"照片文件不存在: {photo_path}")
             
+            # 获取绝对路径
+            abs_photo_path = os.path.abspath(photo_path)
+            context.logger.log_step("📁 绝对路径", f"绝对路径: {abs_photo_path}")
+            
             # 检查文件大小
             file_size = os.path.getsize(photo_path)
-            context.logger.log_step("照片文件检查", f"文件大小: {file_size} bytes")
+            context.logger.log_step("📏 文件大小", f"文件大小: {file_size} bytes")
             
             if file_size == 0:
                 raise ValueError("照片文件为空")
             
-            # 编码照片为base64
-            context.logger.log_step("照片编码", "开始Base64编码...")
-            base64_image = encode_image(photo_path)
-            context.logger.log_step("照片编码完成", f"Base64长度: {len(base64_image)} 字符")
+            # 验证是否为有效的图片文件
+            try:
+                from PIL import Image
+                with Image.open(photo_path) as img:
+                    img_format = img.format
+                    img_mode = img.mode  
+                    img_size = img.size
+                    context.logger.log_step("🖼️ 图片信息", f"格式: {img_format}, 模式: {img_mode}, 尺寸: {img_size}")
+            except Exception as e:
+                context.logger.log_step("❌ 图片验证失败", f"不是有效的图片文件: {str(e)}")
+                raise ValueError(f"无效的图片文件: {str(e)}")
             
+            # 编码照片为base64
+            context.logger.log_step("🔄 开始编码", "开始Base64编码...")
+            base64_image = encode_image(photo_path)
+            base64_length = len(base64_image)
+            context.logger.log_step("✅ 编码完成", f"Base64长度: {base64_length} 字符")
+            context.logger.log_step("🔤 Base64预览", f"前100字符: {base64_image[:100]}")
+            
+            # 验证base64编码是否有效
+            if base64_length < 100:
+                raise ValueError(f"Base64编码异常短: {base64_length} 字符")
+            
+            # 构建data URL
             data_url = f"data:image/jpeg;base64,{base64_image}"
+            data_url_length = len(data_url)
+            context.logger.log_step("🔗 Data URL", f"Data URL总长度: {data_url_length} 字符")
+            context.logger.log_step("🔗 Data URL头部", f"头部: {data_url[:50]}...")
             
             # 使用聊天工具进行组合分析
             chat_utils = DeriveChatUtils(context.response_id)
@@ -91,18 +119,33 @@ class ProcessPhotoVoiceState(AbstractState):
                 {"type": "input_image", "image_url": data_url}
             ]
             
-            context.logger.log_step("AI分析请求", "发送照片+语音到AI...")
+            context.logger.log_step("📝 提示词", f"提示词长度: {len(analysis_prompt)}")
+            context.logger.log_step("📋 输入格式", f"输入包含 {len(input_content)} 个元素")
+            context.logger.log_step("📋 输入结构", f"元素1类型: {input_content[0]['type']}, 元素2类型: {input_content[1]['type']}")
+            
+            context.logger.log_step("🤖 发送请求", "发送照片+语音到AI...")
             
             # 调用分析
             combined_analysis = chat_utils.chat_with_continuity(input_content)
             
+            context.logger.log_step("📨 AI回复", f"回复长度: {len(combined_analysis)}")
+            context.logger.log_step("📨 AI回复内容", f"完整回复: {combined_analysis}")
+            
             # 检查AI是否真的看到了照片
-            if "抱歉" in combined_analysis or "无法" in combined_analysis or "看到" not in combined_analysis.lower():
-                context.logger.log_step("AI分析警告", "AI可能无法识别照片内容")
-                context.logger.log_step("AI回复检查", f"回复内容: {combined_analysis[:100]}...")
+            failure_keywords = ["抱歉", "无法", "不能", "看不到", "无法查看", "cannot", "can't", "sorry", "unable"]
+            success_keywords = ["看到", "图片", "照片", "画面", "画中", "see", "image", "photo"]
+            
+            has_failure_keywords = any(keyword in combined_analysis.lower() for keyword in failure_keywords)
+            has_success_keywords = any(keyword in combined_analysis.lower() for keyword in success_keywords)
+            
+            context.logger.log_step("🔍 关键词分析", f"失败关键词: {has_failure_keywords}, 成功关键词: {has_success_keywords}")
+            
+            if has_failure_keywords and not has_success_keywords:
+                context.logger.log_step("⚠️ AI分析警告", "AI可能无法识别照片内容")
+                context.logger.log_step("⚠️ 失败原因", "检测到拒绝性关键词，且没有成功关键词")
                 
                 # 回退到仅语音分析，但记录照片问题
-                context.logger.log_step("处理策略", "AI无法识别照片，回退到语音分析")
+                context.logger.log_step("🔄 处理策略", "AI无法识别照片，回退到语音分析")
                 self._analyze_voice_only(context, voice_text)
                 return
             
@@ -111,10 +154,11 @@ class ProcessPhotoVoiceState(AbstractState):
             context.set_data('voice_enhanced_analysis', True)  # 标记为语音增强分析
             context.response_id = chat_utils.response_id
             
-            context.logger.log_step("照片+语音分析成功", combined_analysis)
+            context.logger.log_step("✅ 照片+语音分析成功", combined_analysis)
             
         except Exception as e:
-            context.logger.log_step("照片+语音分析错误", f"分析失败: {str(e)}")
+            context.logger.log_step("❌ 照片+语音分析错误", f"分析失败: {str(e)}")
+            context.logger.log_step("❌ 错误详情", f"错误类型: {type(e).__name__}")
             # 回退到仅语音分析
             self._analyze_voice_only(context, voice_text)
     
