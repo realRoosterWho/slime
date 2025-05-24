@@ -18,13 +18,17 @@ class InitState(AbstractState):
         # 显示初始化状态
         context.oled_display.show_text_oled("正在生成\n史莱姆性格...")
         
+        # 获取处理后的心情文本
+        mood_text = context.get_data('initial_text') or context.initial_text
+        context.logger.log_step("获取心情文本", f"使用心情: {mood_text[:50]}...")
+        
         # 使用聊天工具生成性格
         chat_utils = DeriveChatUtils(context.response_id)
         
         # 生成史莱姆性格
         personality = chat_utils.generate_text(
             'personality', 
-            mood=context.initial_text
+            mood=mood_text
         )
         context.set_data('personality', personality)
         context.response_id = chat_utils.response_id
