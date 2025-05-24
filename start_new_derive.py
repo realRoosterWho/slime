@@ -46,7 +46,7 @@ def get_initial_text_from_user():
     ]
     
     # 随机选择或使用第一个作为默认
-    return default_texts[0]
+    return default_texts[2]
 
 def main():
     """主函数"""
