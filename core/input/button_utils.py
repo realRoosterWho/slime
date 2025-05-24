@@ -38,6 +38,9 @@ class InputController:
             'press': {},
             'release': {}
         }
+        
+        # 记录最后按下的按钮
+        self.last_button = None
     
     def register_joystick_callback(self, direction: str, callback: Callable):
         """注册摇杆回调函数
@@ -79,6 +82,7 @@ class InputController:
             current_state = GPIO.input(pin)
             # 按下事件
             if current_state == 0 and self.button_states[pin] == 1:
+                self.last_button = name  # 记录按下的按钮
                 if name in self.button_callbacks['press']:
                     self.button_callbacks['press'][name]()
             # 释放事件

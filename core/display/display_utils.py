@@ -569,6 +569,8 @@ class DisplayManager:
             chars_per_line: 每行字符数，默认9
             visible_lines: 同时显示的行数，默认3
             context: DeriveContext实例，用于长按检测（可选）
+        Returns:
+            int: 1表示按下BT1，2表示长按返回菜单，其他值表示按下了其他按钮
         """
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
@@ -606,17 +608,21 @@ class DisplayManager:
             if start_line + visible_lines < total_lines:  # 底部箭头
                 draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
             
-            # 在右上角添加按钮提示 - 使用更简洁的提示
-            draw.text((105, 2), "BT1 >", font=small_font, fill=255)
+            # 在右上角添加按钮提示 - 显示BT1和BT2状态
+            draw.text((90, 2), "BT1 BT2", font=small_font, fill=255)
             
             self._display_image(image)
         
         # 保存按钮和摇杆状态
         button_state = {
             'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
+            'BTN2': GPIO.input(controller.BUTTON_PINS['BTN2']),
             'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
             'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
         }
+        
+        # 清除之前的按钮记录
+        controller.last_button = None
         
         # 绘制初始页面
         draw_current_page()
@@ -630,9 +636,18 @@ class DisplayManager:
             # 检查按钮1
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
             if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
+                controller.last_button = 'BTN1'  # 记录按下的按钮
                 time.sleep(0.1)  # 防抖
                 return 1
             button_state['BTN1'] = current_btn1
+            
+            # 检查按钮2（短按）
+            current_btn2 = GPIO.input(controller.BUTTON_PINS['BTN2'])
+            if current_btn2 == 0 and button_state['BTN2'] == 1:  # 按钮被按下
+                controller.last_button = 'BTN2'  # 记录按下的按钮
+                time.sleep(0.1)  # 防抖
+                return 1  # 也返回1，但通过last_button区分
+            button_state['BTN2'] = current_btn2
             
             # 检查摇杆上
             current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])

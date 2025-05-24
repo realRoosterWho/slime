@@ -83,69 +83,32 @@ class VoiceInputMoodState(AbstractState):
     
     def _handle_voice_input(self, context, voice_manager) -> bool:
         """处理语音输入，返回是否成功"""
-        max_retries = 2
-        retry_count = 0
-        
-        while retry_count < max_retries:
-            try:
-                context.logger.log_step("语音录制", f"开始第 {retry_count + 1} 次录音尝试")
-                
-                # 录制语音
-                success, raw_text, error_msg = voice_manager.record_mood_voice(duration=15)
-                
-                if success and raw_text:
-                    # 验证语音结果
-                    if voice_manager.validate_voice_result(raw_text):
-                        # 保存原始语音文本，准备交给下一个状态处理
-                        context.set_data('raw_voice_text', raw_text)
-                        context.logger.log_step("语音输入成功", f"获取到有效语音文本: {raw_text[:50]}...")
-                        return True
-                    else:
-                        # 语音内容无效
-                        action = voice_manager.handle_recording_error(
-                            'recognition_failed', 
-                            "语音内容过短或无效"
-                        )
-                        if action == 'retry':
-                            retry_count += 1
-                            continue
-                        elif action == 'default':
-                            return False
-                        elif action == 'menu':
-                            return False
+        try:
+            context.logger.log_step("语音录制", "开始录音")
+            
+            # 录制语音（内部已包含重录逻辑）
+            success, raw_text, error_msg = voice_manager.record_mood_voice(duration=15)
+            
+            if success and raw_text:
+                # 验证语音结果
+                if voice_manager.validate_voice_result(raw_text):
+                    # 保存原始语音文本，准备交给下一个状态处理
+                    context.set_data('raw_voice_text', raw_text)
+                    context.logger.log_step("语音输入成功", f"获取到有效语音文本: {raw_text[:50]}...")
+                    return True
                 else:
-                    # 录音失败
-                    action = voice_manager.handle_recording_error(
-                        'recording_failed',
-                        error_msg or "录音过程出现问题"
-                    )
-                    if action == 'retry':
-                        retry_count += 1
-                        continue
-                    elif action == 'default':
-                        return False
-                    elif action == 'menu':
-                        return False
-                        
-            except Exception as e:
-                error_msg = f"录音异常: {str(e)}"
-                context.logger.log_step("语音错误", error_msg)
-                
-                action = voice_manager.handle_recording_error('recording_failed', error_msg)
-                if action == 'retry':
-                    retry_count += 1
-                    continue
-                else:
+                    # 语音内容无效，使用默认心情
+                    context.logger.log_step("语音验证失败", "语音内容过短或无效，使用默认心情")
                     return False
-        
-        # 超过最大重试次数
-        context.oled_display.show_text_oled(
-            "语音输入失败\n"
-            "已达到最大重试次数\n"
-            "将使用默认心情"
-        )
-        context.sleep(2)
-        return False
+            else:
+                # 录音失败或用户取消，使用默认心情
+                context.logger.log_step("语音输入失败", error_msg or "录音失败，使用默认心情")
+                return False
+                
+        except Exception as e:
+            error_msg = f"录音异常: {str(e)}"
+            context.logger.log_step("语音错误", error_msg)
+            return False
     
     def _use_default_mood(self, context, voice_manager):
         """使用默认心情"""

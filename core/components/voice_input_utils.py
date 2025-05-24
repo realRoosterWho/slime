@@ -47,14 +47,9 @@ class VoiceInputManager:
             error_msg = "语音识别功能不可用"
             self.context.logger.log_step("语音错误", error_msg)
             return False, None, error_msg
-        
+
         try:
             self.context.logger.log_step("语音输入", f"开始录制用户心情，时长{duration}秒")
-            
-            # 重置状态
-            self.is_recording = False
-            self.recorded_text = None
-            self.recording_error = None
             
             # 显示录音准备界面
             self._show_recording_preparation()
@@ -71,17 +66,70 @@ class VoiceInputManager:
                 self.context.logger.log_step("用户操作", "用户长按返回菜单")
                 return False, None, "用户取消录音"
             
-            # 开始录音和进度显示
-            success = self._start_recording_with_progress(duration)
+            # 录音循环，支持重录
+            max_attempts = 3
+            attempt = 1
             
-            if success and self.recorded_text:
-                self._show_recording_result()
-                self.context.logger.log_step("语音识别结果", f"原始文本: {self.recorded_text}")
-                return True, self.recorded_text, None
-            else:
-                error_msg = self.recording_error or "录音或识别失败"
-                self.context.logger.log_step("语音错误", error_msg)
-                return False, None, error_msg
+            while attempt <= max_attempts:
+                self.context.logger.log_step("录音尝试", f"第 {attempt} 次录音尝试")
+                
+                # 重置状态
+                self.is_recording = False
+                self.recorded_text = None
+                self.recording_error = None
+                
+                # 开始录音和进度显示
+                success = self._start_recording_with_progress(duration)
+                
+                if success and self.recorded_text:
+                    # 显示录音结果并等待用户确认
+                    user_action = self._show_recording_result()
+                    
+                    if user_action == 'confirm':
+                        # 用户确认，返回成功
+                        self.context.logger.log_step("语音识别结果", f"原始文本: {self.recorded_text}")
+                        return True, self.recorded_text, None
+                    elif user_action == 'retry':
+                        # 用户要求重录
+                        self.context.logger.log_step("用户操作", f"用户要求重录 (第{attempt}次)")
+                        attempt += 1
+                        if attempt <= max_attempts:
+                            self.context.oled_display.show_text_oled("准备重新录音...")
+                            time.sleep(1)
+                        continue
+                    elif user_action == 'menu':
+                        # 用户要求返回菜单
+                        return False, None, "用户返回菜单"
+                else:
+                    # 录音失败
+                    error_msg = self.recording_error or "录音或识别失败"
+                    self.context.logger.log_step("录音失败", f"第{attempt}次录音失败: {error_msg}")
+                    
+                    if attempt < max_attempts:
+                        # 询问是否重试
+                        retry_result = self.context.oled_display.wait_for_button_with_text(
+                            self.context.controller,
+                            f"录音失败\n{error_msg}\n\n按BT1重试 BT2跳过",
+                            context=self.context
+                        )
+                        
+                        if retry_result == 2:  # 长按返回菜单
+                            return False, None, "用户返回菜单"
+                        elif hasattr(self.context.controller, 'last_button'):
+                            if self.context.controller.last_button == 'BTN1':
+                                attempt += 1
+                                continue
+                            elif self.context.controller.last_button == 'BTN2':
+                                return False, None, "用户跳过录音"
+                        else:
+                            attempt += 1
+                            continue
+                    else:
+                        # 达到最大尝试次数
+                        return False, None, error_msg
+            
+            # 达到最大尝试次数仍然失败
+            return False, None, "录音重试次数已达上限"
                 
         except Exception as e:
             error_msg = f"语音录制异常: {str(e)}"
@@ -193,10 +241,15 @@ class VoiceInputManager:
         
         return display_text
     
-    def _show_recording_result(self):
-        """显示录音识别结果"""
+    def _show_recording_result(self) -> str:
+        """
+        显示录音识别结果并等待用户确认
+        
+        Returns:
+            str: 用户选择 ('confirm', 'retry', 'menu')
+        """
         if not self.recorded_text:
-            return
+            return 'retry'
             
         # 截断过长的文本用于显示
         display_text = self.recorded_text
@@ -212,9 +265,17 @@ class VoiceInputManager:
             context=self.context
         )
         
-        # BT2表示要重录
-        if result == 1 and hasattr(self.context.controller, 'last_button') and self.context.controller.last_button == 'BTN2':
-            self.recorded_text = None  # 清空结果，表示需要重录
+        # 判断用户选择
+        if result == 2:  # 长按返回菜单
+            return 'menu'
+        elif hasattr(self.context.controller, 'last_button'):
+            if self.context.controller.last_button == 'BTN1':
+                return 'confirm'
+            elif self.context.controller.last_button == 'BTN2':
+                return 'retry'
+        
+        # 默认确认
+        return 'confirm'
     
     def handle_recording_error(self, error_type: str, error_msg: str) -> str:
         """
