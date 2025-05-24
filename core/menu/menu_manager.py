@@ -28,6 +28,7 @@ class MenuSystem:
         
         # 初始化显示
         self.oled = DisplayManager("OLED")
+        self.lcd = DisplayManager("LCD")  # 添加LCD显示管理器
         
         # 初始化输入控制器
         self.controller = InputController()
@@ -46,6 +47,9 @@ class MenuSystem:
             "退出系统"
         ]
         
+        # 在LCD上显示logo
+        self.show_logo_on_lcd()
+        
         # 注册输入回调
         self.controller.register_joystick_callback('UP', self.on_up)
         self.controller.register_joystick_callback('DOWN', self.on_down)
@@ -58,6 +62,35 @@ class MenuSystem:
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
     
+    def show_logo_on_lcd(self):
+        """在LCD上显示logo"""
+        try:
+            from PIL import Image
+            
+            # logo文件路径
+            logo_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "assets", "images", "logo.png"
+            )
+            
+            if os.path.exists(logo_path):
+                # 加载并显示logo
+                logo_image = Image.open(logo_path)
+                self.lcd.show_image(logo_image)
+                print(f"✅ Logo已显示在LCD上: {logo_path}")
+            else:
+                print(f"⚠️ Logo文件未找到: {logo_path}")
+                # 显示默认的文本logo
+                self.lcd.show_text("Cyberive\n\n史莱姆漂流\n系统")
+                
+        except Exception as e:
+            print(f"❌ 显示logo时出错: {e}")
+            try:
+                # 备用方案：显示文本
+                self.lcd.show_text("Cyberive\n\n史莱姆漂流\n系统")
+            except Exception as fallback_error:
+                print(f"❌ 备用logo显示也失败: {fallback_error}")
+
     def signal_handler(self, signum, frame):
         """信号处理函数"""
         print("\n🛑 检测到退出信号，准备退出...")
@@ -395,6 +428,15 @@ class MenuSystem:
             self.oled.show_text_oled("再见！")
             time.sleep(0.5)
             self.oled.clear()
+            
+            # 清理LCD显示
+            if hasattr(self, 'lcd'):
+                try:
+                    self.lcd.clear()
+                    print("✅ LCD已清理")
+                except Exception as lcd_error:
+                    print(f"⚠️ LCD清理失败: {lcd_error}")
+            
             print("已清理所有资源")
         except Exception as e:
             print(f"清理时出错: {e}")
