@@ -1,0 +1,611 @@
+{
+  "timestamp": "20250525_015251",
+  "steps": [
+    {
+      "time": "01:52:51",
+      "step": "初始化",
+      "message": "DeriveContext 初始化完成"
+    },
+    {
+      "time": "01:52:51",
+      "step": "语音输入状态",
+      "message": "开始语音输入心情流程"
+    },
+    {
+      "time": "01:52:59",
+      "step": "语音录制",
+      "message": "开始录音"
+    },
+    {
+      "time": "01:52:59",
+      "step": "语音输入",
+      "message": "开始录制用户心情，时长25秒"
+    },
+    {
+      "time": "01:53:03",
+      "step": "录音尝试",
+      "message": "第 1 次录音尝试"
+    },
+    {
+      "time": "01:53:04",
+      "step": "录音进度",
+      "message": "已录制 0.0 秒"
+    },
+    {
+      "time": "01:53:05",
+      "step": "录音进度",
+      "message": "已录制 0.8 秒"
+    },
+    {
+      "time": "01:53:06",
+      "step": "录音进度",
+      "message": "已录制 2.0 秒"
+    },
+    {
+      "time": "01:53:07",
+      "step": "录音进度",
+      "message": "已录制 2.6 秒"
+    },
+    {
+      "time": "01:53:09",
+      "step": "录音进度",
+      "message": "已录制 4.5 秒"
+    },
+    {
+      "time": "01:53:11",
+      "step": "录音进度",
+      "message": "已录制 6.4 秒"
+    },
+    {
+      "time": "01:53:13",
+      "step": "录音进度",
+      "message": "已录制 8.3 秒"
+    },
+    {
+      "time": "01:53:13",
+      "step": "录音进度",
+      "message": "已录制 9.0 秒"
+    },
+    {
+      "time": "01:53:15",
+      "step": "录音进度",
+      "message": "已录制 10.2 秒"
+    },
+    {
+      "time": "01:53:15",
+      "step": "录音进度",
+      "message": "已录制 10.8 秒"
+    },
+    {
+      "time": "01:53:16",
+      "step": "录音进度",
+      "message": "已录制 12.1 秒"
+    },
+    {
+      "time": "01:53:17",
+      "step": "录音进度",
+      "message": "已录制 12.7 秒"
+    },
+    {
+      "time": "01:53:19",
+      "step": "录音进度",
+      "message": "已录制 14.6 秒"
+    },
+    {
+      "time": "01:53:21",
+      "step": "录音进度",
+      "message": "已录制 16.5 秒"
+    },
+    {
+      "time": "01:53:23",
+      "step": "录音进度",
+      "message": "已录制 18.5 秒"
+    },
+    {
+      "time": "01:53:25",
+      "step": "录音进度",
+      "message": "已录制 20.4 秒"
+    },
+    {
+      "time": "01:53:27",
+      "step": "录音进度",
+      "message": "已录制 22.3 秒"
+    },
+    {
+      "time": "01:53:27",
+      "step": "录音进度",
+      "message": "已录制 22.9 秒"
+    },
+    {
+      "time": "01:53:28",
+      "step": "录音进度",
+      "message": "已录制 24.2 秒"
+    },
+    {
+      "time": "01:53:29",
+      "step": "录音进度",
+      "message": "已录制 24.8 秒"
+    },
+    {
+      "time": "01:53:49",
+      "step": "语音识别结果",
+      "message": "原始文本: 我要去说一遍我看大海我要看河流我看泳池我看小水坑怎么样都可以我就是想要看到蓝色的水会透明的水我想要一个潮湿的环境有这样才能让我的心情感觉非常的平静就是这样"
+    },
+    {
+      "time": "01:53:49",
+      "step": "语音输入成功",
+      "message": "获取到有效语音文本: 我要去说一遍我看大海我要看河流我看泳池我看小水坑怎么样都可以我就是想要看到蓝色的水会透明的水我想要一..."
+    },
+    {
+      "time": "01:53:49",
+      "step": "语音输入状态",
+      "message": "语音输入流程完成"
+    },
+    {
+      "time": "01:53:49",
+      "step": "心情处理状态",
+      "message": "开始处理用户心情"
+    },
+    {
+      "time": "01:53:49",
+      "step": "原始文本",
+      "message": "输入文本: 我要去说一遍我看大海我要看河流我看泳池我看小水坑怎么样都可以我就是想要看到蓝色的水会透明的水我想要一个潮湿的环境有这样才能让我的心情感觉非常的平静就是这样"
+    },
+    {
+      "time": "01:53:55",
+      "step": "GPT心情提取",
+      "message": "开始调用GPT处理心情"
+    },
+    {
+      "time": "01:53:58",
+      "step": "GPT处理成功",
+      "message": "处理后心情: 用户渴望被蓝色和透明的水围绕，希望看到无论是大海、河流还是泳池，只要是潮湿的环境，都能让他感到宁静。这个史莱姆角色就像水池里的小精灵，透明而平和，能带给周围一种放松与沉静的气氛。"
+    },
+    {
+      "time": "01:53:58",
+      "step": "心情保存",
+      "message": "已保存处理后心情: 用户渴望被蓝色和透明的水围绕，希望看到无论是大海、河流还是泳池，只要是潮湿的环境，都能让他感到宁静。这个史莱姆角色就像水池里的小精灵，透明而平和，能带给周围一种放松与沉静的气氛。..."
+    },
+    {
+      "time": "01:54:09",
+      "step": "心情处理完成",
+      "message": "最终心情: 用户渴望被蓝色和透明的水围绕，希望看到无论是大海、河流还是泳池，只要是潮湿的环境，都能让他感到宁静。..."
+    },
+    {
+      "time": "01:54:09",
+      "step": "初始化",
+      "message": "根据文本开始新的漂流..."
+    },
+    {
+      "time": "01:54:09",
+      "step": "获取心情文本",
+      "message": "使用心情: 用户渴望被蓝色和透明的水围绕，希望看到无论是大海、河流还是泳池，只要是潮湿的环境，都能让他感到宁静。..."
+    },
+    {
+      "time": "01:54:15",
+      "step": "性格生成",
+      "message": "【水晶湖底的史莱姆】：\"他如同水中的精灵，钟爱在蓝色和透明的水中遨游，仿佛每次嬉戏都能唤醒内心的宁静。他总是轻轻荡漾，像在谱写一曲无声的乐章。\"\n\n- **执念**：寻找蓝色或透明的水体，它们能带来内心的安宁。\n- **幻想癖好**：每当找到合适的水域，他会开始在水面上悠然舞动，仿佛在演奏自己的心灵乐曲。\n- **偏执反应**：如果水体不够蓝或透明，他会在水边徘徊，轻声叹息，幻想下一片净水。\n- **互动语气**：喜欢轻声耳语，\"这里的水像故事一样，听得到我吗？\"、\"跟我一起，感受这片宁静吧。\""
+    },
+    {
+      "time": "01:54:18",
+      "step": "属性设置",
+      "message": "设置史莱姆属性 obsession: 寻找蓝色或透明的水体，它们能带来内心的安宁。"
+    },
+    {
+      "time": "01:54:18",
+      "step": "属性设置",
+      "message": "设置史莱姆属性 quirk: 每当找到合适的水域，他会开始在水面上悠然舞动，仿佛在演奏自己的心灵乐曲。"
+    },
+    {
+      "time": "01:54:18",
+      "step": "属性设置",
+      "message": "设置史莱姆属性 reflex: 如果水体不够蓝或透明，他会在水边徘徊，轻声叹息，幻想下一片净水。"
+    },
+    {
+      "time": "01:54:18",
+      "step": "属性设置",
+      "message": "设置史莱姆属性 tone: 喜欢轻声耳语，\"这里的水像故事一样，听得到我吗？\"、\"跟我一起，感受这片宁静吧。\""
+    },
+    {
+      "time": "01:54:18",
+      "step": "属性提取",
+      "message": "成功提取史莱姆属性: {'obsession': '寻找蓝色或透明的水体，它们能带来内心的安宁。', 'quirk': '每当找到合适的水域，他会开始在水面上悠然舞动，仿佛在演奏自己的心灵乐曲。', 'reflex': '如果水体不够蓝或透明，他会在水边徘徊，轻声叹息，幻想下一片净水。', 'tone': '喜欢轻声耳语，\"这里的水像故事一样，听得到我吗？\"、\"跟我一起，感受这片宁静吧。\"'}"
+    },
+    {
+      "time": "01:54:21",
+      "step": "外观描述",
+      "message": "水晶湖底的史莱姆呈透明的浅蓝色，闪烁着柔和的水波纹花纹。质地如水般柔滑，表面偶有水滴般的光点。眼睛如同湖底珍珠，透出宁静与愉悦。拥有小小的水藻饰边，随轻风微微摆动。表情恬静，嘴角微翘，仿佛随时要诉说一个静谧的水中故事。"
+    },
+    {
+      "time": "01:54:21",
+      "step": "一致性外观描述",
+      "message": "一个可爱的史莱姆生物。水晶湖底的史莱姆呈透明的浅蓝色，闪烁着柔和的水波纹花纹。质地如水般柔滑，表面偶有水滴般的光点。眼睛如同湖底珍珠，透出宁静与愉悦。拥有小小的水藻饰边，随轻风微微摆动。表情恬静，嘴角微翘，仿佛随时要诉说一个静谧的水中故事。。"
+    },
+    {
+      "time": "01:54:30",
+      "step": "生成史莱姆图片",
+      "message": "史莱姆图片已生成: /home/roosterwho/slime/generated_images/slime_20250525_015251.png"
+    },
+    {
+      "time": "01:54:40",
+      "step": "显示图片",
+      "message": "史莱姆图片显示成功"
+    },
+    {
+      "time": "01:54:47",
+      "step": "打招呼",
+      "message": "\"嗨，听得到我的水声吗？\""
+    },
+    {
+      "time": "01:54:58",
+      "step": "询问拍照",
+      "message": "\"能帮我拍张宁静的蓝水吗？\""
+    },
+    {
+      "time": "01:57:01",
+      "step": "拍照模式",
+      "message": "开始拍照+语音模式"
+    },
+    {
+      "time": "01:57:03",
+      "step": "拍照+语音状态",
+      "message": "开始拍照+语音录制流程"
+    },
+    {
+      "time": "01:57:03",
+      "step": "拍照+语音",
+      "message": "开始拍照脚本和25秒语音录制"
+    },
+    {
+      "time": "01:58:44",
+      "step": "拍照脚本",
+      "message": "启动run camera脚本"
+    },
+    {
+      "time": "01:58:44",
+      "step": "语音录制",
+      "message": "在主线程开始25秒语音录制"
+    },
+    {
+      "time": "01:59:17",
+      "step": "拍照完成",
+      "message": "camera脚本执行完成"
+    },
+    {
+      "time": "01:59:24",
+      "step": "语音录制完成",
+      "message": "录制到文本: None..."
+    },
+    {
+      "time": "01:59:24",
+      "step": "拍照+语音完成",
+      "message": "照片: True, 语音: None..."
+    },
+    {
+      "time": "01:59:32",
+      "step": "拍照+语音成功",
+      "message": "照片已保存: /home/roosterwho/slime/current_image.jpg"
+    },
+    {
+      "time": "01:59:32",
+      "step": "拍照语音",
+      "message": "语音内容: 在拍照时感受到了当下的美好瞬间"
+    },
+    {
+      "time": "01:59:41",
+      "step": "处理拍照+语音",
+      "message": "开始处理拍照时的语音和照片数据"
+    },
+    {
+      "time": "01:59:41",
+      "step": "数据获取",
+      "message": "拍照语音文本: 在拍照时感受到了当下的美好瞬间..."
+    },
+    {
+      "time": "01:59:53",
+      "step": "照片+语音分析",
+      "message": "抱歉，我无法查看或分析照片的具体内容。但我可以结合用户的语音描述来进行分析。\n\n用户在拍照时表示感受到了当下的美好瞬间，这表达了一种即时的、积极的心情。无论照片中呈现的是怎样的场景，用户心中已有独特的感知与欣赏。结合这份主观感受，即便是在室内的普通环境中，用户可能注意到了其中独特的光线、结构或阴影的美感。\n\n这种瞬间感知的美好和对环境的欣赏，适合一个擅长发现日常美丽的“细节捕捉者”的史莱姆角色。它对任何看似平凡的场景都抱有无限的好奇，喜欢在微小之中发现美好，并将这种积极乐观的情绪传递给身边的人。"
+    },
+    {
+      "time": "01:59:53",
+      "step": "处理拍照+语音",
+      "message": "拍照+语音数据处理完成"
+    },
+    {
+      "time": "01:59:56",
+      "step": "建议目的地",
+      "message": "建议: 寻找窗边透明玻璃瓶。, 理由: 玻璃瓶的透明感能传递宁静。"
+    },
+    {
+      "time": "02:00:03",
+      "step": "等待新照片",
+      "message": "提示用户准备拍摄新照片"
+    },
+    {
+      "time": "02:01:16",
+      "step": "用户操作",
+      "message": "用户选择拍摄新照片"
+    },
+    {
+      "time": "02:01:16",
+      "step": "拍摄新照片+语音",
+      "message": "开始拍摄新照片和语音录制"
+    },
+    {
+      "time": "02:01:18",
+      "step": "拍照+语音",
+      "message": "开始拍照脚本和25秒语音录制"
+    },
+    {
+      "time": "02:01:25",
+      "step": "语音录制",
+      "message": "在主线程开始25秒语音录制"
+    },
+    {
+      "time": "02:01:25",
+      "step": "拍照脚本",
+      "message": "启动run camera脚本"
+    },
+    {
+      "time": "02:01:43",
+      "step": "拍照完成",
+      "message": "camera脚本执行完成"
+    },
+    {
+      "time": "02:02:02",
+      "step": "语音录制完成",
+      "message": "录制到文本: 还有我现在看到这个地方不过是什么你自己简单描述一下吧因为心情..."
+    },
+    {
+      "time": "02:02:02",
+      "step": "拍照+语音完成",
+      "message": "照片: True, 语音: 还有我现在看到这个地方不过是什么你自己简单描述一下吧因为心情看这个感觉非常的我也不知道这个符合要求就..."
+    },
+    {
+      "time": "02:02:10",
+      "step": "新照片语音",
+      "message": "录制到语音: 还有我现在看到这个地方不过是什么你自己简单描述一下吧因为心情看这个感觉非常的我也不知道这个符合要求就..."
+    },
+    {
+      "time": "02:02:10",
+      "step": "拍摄新照片",
+      "message": "新照片已保存至: /home/roosterwho/slime/current_image.jpg"
+    },
+    {
+      "time": "02:02:15",
+      "step": "分析新照片+语音",
+      "message": "开始分析新照片: /home/roosterwho/slime/current_image_new_20250525_015251.jpg, 语音长度: 53"
+    },
+    {
+      "time": "02:02:23",
+      "step": "分析新照片+语音分析",
+      "message": "分析完成: 抱歉，我无法查看或分析图片内容。但我会结合用户的语音描述进行分析。\n\n用户的语音透露了一种不确定和随..."
+    },
+    {
+      "time": "02:02:59",
+      "step": "分析奖励",
+      "message": "奖励等级: encouragement, 描述: 意外史莱姆蛋"
+    },
+    {
+      "time": "02:03:14",
+      "step": "生成奖励图片",
+      "message": "开始生成 encouragement 级奖励图片"
+    },
+    {
+      "time": "02:03:22",
+      "step": "生成奖励图片",
+      "message": "奖励图片已生成: /home/roosterwho/slime/generated_images/reward_20250525_015251.png"
+    },
+    {
+      "time": "02:03:23",
+      "step": "显示奖励",
+      "message": "展示 encouragement 级奖励"
+    },
+    {
+      "time": "02:03:32",
+      "step": "显示奖励",
+      "message": "奖励图片已显示: /home/roosterwho/slime/generated_images/reward_20250525_015251.png"
+    },
+    {
+      "time": "02:03:44",
+      "step": "生成反馈",
+      "message": "反馈已生成: \"这次收获了神秘蛋，虽然水的声音暂时未闻，但未来的蓝色宁静仍在等着我们。继续跟我一起去发现吧，宁静的..."
+    },
+    {
+      "time": "02:03:45",
+      "step": "显示反馈",
+      "message": "展示史莱姆反馈"
+    },
+    {
+      "time": "02:04:02",
+      "step": "询问继续",
+      "message": "询问用户是否继续漂流"
+    },
+    {
+      "time": "02:04:06",
+      "step": "用户选择",
+      "message": "用户选择继续漂流"
+    },
+    {
+      "time": "02:04:06",
+      "step": "循环计数",
+      "message": "第2轮漂流"
+    },
+    {
+      "time": "02:04:06",
+      "step": "等待新照片",
+      "message": "提示用户准备拍摄新照片"
+    },
+    {
+      "time": "02:04:07",
+      "step": "用户操作",
+      "message": "用户选择拍摄新照片"
+    },
+    {
+      "time": "02:04:07",
+      "step": "拍摄新照片+语音",
+      "message": "开始拍摄新照片和语音录制"
+    },
+    {
+      "time": "02:04:10",
+      "step": "拍照+语音",
+      "message": "开始拍照脚本和25秒语音录制"
+    },
+    {
+      "time": "02:04:16",
+      "step": "拍照脚本",
+      "message": "启动run camera脚本"
+    },
+    {
+      "time": "02:04:16",
+      "step": "语音录制",
+      "message": "在主线程开始25秒语音录制"
+    },
+    {
+      "time": "02:04:29",
+      "step": "拍照完成",
+      "message": "camera脚本执行完成"
+    },
+    {
+      "time": "02:04:49",
+      "step": "语音录制完成",
+      "message": "录制到文本: 还是不知道你看不看得见我拍的就是一张水边的照片啊我看到了色的..."
+    },
+    {
+      "time": "02:04:49",
+      "step": "拍照+语音完成",
+      "message": "照片: True, 语音: 还是不知道你看不看得见我拍的就是一张水边的照片啊我看到了色的大海我现在就在蓝色的旁边啊里面还有什么漂..."
+    },
+    {
+      "time": "02:04:58",
+      "step": "新照片语音",
+      "message": "录制到语音: 还是不知道你看不看得见我拍的就是一张水边的照片啊我看到了色的大海我现在就在蓝色的旁边啊里面还有什么漂..."
+    },
+    {
+      "time": "02:04:58",
+      "step": "拍摄新照片",
+      "message": "新照片已保存至: /home/roosterwho/slime/current_image.jpg"
+    },
+    {
+      "time": "02:05:07",
+      "step": "分析新照片+语音",
+      "message": "开始分析新照片: /home/roosterwho/slime/current_image_new_20250525_015251.jpg, 语音长度: 67"
+    },
+    {
+      "time": "02:05:20",
+      "step": "分析新照片+语音分析",
+      "message": "分析完成: 抱歉，我无法查看或分析图片内容。但我会结合用户的语音描述进行分析。\n\n用户提到在蓝色大海边拍摄照片，..."
+    },
+    {
+      "time": "02:05:56",
+      "step": "分析奖励",
+      "message": "奖励等级: encouragement, 描述: 神秘漂流瓶史莱姆蛋"
+    },
+    {
+      "time": "02:06:07",
+      "step": "生成奖励图片",
+      "message": "开始生成 encouragement 级奖励图片"
+    },
+    {
+      "time": "02:06:15",
+      "step": "生成奖励图片",
+      "message": "奖励图片已生成: /home/roosterwho/slime/generated_images/reward_20250525_015251.png"
+    },
+    {
+      "time": "02:06:16",
+      "step": "显示奖励",
+      "message": "展示 encouragement 级奖励"
+    },
+    {
+      "time": "02:06:24",
+      "step": "显示奖励",
+      "message": "奖励图片已显示: /home/roosterwho/slime/generated_images/reward_20250525_015251.png"
+    },
+    {
+      "time": "02:06:59",
+      "step": "生成反馈",
+      "message": "反馈已生成: \"漂流瓶蛋是故事的开端，这次探索触动了水的传说。未来再探更深蓝，与我一起享受水中宁静吧！\"..."
+    },
+    {
+      "time": "02:07:01",
+      "step": "显示反馈",
+      "message": "展示史莱姆反馈"
+    },
+    {
+      "time": "02:07:10",
+      "step": "询问继续",
+      "message": "询问用户是否继续漂流"
+    },
+    {
+      "time": "02:07:12",
+      "step": "用户选择",
+      "message": "用户选择结束漂流"
+    },
+    {
+      "time": "02:07:12",
+      "step": "生成总结",
+      "message": "开始生成2轮漂流的总结"
+    },
+    {
+      "time": "02:07:17",
+      "step": "生成总结",
+      "message": "总结已生成: \"在这次漂流中，我们触摸到了宁静的水故事，神秘漂流瓶是我们的美好收获。虽然执念尚未完全实现，但每个瞬..."
+    },
+    {
+      "time": "02:07:36",
+      "step": "开始清理",
+      "message": "史莱姆漂流即将结束"
+    },
+    {
+      "time": "02:07:36",
+      "step": "漂流完成",
+      "message": "史莱姆漂流体验结束"
+    },
+    {
+      "time": "02:07:36",
+      "step": "统计信息",
+      "message": "总轮数: 2, 总奖励: 1个"
+    },
+    {
+      "time": "02:07:36",
+      "step": "总结",
+      "message": "\"在这次漂流中，我们触摸到了宁静的水故事，神秘漂流瓶是我们的美好收获。虽然执念尚未完全实现，但每个瞬间都充满了乐趣。感谢你与我共享这段旅程，让我们下次再续水中梦吧！\""
+    },
+    {
+      "time": "02:07:36",
+      "step": "日志保存",
+      "message": "漂流日志已保存"
+    },
+    {
+      "time": "02:07:54",
+      "step": "清理资源",
+      "message": "开始清理DeriveContext资源"
+    },
+    {
+      "time": "02:08:02",
+      "step": "资源清理",
+      "message": "所有资源已清理"
+    },
+    {
+      "time": "02:08:02",
+      "step": "性能统计",
+      "message": "资源: 0, 缓存: 19, 循环: 2"
+    },
+    {
+      "time": "02:08:02",
+      "step": "清理资源",
+      "message": "开始清理DeriveContext资源"
+    }
+  ],
+  "images": {
+    "slime": "slime_20250525_015251.png",
+    "photo_with_voice": "current_image_with_voice_20250525_015251.jpg",
+    "new_photo": "current_image_new_20250525_015251.jpg",
+    "reward": "reward_20250525_015251.png"
+  },
+  "prompts": {
+    "slime_image_prompt": "\n        A cute slime character with the following traits: 水晶湖底的史莱姆呈透明的浅蓝色，闪烁着柔和的水波纹花纹。质地如水般柔滑，表面偶有水滴般的光点。眼睛如同湖底珍珠，透出宁静与愉悦。拥有小小的水藻饰边，随轻风微微摆动。表情恬静，嘴角微翘，仿佛随时要诉说一个静谧的水中故事。\n        \n        STRICT pixel art requirements:\n        - 8-bit or 16-bit retro pixel art style ONLY\n        - Visible pixel grid structure\n        - Hard edges with NO anti-aliasing or smoothing\n        - Limited color palette (maximum 16 colors)\n        - Blocky, pixelated appearance like classic arcade games\n        - NO cartoon, anime, or smooth vector art styles\n        - Sharp, geometric pixel boundaries\n        - Reminiscent of Nintendo Game Boy or NES graphics\n        - Each pixel should be clearly visible and defined\n        - NO gradients, NO soft shading, only flat colors and dithering\n        \n        Character design:\n        - Simple geometric blob shape made of visible pixels\n        - Large square/rectangular eyes (2-4 pixels each)\n        - Tiny pixel mouth (1-2 pixels)\n        - Body should look like it's made of chunky pixel blocks\n        - Clear silhouette suitable for retro gaming\n        \n        Technical specifications:\n        - Pixel art, pixelated, 8-bit graphics, retro gaming style\n        - Centered character on simple background\n        - Bright, saturated colors typical of old video games\n        - NO modern digital art techniques\n        - Must look like it came from a 1980s-1990s video game\n        \n        Style: pixel art, 8-bit, retro gaming, classic arcade, pixelated\n        ",
+    "reward_image_prompt": "\n                A special slime egg that embodies the slime's quirky reaction pattern.\n                \n                Slime's reflex/reaction: \"如果水体不够蓝或透明，他会在水边徘徊，轻声叹息，幻想下一片净水。\"\n                Reward description: \"神秘漂流瓶史莱姆蛋\"\n                \n                Generate a unique slime egg that reflects this reaction pattern:\n                - The egg should visually represent the reflex: \"如果水体不够蓝或透明，他会在水边徘徊，轻声叹息，幻想下一片净水。\"\n                - Pattern and colors on the egg should hint at this behavioral trait\n                - The egg should look mysterious but encouraging\n                - Surface patterns, textures, or markings that suggest the reflex behavior\n                - A sense that this egg contains a slime with similar interesting quirks\n                \n                Examples based on reflex:\n                - If reflex involves curiosity, show an egg with question mark patterns or swirling designs\n                - If reflex involves collecting, show an egg with treasure-like patterns\n                - If reflex involves exploring, show an egg with map-like markings or compass designs\n                - If reflex involves being cautious, show an egg with protective shell patterns\n                \n                STRICT pixel art requirements:\n                - 8-bit or 16-bit retro pixel art style ONLY\n                - Visible pixel grid structure, every pixel clearly defined\n                - Hard edges with NO anti-aliasing or smoothing\n                - Limited color palette (maximum 16 colors)\n                - Blocky, pixelated egg with chunky pixel patterns\n                - NO cartoon, anime, or smooth vector art styles\n                - Sharp, geometric pixel boundaries\n                - Reminiscent of classic video game collectible eggs\n                - NO gradients, NO soft shading, only flat colors and dithering\n                - Egg should look like it came from a retro platformer game\n                \n                Style: pixel art, 8-bit, retro gaming egg, classic arcade, pixelated\n                Background: simple solid color, focus on the pixelated egg\n                The egg should look hopeful and promising, not disappointing\n                "
+  },
+  "responses": {}
+}

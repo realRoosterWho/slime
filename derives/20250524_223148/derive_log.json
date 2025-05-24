@@ -1,0 +1,33 @@
+{
+  "timestamp": "20250524_223148",
+  "steps": [
+    {
+      "time": "22:31:48",
+      "step": "初始化",
+      "message": "DeriveContext 初始化完成"
+    },
+    {
+      "time": "22:31:48",
+      "step": "语音输入状态",
+      "message": "开始语音输入心情流程"
+    },
+    {
+      "time": "22:43:06",
+      "step": "中断",
+      "message": "检测到中断信号，程序退出"
+    },
+    {
+      "time": "22:43:06",
+      "step": "清理资源",
+      "message": "开始清理DeriveContext资源"
+    },
+    {
+      "time": "22:43:14",
+      "step": "清理资源",
+      "message": "开始清理DeriveContext资源"
+    }
+  ],
+  "images": {},
+  "prompts": {},
+  "responses": {}
+}

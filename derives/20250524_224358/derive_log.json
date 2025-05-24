@@ -1,0 +1,53 @@
+{
+  "timestamp": "20250524_224358",
+  "steps": [
+    {
+      "time": "22:43:58",
+      "step": "初始化",
+      "message": "DeriveContext 初始化完成"
+    },
+    {
+      "time": "22:43:58",
+      "step": "语音输入状态",
+      "message": "开始语音输入心情流程"
+    },
+    {
+      "time": "22:46:02",
+      "step": "语音录制",
+      "message": "开始第 1 次录音尝试"
+    },
+    {
+      "time": "22:46:02",
+      "step": "语音错误",
+      "message": "语音识别功能不可用"
+    },
+    {
+      "time": "22:46:02",
+      "step": "语音错误处理",
+      "message": "recording_failed: 语音识别功能不可用"
+    },
+    {
+      "time": "22:46:14",
+      "step": "使用默认心情",
+      "message": "默认心情文本: 感觉空气布满了水雾，有一种看不清前方道路的错觉，觉得很放松。想要在这个氛围里面漂流。..."
+    },
+    {
+      "time": "22:46:20",
+      "step": "中断",
+      "message": "检测到中断信号，程序退出"
+    },
+    {
+      "time": "22:46:20",
+      "step": "清理资源",
+      "message": "开始清理DeriveContext资源"
+    },
+    {
+      "time": "22:46:28",
+      "step": "清理资源",
+      "message": "开始清理DeriveContext资源"
+    }
+  ],
+  "images": {},
+  "prompts": {},
+  "responses": {}
+}

@@ -1,0 +1,18 @@
+{
+  "timestamp": "20250523_230205",
+  "steps": [
+    {
+      "time": "23:02:06",
+      "step": "初始化",
+      "message": "根据文本开始新的漂流..."
+    },
+    {
+      "time": "23:02:59",
+      "step": "状态错误",
+      "message": "状态 InitState(INIT) 执行出错: Request timed out."
+    }
+  ],
+  "images": {},
+  "prompts": {},
+  "responses": {}
+}
