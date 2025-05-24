@@ -145,10 +145,9 @@ class AbstractStateMachine(ABC):
             
             while self.is_running and self.current_state:
                 try:
-                    # 检查长按返回菜单
-                    if (self.current_state.can_handle_long_press() and 
-                        self.context.check_btn2_long_press()):
-                        print("🔄 检测到长按，准备返回菜单")
+                    # 检查返回菜单状态
+                    if self.context.should_return_to_menu():
+                        print("🔄 检测到返回菜单状态")
                         break
                     
                     # 执行当前状态
@@ -162,6 +161,11 @@ class AbstractStateMachine(ABC):
                     
                     # 重置错误恢复计数（成功执行状态）
                     self.error_recovery_attempts = 0
+                    
+                    # 再次检查返回菜单（状态执行后）
+                    if self.context.should_return_to_menu():
+                        print("🔄 状态执行后检测到返回菜单状态")
+                        break
                     
                     # 获取下一个状态
                     next_state_type = self.current_state.get_next_state(self.context)

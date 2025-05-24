@@ -103,38 +103,34 @@ class DeriveContext:
             self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         return self._project_root
     
-    def check_btn2_long_press(self) -> bool:
-        """检测按钮2是否被长按 - 优化版本"""
+    def trigger_return_to_menu(self):
+        """触发返回菜单功能"""
+        self.return_to_menu = True
+        self.logger.log_step("返回菜单", "用户触发返回菜单功能")
+        
+        # 显示返回菜单提示
+        self.oled_display.show_text_oled("正在返回菜单...")
+        time.sleep(1)
+        
+        # 清理当前状态
         try:
-            current_btn2 = GPIO.input(self.controller.BUTTON_PINS['BTN2'])
-            current_time = time.time()
+            # 停止当前所有操作
+            self.logger.log_step("中断操作", "停止当前状态的所有操作")
             
-            # 按钮状态变化：从未按下到按下
-            if current_btn2 == 0 and self.btn2_state == 1:
-                self.btn2_pressed_time = current_time
-                self.btn2_state = 0
-            
-            # 按钮状态变化：从按下到释放
-            elif current_btn2 == 1 and self.btn2_state == 0:
-                self.btn2_state = 1
-                self.btn2_pressed_time = 0
-            
-            # 检查是否长按
-            elif current_btn2 == 0 and self.btn2_state == 0:
-                if current_time - self.btn2_pressed_time >= self.btn2_long_press_threshold:
-                    print("检测到按钮2长按，准备返回菜单")
-                    self.oled_display.show_text_oled("正在返回菜单...")
-                    time.sleep(0.5)
-                    self.return_to_menu = True
-                    self.logger.log_step("用户操作", "检测到按钮2长按，返回菜单")
-                    return True
-            
-            return False
+            # 清理临时数据但保留重要数据
+            temp_keys = ['photo_voice_text', 'timestamped_image', 'new_photo_voice_text', 'new_timestamped_image']
+            for key in temp_keys:
+                if key in self.data:
+                    self.logger.log_step("清理临时数据", f"清理: {key}")
+                    del self.data[key]
             
         except Exception as e:
-            # 按钮检测出错，记录日志但不影响主流程
-            self.logger.log_step("按钮检测错误", f"按钮2长按检测出错: {str(e)}")
-            return False
+            self.logger.log_step("清理错误", f"清理临时数据时出错: {str(e)}")
+    
+    def check_btn2_long_press(self) -> bool:
+        """检测按钮2是否被长按 - 简化版本（主要在display中处理）"""
+        # 这个方法现在主要用于兼容性，真正的长按检测在wait_for_button_with_text中
+        return False
     
     def should_return_to_menu(self) -> bool:
         """检查是否应该返回菜单"""

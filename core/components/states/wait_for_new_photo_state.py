@@ -16,28 +16,15 @@ class WaitForNewPhotoState(AbstractState):
         # 显示提示信息
         prompt_text = f"现在去{context.get_data('destination_suggestion', '探索吧')}\n\n找到目标后\n按钮1拍照"
         
-        # 等待用户按钮1拍照，传入context用于长按检测
-        pressed_button = context.oled_display.wait_for_button_with_text(
+        # 等待用户按钮1拍照
+        context.oled_display.wait_for_button_with_text(
             context.controller,
             prompt_text,
-            context=context  # 传入context用于长按检测
+            context=context
         )
         
-        # 检查是否是长按返回菜单
-        if pressed_button == 2:
-            context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
-            return
-        
-        # 检查返回菜单
-        if context.should_return_to_menu():
-            context.logger.log_step("用户操作", "用户选择返回菜单")
-            return
-        
         # 记录用户操作
-        if pressed_button == 1:
-            context.logger.log_step("用户操作", "用户选择拍摄新照片")
-        else:
-            context.logger.log_step("用户操作", "用户进行了其他操作")
+        context.logger.log_step("用户操作", "用户准备拍摄新照片")
     
     def get_next_state(self, context) -> Optional[DeriveState]:
         """返回下一个状态"""

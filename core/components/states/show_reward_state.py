@@ -52,43 +52,29 @@ class ShowRewardState(AbstractState):
                 # 没有图片，只显示文字
                 self._show_text_reward(context, congrats_text, reward_description, reward_reason)
             
-            # 等待用户确认
-            result = context.oled_display.wait_for_button_with_text(
+            # 等待按钮按下
+            context.oled_display.wait_for_button_with_text(
                 context.controller,
                 f"这是你的奖励：\n{reward_description}",
-                context=context  # 传入context用于长按检测
+                context=context
             )
-            
-            # 检查是否是长按返回菜单
-            if result == 2:
-                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
-                return
             
             # 显示奖励原因
-            result = context.oled_display.wait_for_button_with_text(
+            context.oled_display.wait_for_button_with_text(
                 context.controller,
                 f"史莱姆说：\n{reward_reason}",
-                context=context  # 传入context用于长按检测
+                context=context
             )
-            
-            # 检查是否是长按返回菜单
-            if result == 2:
-                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
-                return
             
         except Exception as e:
             context.logger.log_step("错误", f"显示奖励失败: {str(e)}")
             
             # 显示默认奖励信息
-            result = context.oled_display.wait_for_button_with_text(
+            context.oled_display.wait_for_button_with_text(
                 context.controller,
                 "史莱姆给了你\n一个特别的奖励！",
-                context=context  # 传入context用于长按检测
+                context=context
             )
-            
-            # 检查是否是长按返回菜单
-            if result == 2:
-                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
     
     def _record_reward_to_history(self, context):
         """记录奖励到历史记录"""

@@ -67,15 +67,13 @@ class VoiceInputMoodState(AbstractState):
             context=context
         )
         
-        # 检查是否长按返回菜单
-        if result == 2:
-            return 'menu'
-        
         # 检查具体按键
         if hasattr(context.controller, 'last_button'):
             if context.controller.last_button == 'BTN1':
+                context.logger.log_step("用户选择", "选择语音输入心情")
                 return 'voice_input'
             elif context.controller.last_button == 'BTN2':
+                context.logger.log_step("用户选择", "选择使用默认心情")
                 return 'default_mood'
         
         # 默认选择语音输入

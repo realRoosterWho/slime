@@ -65,17 +65,12 @@ class TakeNewPhotoState(AbstractState):
                     voice_status = "有语音" if voice_text else "无语音"
                     display_text = f"新照片+语音完成\n照片: 成功\n语音: {voice_status}\n按BT1继续"
                     
-                    result = context.oled_display.wait_for_button_with_text(
+                    context.oled_display.wait_for_button_with_text(
                         context.controller,
                         display_text,
                         context=context
                     )
                     
-                    # 检查是否是长按返回菜单
-                    if result == 2:
-                        context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
-                        return
-                        
                 else:
                     raise FileNotFoundError("未找到拍摄的照片")
                     

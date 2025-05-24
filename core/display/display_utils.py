@@ -561,23 +561,23 @@ class DisplayManager:
         self.show_text_oled(message)
 
     def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=18, visible_lines=3, context=None):
-        """显示文本并等待按钮按下，支持摇杆控制滚动和长按返回菜单
+        """显示文本并等待按钮按下，支持摇杆控制滚动，支持短按/长按检测
         Args:
             controller: InputController实例
             text: 要显示的文本
             font_size: 字体大小，默认12
-            chars_per_line: 每行字符数，默认9
+            chars_per_line: 每行字符数，默认18
             visible_lines: 同时显示的行数，默认3
-            context: DeriveContext实例，用于长按检测（可选）
+            context: DeriveContext实例（可选，用于检测返回菜单）
         Returns:
-            int: 1表示按下BT1，2表示长按返回菜单，其他值表示按下了其他按钮
+            int: 1表示短按按钮（BT1或BT2），2表示Button2长按返回菜单
         """
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
         draw = ImageDraw.Draw(image)
         
         try:
-            font = ImageFont.truetype(self.font_path, font_size)
+            font = ImageFont.truetype(self.font_path, 12)
             small_font = ImageFont.truetype(self.font_path, 8)  # 小字体用于提示
         except:
             print("警告：无法加载中文字体，将使用默认字体")
@@ -608,8 +608,8 @@ class DisplayManager:
             if start_line + visible_lines < total_lines:  # 底部箭头
                 draw.polygon([(120, 59), (123, 62), (126, 59)], fill=255)
             
-            # 在右上角添加按钮提示 - 显示BT1和BT2状态
-            draw.text((90, 2), "BT1 BT2", font=small_font, fill=255)
+            # 在右上角添加按钮提示
+            draw.text((85, 2), "BT1 BT2", font=small_font, fill=255)
             
             self._display_image(image)
         
@@ -621,6 +621,11 @@ class DisplayManager:
             'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
         }
         
+        # 按钮长按检测变量
+        btn1_pressed_time = 0
+        btn2_pressed_time = 0
+        long_press_threshold = 2.0  # 长按阈值
+        
         # 清除之前的按钮记录
         controller.last_button = None
         
@@ -628,25 +633,47 @@ class DisplayManager:
         draw_current_page()
         
         while True:
-            # 检查长按按钮2返回菜单（如果提供了context）
-            if context and context.check_btn2_long_press():
-                print("检测到长按按钮2，中断等待")
-                return 2  # 返回特殊值表示长按返回菜单
+            # 检查context的返回菜单状态（如果提供了context）
+            if context and context.should_return_to_menu():
+                print("检测到返回菜单状态，中断等待")
+                return 2
             
-            # 检查按钮1
+            current_time = time.time()
+            
+            # 检查按钮1 - 改为在释放时检测
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
-            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
-                controller.last_button = 'BTN1'  # 记录按下的按钮
-                time.sleep(0.1)  # 防抖
-                return 1
+            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮刚被按下
+                btn1_pressed_time = current_time
+            elif current_btn1 == 1 and button_state['BTN1'] == 0:  # 按钮刚被释放
+                if btn1_pressed_time > 0:
+                    press_duration = current_time - btn1_pressed_time
+                    controller.last_button = 'BTN1'
+                    print(f"Button1 按下时长: {press_duration:.2f}秒")
+                    time.sleep(0.1)  # 防抖
+                    return 1  # Button1总是返回1（短按功能）
             button_state['BTN1'] = current_btn1
             
-            # 检查按钮2（短按）
+            # 检查按钮2 - 改为在释放时检测短按/长按
             current_btn2 = GPIO.input(controller.BUTTON_PINS['BTN2'])
-            if current_btn2 == 0 and button_state['BTN2'] == 1:  # 按钮被按下
-                controller.last_button = 'BTN2'  # 记录按下的按钮
-                time.sleep(0.1)  # 防抖
-                return 1  # 也返回1，但通过last_button区分
+            if current_btn2 == 0 and button_state['BTN2'] == 1:  # 按钮刚被按下
+                btn2_pressed_time = current_time
+            elif current_btn2 == 1 and button_state['BTN2'] == 0:  # 按钮刚被释放
+                if btn2_pressed_time > 0:
+                    press_duration = current_time - btn2_pressed_time
+                    print(f"Button2 按下时长: {press_duration:.2f}秒")
+                    
+                    if press_duration >= long_press_threshold:
+                        # 长按：返回菜单
+                        print("检测到Button2长按，返回菜单")
+                        if context:
+                            context.trigger_return_to_menu()
+                        return 2
+                    else:
+                        # 短按：普通功能
+                        print("检测到Button2短按")
+                        controller.last_button = 'BTN2'
+                        time.sleep(0.1)  # 防抖
+                        return 1
             button_state['BTN2'] = current_btn2
             
             # 检查摇杆上
@@ -667,16 +694,16 @@ class DisplayManager:
                     time.sleep(0.1)
             button_state['DOWN'] = current_down
             
-            time.sleep(0.1)  # 降低CPU使用率
+            time.sleep(0.05)  # 减少检查间隔，提高响应性
 
     def show_continue_drift_option(self, controller, question="是否继续漂流？", context=None):
-        """显示是否继续漂流的选择界面，支持长按返回菜单
+        """显示是否继续漂流的选择界面
         Args:
             controller: InputController实例
             question: 显示的问题文本
-            context: DeriveContext实例，用于长按检测（可选）
+            context: DeriveContext实例（可选）
         Returns:
-            bool/int: True表示继续，False表示结束，2表示长按返回菜单
+            bool: True表示继续，False表示结束
         """
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
@@ -708,7 +735,7 @@ class DisplayManager:
             draw.text((10, 50+15), "按BT2结束漂流", font=font, fill=255)
             
             # 在右上角添加按钮提示
-            draw.text((90, 2), "BT1:Y BT2:N", font=small_font, fill=255)
+            draw.text((85, 2), "BT1 BT2", font=small_font, fill=255)
             
             self._display_image(image)
         
@@ -722,10 +749,10 @@ class DisplayManager:
         draw_question()
         
         while True:
-            # 检查长按按钮2返回菜单（如果提供了context）
-            if context and context.check_btn2_long_press():
-                print("检测到长按按钮2，中断选择")
-                return 2  # 返回特殊值表示长按返回菜单
+            # 检查context的返回菜单状态（如果提供了context）
+            if context and context.should_return_to_menu():
+                print("检测到返回菜单状态，中断选择")
+                return False
             
             # 检查按钮1 (继续漂流)
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
@@ -741,4 +768,22 @@ class DisplayManager:
                 return False
             button_state['BTN2'] = current_btn2
             
-            time.sleep(0.1)  # 降低CPU使用率 
+            # 检查摇杆上
+            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
+            if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
+                if start_line > 0:
+                    start_line = max(0, start_line - visible_lines)
+                    draw_current_page()
+                    time.sleep(0.1)
+            button_state['UP'] = current_up
+            
+            # 检查摇杆下
+            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
+                if start_line + visible_lines < total_lines:
+                    start_line = min(total_lines - visible_lines, start_line + visible_lines)
+                    draw_current_page()
+                    time.sleep(0.1)
+            button_state['DOWN'] = current_down
+            
+            time.sleep(0.05)  # 减少检查间隔，提高响应性 

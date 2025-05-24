@@ -75,20 +75,21 @@ class TakePhotoWithVoiceState(AbstractState):
         )
         
         # 等待用户选择重试
-        result = context.oled_display.wait_for_button_with_text(
+        context.oled_display.wait_for_button_with_text(
             context.controller,
             "拍照失败\n按BT1重试\n按BT2跳过",
             context=context
         )
         
-        if result == 2:  # 长按返回菜单
-            context.logger.log_step("用户操作", "用户长按返回菜单")
-        elif hasattr(context.controller, 'last_button'):
+        # 检查用户选择
+        if hasattr(context.controller, 'last_button'):
             if context.controller.last_button == 'BTN1':
                 # 用户选择重试，设置重试标志
                 context.set_data('photo_voice_retry', True)
+                context.logger.log_step("用户选择", "用户选择重新拍照")
             elif context.controller.last_button == 'BTN2':
                 # 用户选择跳过，使用默认数据
+                context.logger.log_step("用户选择", "用户选择跳过拍照")
                 self._use_default_photo_data(context)
     
     def _use_default_photo_data(self, context):
