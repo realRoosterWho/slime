@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 try:
     # 尝试导入stt_utils，需要确保路径正确
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    stt_path = os.path.join(project_root, "tests", "audio")
+    stt_path = os.path.join(project_root, "core", "audio")
     if stt_path not in sys.path:
         sys.path.append(stt_path)
     
