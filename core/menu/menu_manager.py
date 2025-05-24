@@ -74,10 +74,15 @@ class MenuSystem:
             )
             
             if os.path.exists(logo_path):
-                # 加载并显示logo
+                # 加载logo图像
                 logo_image = Image.open(logo_path)
-                self.lcd.show_image(logo_image)
-                print(f"✅ Logo已显示在LCD上: {logo_path}")
+                
+                # 旋转图像180度以解决颠倒问题
+                rotated_logo = logo_image.rotate(180, expand=True)
+                
+                # 显示旋转后的logo
+                self.lcd.show_image(rotated_logo)
+                print(f"✅ Logo已显示在LCD上（已旋转180度）: {logo_path}")
             else:
                 print(f"⚠️ Logo文件未找到: {logo_path}")
                 # 显示默认的文本logo
