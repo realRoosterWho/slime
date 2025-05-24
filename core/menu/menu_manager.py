@@ -7,9 +7,18 @@ import sys
 import subprocess
 import os
 from PIL import Image, ImageDraw, ImageFont
+import RPi.GPIO as GPIO  # 添加GPIO导入
 
 class MenuSystem:
     def __init__(self):
+        # 初始化GPIO设置（必须在最开始）
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            print("✅ GPIO已初始化为BCM模式")
+        except Exception as e:
+            print(f"⚠️ GPIO初始化警告: {e}")
+        
         # 添加指示器帧计数（移到最前面）
         self.indicator_frame = 0
         self.should_exit = False  # 将退出标志移到类内部
@@ -157,7 +166,7 @@ class MenuSystem:
             time.sleep(2)
         finally:
             # 重新初始化资源
-            self.__init__()
+            self.safe_reinitialize()
             print("返回主菜单")
 
     def run_openai_test(self):
@@ -181,7 +190,7 @@ class MenuSystem:
             print(f"发生错误: {e}")
         finally:
             # 重新初始化资源
-            self.__init__()
+            self.safe_reinitialize()
             print("返回主菜单")
 
     def get_current_wifi(self):
@@ -442,6 +451,13 @@ class MenuSystem:
                 except Exception as lcd_error:
                     print(f"⚠️ LCD清理失败: {lcd_error}")
             
+            # 清理GPIO（参考derive的方式）
+            try:
+                GPIO.cleanup()
+                print("✅ GPIO已清理")
+            except Exception as gpio_error:
+                print(f"⚠️ GPIO清理失败: {gpio_error}")
+            
             print("已清理所有资源")
         except Exception as e:
             print(f"清理时出错: {e}")
@@ -476,6 +492,37 @@ class MenuSystem:
         # 恢复原来的回调
         self.controller.register_joystick_callback('UP', original_up)
         self.controller.register_joystick_callback('DOWN', original_down)
+
+    def safe_reinitialize(self):
+        """安全的重新初始化方法，避免GPIO冲突"""
+        try:
+            print("🔄 正在重新初始化菜单系统...")
+            
+            # 不重新初始化GPIO，只重新初始化其他组件
+            self.oled = DisplayManager("OLED")
+            self.lcd = DisplayManager("LCD")
+            self.controller = InputController()
+            
+            # 重新显示logo
+            self.show_logo_on_lcd()
+            
+            # 重新注册输入回调
+            self.controller.register_joystick_callback('UP', self.on_up)
+            self.controller.register_joystick_callback('DOWN', self.on_down)
+            self.controller.register_button_callback('BTN1', self.on_confirm, 'press')
+            
+            # 显示菜单
+            self.display_menu()
+            
+            print("✅ 菜单系统重新初始化完成")
+            
+        except Exception as e:
+            print(f"❌ 重新初始化失败: {e}")
+            # 备用方案：完全重新初始化
+            try:
+                self.__init__()
+            except Exception as fallback_error:
+                print(f"❌ 备用初始化也失败: {fallback_error}")
 
 if __name__ == "__main__":
     try:
