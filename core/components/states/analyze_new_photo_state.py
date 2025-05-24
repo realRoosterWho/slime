@@ -62,12 +62,18 @@ class AnalyzeNewPhotoState(AbstractState):
             context.set_data('new_photo_analysis', response)
             context.logger.log_step("分析新照片", f"分析完成: {response[:50]}...")
             
-            # 显示分析结果
+            # 显示分析结果，传入context用于长按检测
             display_text = f"史莱姆看了看：\n{response[:80]}..."
-            context.oled_display.wait_for_button_with_text(
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                display_text
+                display_text,
+                context=context  # 传入context用于长按检测
             )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+                return
             
         except Exception as e:
             context.logger.log_step("错误", f"分析新照片失败: {str(e)}")
@@ -76,10 +82,16 @@ class AnalyzeNewPhotoState(AbstractState):
             default_analysis = "看起来很有趣，让我想想这能带来什么奖励..."
             context.set_data('new_photo_analysis', default_analysis)
             
-            context.oled_display.wait_for_button_with_text(
+            # 显示默认分析结果，传入context用于长按检测
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                f"史莱姆看了看：\n{default_analysis}"
+                f"史莱姆看了看：\n{default_analysis}",
+                context=context  # 传入context用于长按检测
             )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
     
     def get_next_state(self, context) -> Optional[DeriveState]:
         """返回下一个状态"""

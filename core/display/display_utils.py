@@ -550,14 +550,15 @@ class DisplayManager:
         """显示加载消息（不包含延时）"""
         self.show_text_oled(message)
 
-    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=18, visible_lines=3):
-        """显示文本并等待按钮按下，支持摇杆控制滚动
+    def wait_for_button_with_text(self, controller, text, font_size=12, chars_per_line=18, visible_lines=3, context=None):
+        """显示文本并等待按钮按下，支持摇杆控制滚动和长按返回菜单
         Args:
             controller: InputController实例
             text: 要显示的文本
             font_size: 字体大小，默认12
             chars_per_line: 每行字符数，默认9
             visible_lines: 同时显示的行数，默认3
+            context: DeriveContext实例，用于长按检测（可选）
         """
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
@@ -611,11 +612,16 @@ class DisplayManager:
         draw_current_page()
         
         while True:
+            # 检查长按按钮2返回菜单（如果提供了context）
+            if context and context.check_btn2_long_press():
+                print("检测到长按按钮2，中断等待")
+                return 2  # 返回特殊值表示长按返回菜单
+            
             # 检查按钮1
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
             if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
                 time.sleep(0.1)  # 防抖
-                return
+                return 1
             button_state['BTN1'] = current_btn1
             
             # 检查摇杆上
@@ -638,13 +644,14 @@ class DisplayManager:
             
             time.sleep(0.1)  # 降低CPU使用率
 
-    def show_continue_drift_option(self, controller, question="是否继续漂流？"):
-        """显示是否继续漂流的选择界面
+    def show_continue_drift_option(self, controller, question="是否继续漂流？", context=None):
+        """显示是否继续漂流的选择界面，支持长按返回菜单
         Args:
             controller: InputController实例
             question: 显示的问题文本
+            context: DeriveContext实例，用于长按检测（可选）
         Returns:
-            bool: True表示继续，False表示结束
+            bool/int: True表示继续，False表示结束，2表示长按返回菜单
         """
         # 创建新图像
         image = Image.new("1", (self.width, self.height))
@@ -690,6 +697,11 @@ class DisplayManager:
         draw_question()
         
         while True:
+            # 检查长按按钮2返回菜单（如果提供了context）
+            if context and context.check_btn2_long_press():
+                print("检测到长按按钮2，中断选择")
+                return 2  # 返回特殊值表示长按返回菜单
+            
             # 检查按钮1 (继续漂流)
             current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
             if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下

@@ -29,10 +29,12 @@ class TakePhotoState(AbstractState):
             display_text = "准备拍摄新照片\n请按下BT1按钮"
             button_text = "按下BT1按钮拍照"
             log_step = "新照片"
+            filename = f"new_photo_{context.logger.timestamp}.jpg"
         else:
             display_text = "准备拍照\n请按下BT1按钮"
             button_text = "按下BT1按钮拍照"
             log_step = "拍照"
+            filename = f"photo_{context.logger.timestamp}.jpg"
         
         context.oled_display.show_text_oled(display_text)
         
@@ -41,28 +43,40 @@ class TakePhotoState(AbstractState):
         
         context.oled_display.show_text_oled("正在拍照...")
         
-        # 运行相机脚本拍照
-        run_camera_test()
-        
-        # 查找最新拍摄的照片
+        # 直接将照片保存到日志目录
         try:
-            # 先检查项目根目录是否有照片
-            photo_path = os.path.join(context.get_project_root(), "current_image.jpg")
-            if not os.path.exists(photo_path):
-                raise FileNotFoundError("未找到拍摄的照片")
+            # 直接拍照到日志目录
+            photo_path = run_camera_test(save_path=context.logger.log_dir, filename=filename)
             
-            # 保存带时间戳的照片副本
-            timestamped_key = self._save_photo_with_timestamp(context, photo_path, is_new_photo)
+            if not photo_path or not os.path.exists(photo_path):
+                raise FileNotFoundError("未找到拍摄的照片")
             
             # 在LCD上显示照片
             img = Image.open(photo_path)
             context.lcd_display.show_image(img)
             
-            context.logger.log_step(log_step, f"{'新' if is_new_photo else ''}照片已保存: {context.get_data(timestamped_key)}")
+            # 保存照片路径到上下文
+            if is_new_photo:
+                context.set_data('new_image_path', photo_path)
+                context.set_data('new_timestamped_image', photo_path)
+                context.logger.save_image(photo_path, 'new_photo')
+            else:
+                context.set_data('image_path', photo_path)
+                context.set_data('timestamped_image', photo_path)
+                context.logger.save_image(photo_path, 'original_photo')
+            
+            context.logger.log_step(log_step, f"{'新' if is_new_photo else ''}照片已保存: {photo_path}")
             
             # 等待用户确认照片
-            context.oled_display.show_text_oled("照片已拍摄\n按BT1继续")
-            self._wait_for_button(context, "按BT1继续")
+            result = context.oled_display.wait_for_button_with_text(
+                context.controller,
+                "照片已拍摄\n按BT1继续",
+                context=context  # 传入context用于长按检测
+            )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
             
         except Exception as e:
             error_msg = f"处理{'新' if is_new_photo else ''}照片时出错: {str(e)}"
@@ -71,36 +85,6 @@ class TakePhotoState(AbstractState):
             time.sleep(2)
             # 出错时递归重试
             return self._take_photo_process(context, is_new_photo)
-    
-    def _save_photo_with_timestamp(self, context, photo_path, is_new_photo=False):
-        """保存带时间戳的照片副本"""
-        filename = os.path.basename(photo_path)
-        suffix = "new" if is_new_photo else ""
-        timestamped_filename = self._create_timestamped_filename(context, filename, suffix)
-        timestamped_path = os.path.join(context.get_project_root(), timestamped_filename)
-        
-        # 复制照片
-        shutil.copy2(photo_path, timestamped_path)
-        
-        # 保存到相应的数据键
-        if is_new_photo:
-            context.set_data('new_image_path', photo_path)
-            context.set_data('new_timestamped_image', timestamped_path)
-            context.logger.save_image(timestamped_path, 'new_photo')
-            return 'new_timestamped_image'
-        else:
-            context.set_data('image_path', photo_path)
-            context.set_data('timestamped_image', timestamped_path)
-            context.logger.save_image(timestamped_path, 'original_photo')
-            return 'timestamped_image'
-    
-    def _create_timestamped_filename(self, context, base_filename, suffix=""):
-        """创建带时间戳的文件名"""
-        name, ext = os.path.splitext(base_filename)
-        if suffix:
-            return f"{name}_{suffix}_{context.logger.timestamp}{ext}"
-        else:
-            return f"{name}_{context.logger.timestamp}{ext}"
     
     def _wait_for_button(self, context, text):
         """等待按钮按下"""

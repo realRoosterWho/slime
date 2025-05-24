@@ -29,8 +29,13 @@ class ShowGreetingState(AbstractState):
         return DeriveState.ASK_PHOTO
     
     def _wait_for_button(self, context, text):
-        """等待按钮按下"""
-        context.oled_display.wait_for_button_with_text(
+        """等待按钮按下，支持长按返回菜单"""
+        result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            text
-        ) 
+            text,
+            context=context  # 传入context用于长按检测
+        )
+        
+        # 检查是否是长按返回菜单
+        if result == 2:
+            context.logger.log_step("用户操作", "用户长按按钮2返回菜单") 

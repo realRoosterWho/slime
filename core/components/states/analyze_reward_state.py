@@ -71,10 +71,16 @@ class AnalyzeRewardState(AbstractState):
             
             # 显示奖励决定过程
             display_text = f"史莱姆想了想：\n{reward_data.get('reward_reason', '你做得很好')}..."
-            context.oled_display.wait_for_button_with_text(
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                display_text
+                display_text,
+                context=context  # 传入context用于长按检测
             )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+                return
             
         except Exception as e:
             context.logger.log_step("错误", f"分析奖励失败: {str(e)}")
@@ -84,10 +90,15 @@ class AnalyzeRewardState(AbstractState):
             context.set_data('reward_description', '一个神秘的奖励')
             context.set_data('reward_reason', '感谢你的陪伴和探索')
             
-            context.oled_display.wait_for_button_with_text(
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                "史莱姆想了想：\n谢谢你的探索..."
+                "史莱姆想了想：\n谢谢你的探索...",
+                context=context  # 传入context用于长按检测
             )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
     
     def get_next_state(self, context) -> Optional[DeriveState]:
         """返回下一个状态"""

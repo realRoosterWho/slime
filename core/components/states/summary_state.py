@@ -102,16 +102,27 @@ class SummaryState(AbstractState):
         context.sleep(3)
         
         # 显示总结内容
-        context.oled_display.wait_for_button_with_text(
+        result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            f"史莱姆的总结：\n{summary_text}"
+            f"史莱姆的总结：\n{summary_text}",
+            context=context  # 传入context用于长按检测
         )
         
+        # 检查是否是长按返回菜单
+        if result == 2:
+            context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+            return
+        
         # 显示结束感谢
-        context.oled_display.wait_for_button_with_text(
+        result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            "感谢你的陪伴！\n希望你喜欢\n这次漂流体验"
+            "感谢你的陪伴！\n希望你喜欢\n这次漂流体验",
+            context=context  # 传入context用于长按检测
         )
+        
+        # 检查是否是长按返回菜单
+        if result == 2:
+            context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
     
     def get_next_state(self, context) -> Optional[DeriveState]:
         """返回下一个状态：清理"""

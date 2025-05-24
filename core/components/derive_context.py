@@ -78,7 +78,7 @@ class DeriveContext:
             'continue_derive': None,
             'summary': None,
             'summary_image': None,
-            'cycle_count': 0,
+            'cycle_count': 1,
             'all_rewards': [],
             'slime_attributes': {
                 'obsession': None,

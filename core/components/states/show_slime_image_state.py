@@ -44,8 +44,14 @@ class ShowSlimeImageState(AbstractState):
         return DeriveState.SHOW_GREETING
     
     def _wait_for_button(self, context):
-        """等待按钮按下"""
-        context.oled_display.wait_for_button_with_text(
+        """等待按钮按下，支持长按返回菜单"""
+        result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            "按BT1继续"
-        ) 
+            "按BT1继续",
+            context=context  # 传入context用于长按检测
+        )
+        
+        # 检查是否是长按返回菜单
+        if result == 2:
+            context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+            # 设置返回菜单标志，状态机会在get_next_state中检测到 

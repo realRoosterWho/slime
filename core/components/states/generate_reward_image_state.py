@@ -49,17 +49,20 @@ class GenerateRewardImageState(AbstractState):
                 - If quirk involves exploring, show a mystical compass or map
                 - If quirk involves music, show a magical instrument
                 
-                Art style requirements:
-                - Retro colorful pixel art style
-                - 16-bit or 32-bit game item aesthetic
-                - Vibrant, saturated colors with limited color palette
-                - Clean pixel edges with no anti-aliasing
-                - Simple but recognizable design
-                - Game item/equipment appearance
-                - Clear, simple silhouette
+                STRICT pixel art requirements:
+                - 8-bit or 16-bit retro pixel art style ONLY
+                - Visible pixel grid structure, every pixel clearly defined
+                - Hard edges with NO anti-aliasing or smoothing
+                - Limited color palette (maximum 16 colors)
+                - Blocky, pixelated appearance like classic RPG items
+                - NO cartoon, anime, or smooth vector art styles
+                - Sharp, geometric pixel boundaries
+                - Reminiscent of classic RPG game items (Final Fantasy, Dragon Quest style)
+                - NO gradients, NO soft shading, only flat colors and dithering
+                - Item should look like a collectible from an 8-bit video game
                 
-                Style: retro pixel art, colorful, game item, nostalgic 16-bit aesthetic
-                Background: simple, clean, focus on the reward item
+                Style: pixel art, 8-bit, retro RPG item, classic arcade, pixelated
+                Background: simple solid color, focus on the pixelated reward item
                 """
             else:
                 # encouragement级别：符合偏执反应的史莱姆蛋
@@ -82,17 +85,20 @@ class GenerateRewardImageState(AbstractState):
                 - If reflex involves exploring, show an egg with map-like markings or compass designs
                 - If reflex involves being cautious, show an egg with protective shell patterns
                 
-                Art style requirements:
-                - Retro colorful pixel art style
-                - 16-bit or 32-bit game item aesthetic
-                - Vibrant, saturated colors with limited color palette
-                - Clean pixel edges with no anti-aliasing
-                - Simple but detailed egg design
-                - Game collectible item appearance
-                - Clear, simple silhouette
+                STRICT pixel art requirements:
+                - 8-bit or 16-bit retro pixel art style ONLY
+                - Visible pixel grid structure, every pixel clearly defined
+                - Hard edges with NO anti-aliasing or smoothing
+                - Limited color palette (maximum 16 colors)
+                - Blocky, pixelated egg with chunky pixel patterns
+                - NO cartoon, anime, or smooth vector art styles
+                - Sharp, geometric pixel boundaries
+                - Reminiscent of classic video game collectible eggs
+                - NO gradients, NO soft shading, only flat colors and dithering
+                - Egg should look like it came from a retro platformer game
                 
-                Style: retro pixel art, colorful, game collectible, nostalgic 16-bit aesthetic
-                Background: simple, clean, focus on the egg
+                Style: pixel art, 8-bit, retro gaming egg, classic arcade, pixelated
+                Background: simple solid color, focus on the pixelated egg
                 The egg should look hopeful and promising, not disappointing
                 """
             

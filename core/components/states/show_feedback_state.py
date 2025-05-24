@@ -22,26 +22,43 @@ class ShowFeedbackState(AbstractState):
             context.oled_display.show_text_oled("史莱姆的感受：")
             context.sleep(2)
             
-            # 显示反馈内容
-            context.oled_display.wait_for_button_with_text(
+            # 显示反馈内容，传入context用于长按检测
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                f"史莱姆说：\n{feedback_text}"
+                f"史莱姆说：\n{feedback_text}",
+                context=context  # 传入context用于长按检测
             )
             
-            # 显示结束提示
-            context.oled_display.wait_for_button_with_text(
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+                return
+            
+            # 显示结束提示，传入context用于长按检测
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                "本次漂流结束\n感谢体验！"
+                "本次漂流结束\n感谢体验！",
+                context=context  # 传入context用于长按检测
             )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+                return
             
         except Exception as e:
             context.logger.log_step("错误", f"显示反馈失败: {str(e)}")
             
-            # 显示默认反馈
-            context.oled_display.wait_for_button_with_text(
+            # 显示默认反馈，传入context用于长按检测
+            result = context.oled_display.wait_for_button_with_text(
                 context.controller,
-                "史莱姆说：\n谢谢你的陪伴！\n\n本次漂流结束"
+                "史莱姆说：\n谢谢你的陪伴！\n\n本次漂流结束",
+                context=context  # 传入context用于长按检测
             )
+            
+            # 检查是否是长按返回菜单
+            if result == 2:
+                context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
     
     def get_next_state(self, context) -> Optional[DeriveState]:
         """返回下一个状态：询问是否继续"""

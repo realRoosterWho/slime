@@ -16,11 +16,17 @@ class AskContinueState(AbstractState):
         # 显示询问信息
         question = "想要继续漂流吗？"
         
-        # 使用DisplayManager的继续询问功能
+        # 使用DisplayManager的继续询问功能，传入context用于长按检测
         continue_choice = context.oled_display.show_continue_drift_option(
             context.controller,
-            question
+            question,
+            context  # 传入context用于长按检测
         )
+        
+        # 检查是否是长按返回菜单
+        if continue_choice == 2:
+            context.logger.log_step("用户操作", "用户长按按钮2返回菜单")
+            return
         
         # 检查是否要返回菜单
         if context.should_return_to_menu():

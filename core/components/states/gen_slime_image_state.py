@@ -57,27 +57,37 @@ class GenSlimeImageState(AbstractState):
         """生成史莱姆图片的提示词"""
         slime_description = context.get_data('slime_description', '')
         
-        # 构建复古彩色像素风格的史莱姆提示词
+        # 构建强化像素风格的史莱姆提示词
         prompt = f"""
         A cute slime character with the following traits: {slime_description}
         
-        Art style requirements:
-        - Retro colorful pixel art style
-        - 16-bit or 32-bit game character aesthetic  
-        - Vibrant, saturated colors with limited color palette
-        - Clean pixel edges with no anti-aliasing
-        - Simple but expressive design
-        - Large eyes and small mouth for kawaii appeal
-        - Soft, rounded blob-like body shape
-        - Clear, simple silhouette suitable for game character
+        STRICT pixel art requirements:
+        - 8-bit or 16-bit retro pixel art style ONLY
+        - Visible pixel grid structure
+        - Hard edges with NO anti-aliasing or smoothing
+        - Limited color palette (maximum 16 colors)
+        - Blocky, pixelated appearance like classic arcade games
+        - NO cartoon, anime, or smooth vector art styles
+        - Sharp, geometric pixel boundaries
+        - Reminiscent of Nintendo Game Boy or NES graphics
+        - Each pixel should be clearly visible and defined
+        - NO gradients, NO soft shading, only flat colors and dithering
         
-        The slime should be:
-        - Centered in frame
-        - Clean background or simple pattern
-        - Bright and cheerful appearance
-        - Easily recognizable as a friendly slime character
+        Character design:
+        - Simple geometric blob shape made of visible pixels
+        - Large square/rectangular eyes (2-4 pixels each)
+        - Tiny pixel mouth (1-2 pixels)
+        - Body should look like it's made of chunky pixel blocks
+        - Clear silhouette suitable for retro gaming
         
-        Style: retro pixel art, colorful, game character, nostalgic 16-bit aesthetic
+        Technical specifications:
+        - Pixel art, pixelated, 8-bit graphics, retro gaming style
+        - Centered character on simple background
+        - Bright, saturated colors typical of old video games
+        - NO modern digital art techniques
+        - Must look like it came from a 1980s-1990s video game
+        
+        Style: pixel art, 8-bit, retro gaming, classic arcade, pixelated
         """
         
         return prompt 
