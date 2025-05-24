@@ -31,7 +31,7 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
         input_data.insert(0, {"role": "system", "content": system_content})
         
     response = client.responses.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         input=input_data,
         previous_response_id=previous_response_id
     )
@@ -46,61 +46,91 @@ class DeriveChatUtils:
         self.optimizer = global_optimizer
     
     def chat_with_continuity(self, prompt, system_content=None):
-        """带连续性的对话函数 - 优化版本"""
-        try:
-            print(f"\n🤖 发送对话请求")
-            if isinstance(prompt, list):
-                print(f"对话输入: [复杂输入，包含 {len(prompt)} 个元素]")
-            else:
-                print(f"对话输入: {prompt[:100]}...")
-            
-            # 生成基于输入的缓存键（仅用于简单的文本提示）
-            cache_key = None
-            if isinstance(prompt, str) and system_content:
-                cache_key = self.optimizer.cache_key("gpt_chat", prompt, system_content)
-                cached_result = self.optimizer.get_cache(cache_key)
-                if cached_result:
-                    print(f"🎯 使用缓存的对话结果")
-                    return cached_result
-            
-            # 检查频率限制
-            if self.optimizer.is_api_rate_limited("gpt_chat", 1.0):
-                wait_time = 1.0 - (time.time() - self.optimizer.api_call_times.get("gpt_chat", 0))
-                print(f"⏳ API频率限制，等待 {wait_time:.1f} 秒...")
-                time.sleep(wait_time)
-            
-            # 记录API调用
-            self.optimizer.record_api_call("gpt_chat")
-            
-            response = chat_with_gpt(
-                input_content=prompt,
-                system_content=system_content,
-                previous_response_id=self.response_id
-            )
-            self.response_id = response.id
-            
-            # 从响应中提取文本内容
+        """带连续性的对话函数 - 优化版本，包含重试机制"""
+        max_retries = 3
+        retry_delay = 2  # 秒
+        
+        for attempt in range(max_retries):
             try:
-                if hasattr(response.output[0].content[0], 'text'):
-                    result = response.output[0].content[0].text.strip()
+                print(f"\n🤖 发送对话请求 (尝试 {attempt + 1}/{max_retries})")
+                if isinstance(prompt, list):
+                    print(f"对话输入: [复杂输入，包含 {len(prompt)} 个元素]")
                 else:
-                    result = response.output[0].content[0]
-                print(f"对话响应: {result[:100]}...")
+                    print(f"对话输入: {prompt[:100]}...")
                 
-                # 缓存结果（仅对简单文本提示）
-                if cache_key:
-                    self.optimizer.set_cache(cache_key, result)
+                # 生成基于输入的缓存键（仅用于简单的文本提示）
+                cache_key = None
+                if isinstance(prompt, str) and system_content:
+                    cache_key = self.optimizer.cache_key("gpt_chat", prompt, system_content)
+                    cached_result = self.optimizer.get_cache(cache_key)
+                    if cached_result:
+                        print(f"🎯 使用缓存的对话结果")
+                        return cached_result
                 
-                return result
-            except (IndexError, AttributeError) as e:
-                error_msg = f"解析对话响应时出错: {str(e)}, 响应结构: {response}"
-                print(f"\n❌ {error_msg}")
-                raise
+                # 检查频率限制
+                if self.optimizer.is_api_rate_limited("gpt_chat", 1.0):
+                    wait_time = 1.0 - (time.time() - self.optimizer.api_call_times.get("gpt_chat", 0))
+                    print(f"⏳ API频率限制，等待 {wait_time:.1f} 秒...")
+                    time.sleep(wait_time)
                 
-        except Exception as e:
-            error_msg = f"对话请求失败: {str(e)}"
-            print(f"\n❌ {error_msg}")
-            raise
+                # 记录API调用
+                self.optimizer.record_api_call("gpt_chat")
+                
+                response = chat_with_gpt(
+                    input_content=prompt,
+                    system_content=system_content,
+                    previous_response_id=self.response_id
+                )
+                self.response_id = response.id
+                
+                # 从响应中提取文本内容
+                try:
+                    if hasattr(response.output[0].content[0], 'text'):
+                        result = response.output[0].content[0].text.strip()
+                    else:
+                        result = response.output[0].content[0]
+                    print(f"对话响应: {result[:100]}...")
+                    
+                    # 缓存结果（仅对简单文本提示）
+                    if cache_key:
+                        self.optimizer.set_cache(cache_key, result)
+                    
+                    return result
+                except (IndexError, AttributeError) as e:
+                    error_msg = f"解析对话响应时出错: {str(e)}, 响应结构: {response}"
+                    print(f"\n❌ {error_msg}")
+                    if attempt < max_retries - 1:
+                        print(f"⏳ 等待 {retry_delay} 秒后重试...")
+                        time.sleep(retry_delay)
+                        continue
+                    raise
+                    
+            except Exception as e:
+                error_msg = str(e)
+                
+                # 检查是否是可重试的错误
+                retryable_errors = [
+                    "502", "503", "504",  # 服务器错误
+                    "Bad gateway", "Service Unavailable", "Gateway timeout",
+                    "Connection error", "Timeout", "Read timeout",
+                    "Internal server error"
+                ]
+                
+                is_retryable = any(error_pattern.lower() in error_msg.lower() for error_pattern in retryable_errors)
+                
+                print(f"\n❌ 对话请求失败 (尝试 {attempt + 1}/{max_retries}): {error_msg[:200]}...")
+                
+                if is_retryable and attempt < max_retries - 1:
+                    wait_time = retry_delay * (attempt + 1)  # 递增等待时间
+                    print(f"🔄 检测到可重试错误，等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    if is_retryable:
+                        print(f"💥 重试次数已用完，最终失败")
+                    else:
+                        print(f"❌ 不可重试的错误，直接失败")
+                    raise
     
     def generate_text(self, prompt_type, **kwargs):
         """通用的文本生成函数"""

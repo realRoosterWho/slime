@@ -1,5 +1,6 @@
 import json
 from typing import Optional
+import time
 
 from ..abstract_state import AbstractState
 from ..derive_states import DeriveState
@@ -58,13 +59,50 @@ class SuggestDestinationState(AbstractState):
             self._wait_for_button(context, display_text)
             
         except Exception as e:
-            # 使用备用建议
-            context.logger.log_step("错误", f"生成建议时出错: {str(e)}")
+            # 分析错误类型，提供更好的用户体验
+            error_msg = str(e)
+            context.logger.log_step("错误", f"生成建议时出错: {error_msg}")
             
-            default_suggestion = "去寻找更多有趣的东西吧！"
-            context.set_data('destination_suggestion', default_suggestion)
-            context.logger.log_step("建议目的地", f"使用默认建议: {default_suggestion}")
-            self._wait_for_button(context, f"史莱姆说：\n{default_suggestion}")
+            # 检查是否是API服务器问题
+            server_error_keywords = ["502", "503", "504", "Bad gateway", "Service Unavailable", "Connection error"]
+            is_server_error = any(keyword in error_msg for keyword in server_error_keywords)
+            
+            if is_server_error:
+                context.logger.log_step("API服务器问题", "检测到OpenAI API服务器故障，使用智能默认建议")
+                context.oled_display.show_text_oled("API服务暂时\n不可用\n生成默认建议...")
+                time.sleep(2)
+            
+            # 生成智能默认建议（基于史莱姆执念）
+            slime_obsession = context.get_slime_attribute('obsession', '寻找有趣的事物')
+            slime_tone = context.get_slime_attribute('tone', '友好好奇')
+            
+            # 根据执念生成更个性化的默认建议
+            if '颜色' in slime_obsession or '光' in slime_obsession:
+                smart_suggestion = "去寻找有特殊光影的地方"
+                reason = "那里可能有我想要的色彩"
+            elif '水' in slime_obsession or '雨' in slime_obsession:
+                smart_suggestion = "去探索有水的环境"
+                reason = "水总是藏着秘密"
+            elif '夜' in slime_obsession or '星' in slime_obsession:
+                smart_suggestion = "等待夜晚来临时再探索"
+                reason = "夜色中有我的执念"
+            elif '花' in slime_obsession or '植物' in slime_obsession:
+                smart_suggestion = "去寻找有植物的地方"
+                reason = "自然中藏着我要的东西"
+            else:
+                smart_suggestion = "继续探索周围的环境"
+                reason = "总会找到符合我执念的地方"
+            
+            context.set_data('destination_suggestion', smart_suggestion)
+            context.logger.log_step("智能默认建议", f"建议: {smart_suggestion}, 理由: {reason}")
+            
+            # 显示智能建议
+            if is_server_error:
+                display_text = f"史莱姆想了想：\n{smart_suggestion}\n\n(AI服务暂时不可用)"
+            else:
+                display_text = f"史莱姆说：\n{smart_suggestion}\n\n{reason}"
+            
+            self._wait_for_button(context, display_text)
     
     def get_next_state(self, context) -> Optional[DeriveState]:
         """返回下一个状态：等待新照片"""

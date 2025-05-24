@@ -59,61 +59,107 @@ class AnalyzeNewPhotoState(AbstractState):
             
             context.logger.log_step("🤖 史莱姆属性", f"执念: {slime_obsession}, 语气: {slime_tone}")
             
+            # === 第一步：简单描述新照片（避免内容过滤） ===
+            context.logger.log_step("🎯 第一步", "开始简单新照片描述")
+            
             # 使用聊天工具分析照片和语音
             chat_utils = DeriveChatUtils(context.response_id)
             
-            # 构建综合分析提示
-            if voice_text and len(voice_text.strip()) > 0:
-                analysis_text = f"""
-                请描述这张照片的内容。
-                
-                用户说了: "{voice_text}"
-                
-                请描述照片中看到的内容，并结合用户的描述给出整体印象。
-                """
-            else:
-                analysis_text = f"""
-                请描述这张照片的内容，包括看到的物体、环境、氛围等。
-                """
+            # 第一步：简单描述提示
+            simple_description_prompt = "请简单描述这张照片中看到的内容。"
             
             # 构建包含图片和文本的输入
             input_content = [
-                {"type": "input_text", "text": analysis_text},
+                {"type": "input_text", "text": simple_description_prompt},
                 {"type": "input_image", "image_url": data_url}
             ]
             
-            context.logger.log_step("📝 提示词", f"提示词长度: {len(analysis_text)}")
-            context.logger.log_step("📋 输入格式", f"输入包含 {len(input_content)} 个元素")
-            context.logger.log_step("📋 输入结构", f"元素1类型: {input_content[0]['type']}, 元素2类型: {input_content[1]['type']}")
-            context.logger.log_step("🤖 发送请求", "发送新照片分析到OpenAI...")
+            context.logger.log_step("📋 第一步输入", f"输入包含 {len(input_content)} 个元素")
+            context.logger.log_step("🤖 发送请求", "发送第一步简单描述到OpenAI...")
             
-            response = chat_utils.chat_with_continuity(input_content)
+            basic_description = chat_utils.chat_with_continuity(input_content)
             context.response_id = chat_utils.response_id
             
-            context.logger.log_step("📨 AI回复", f"回复长度: {len(response)}")
-            context.logger.log_step("📨 AI回复内容", f"完整回复: {response}")
+            context.logger.log_step("📨 第一步结果", f"基本描述: {basic_description}")
             
-            # 检查回复质量
+            # 检查第一步是否成功
             failure_keywords = ["抱歉", "无法", "不能", "看不到", "无法查看", "cannot", "can't", "sorry", "unable"]
-            success_keywords = ["看到", "图片", "照片", "画面", "画中", "see", "image", "photo"]
+            has_failure_keywords = any(keyword in basic_description.lower() for keyword in failure_keywords)
             
-            has_failure_keywords = any(keyword in response.lower() for keyword in failure_keywords)
-            has_success_keywords = any(keyword in response.lower() for keyword in success_keywords)
+            if has_failure_keywords:
+                context.logger.log_step("❌ 第一步失败", "基本描述被拒绝，使用默认分析")
+                # 设置默认分析结果
+                voice_text = context.get_data('new_photo_voice_text', '')
+                if voice_text:
+                    default_analysis = f"听了你的描述，看起来很有意思！让我想想这能带来什么奖励..."
+                else:
+                    default_analysis = "看起来很有趣，让我想想这能带来什么奖励..."
+                context.set_data('new_photo_analysis', default_analysis)
+                return
             
-            context.logger.log_step("🔍 关键词分析", f"失败关键词: {has_failure_keywords}, 成功关键词: {has_success_keywords}")
+            # === 第二步：史莱姆个性化分析新照片 ===
+            context.logger.log_step("🎭 第二步", "开始史莱姆新照片分析")
+            context.oled_display.show_text_oled("史莱姆在想\n这符合执念吗...")
+            
+            # 构建史莱姆分析提示
+            if voice_text and len(voice_text.strip()) > 0:
+                slime_new_analysis_prompt = f"""
+                新照片基本内容: {basic_description}
+                
+                用户说了: "{voice_text}"
+                
+                史莱姆的执念: {slime_obsession}
+                史莱姆的语气: {slime_tone}
+                
+                请从史莱姆的角度分析这个新探索的地方：
+                1. 这个地方有什么特别之处
+                2. 是否符合史莱姆的执念
+                3. 史莱姆会有什么想法和反应
+                4. 结合用户的描述，整体印象如何
+                
+                请用史莱姆的口吻回答，控制在120字以内。
+                """
+            else:
+                slime_new_analysis_prompt = f"""
+                新照片内容: {basic_description}
+                
+                史莱姆的执念: {slime_obsession}
+                史莱姆的语气: {slime_tone}
+                
+                请从史莱姆的角度分析这个新探索的地方：
+                1. 这个地方有什么特别之处
+                2. 是否符合史莱姆的执念
+                3. 史莱姆会有什么想法和反应
+                
+                请用史莱姆的口吻回答，控制在100字以内。
+                """
+            
+            # 调用史莱姆新照片分析
+            slime_new_analysis = chat_utils.chat_with_continuity(
+                system_content="你是一个有个性和执念的史莱姆，会从自己的角度分析新探索的场景。",
+                prompt=slime_new_analysis_prompt
+            )
+            context.response_id = chat_utils.response_id
+            
+            context.logger.log_step("🎭 第二步结果", f"史莱姆新分析: {slime_new_analysis}")
+            
+            # === 第三步：融合生成最终新照片分析 ===
+            final_new_analysis = f"场景描述: {basic_description}\n\n史莱姆的反应: {slime_new_analysis}"
             
             # 保存新照片分析结果
-            context.set_data('new_photo_analysis', response)
+            context.set_data('new_photo_analysis', final_new_analysis)
+            context.set_data('new_basic_description', basic_description)  # 保存基本描述备用
+            context.set_data('new_slime_analysis', slime_new_analysis)  # 保存史莱姆分析备用
             
             # 记录分析结果
-            analysis_type = "照片+语音分析" if voice_text else "照片分析"
-            context.logger.log_step(f"分析新{analysis_type}", f"分析完成: {response[:50]}...")
+            analysis_type = "新照片+语音多步骤分析" if voice_text else "新照片多步骤分析"
+            context.logger.log_step(f"✅ {analysis_type}", f"分析完成: {slime_new_analysis[:50]}...")
             
-            # 显示分析结果，包含语音信息
+            # 显示分析结果，重点展示史莱姆的反应
             if voice_text and len(voice_text.strip()) > 0:
-                display_text = f"史莱姆听了你的话\n看了照片后说：\n{response[:60]}..."
+                display_text = f"史莱姆听了你的话\n看了照片后说：\n{slime_new_analysis[:60]}..."
             else:
-                display_text = f"史莱姆看了看：\n{response[:80]}..."
+                display_text = f"史莱姆看了看：\n{slime_new_analysis[:80]}..."
                 
             result = context.oled_display.wait_for_button_with_text(
                 context.controller,
