@@ -21,7 +21,11 @@ class AskPhotoState(AbstractState):
         context.logger.log_step("询问拍照", photo_question)
         
         # 显示史莱姆的询问
-        context.oled_display.show_text_oled(f"史莱姆说：\n{photo_question}")
+        context.oled_display.wait_for_button_with_text(
+            context.controller,
+            f"史莱姆说：\n{photo_question}",
+            context=context
+        )
         context.sleep(3)
         
         # 直接开始拍照+语音流程
