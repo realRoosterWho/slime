@@ -7,6 +7,7 @@ import os
 from typing import Optional
 import signal
 import sys
+import threading
 from contextlib import contextmanager
 
 # 默认凭证路径
@@ -17,9 +18,14 @@ class AudioResourceManager:
         self.stream = None
         
     def __enter__(self):
-        # 设置信号处理
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        # 只在主线程中设置信号处理器
+        try:
+            if threading.current_thread() is threading.main_thread():
+                signal.signal(signal.SIGINT, self._signal_handler)
+                signal.signal(signal.SIGTERM, self._signal_handler)
+        except ValueError as e:
+            # 如果不在主线程中，忽略信号处理设置
+            pass
         return self
         
     def __exit__(self, exc_type, exc_val, exc_tb):
