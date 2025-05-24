@@ -87,7 +87,7 @@ class MenuSystem:
                 logo_image = Image.open(logo_path)
                 
                 # 旋转图像180度以解决颠倒问题
-                #rotated_logo = logo_image.rotate(180, expand=True)
+                rotated_logo = logo_image.rotate(0, expand=True)
                 
                 # 显示旋转后的logo
                 self.lcd.show_image(rotated_logo)
@@ -438,29 +438,66 @@ class MenuSystem:
     def cleanup(self):
         """清理资源"""
         try:
-            self.controller.cleanup()
-            self.oled.show_text_oled("再见！")
-            time.sleep(0.5)
-            self.oled.clear()
+            # 首先确保GPIO模式正确设置
+            try:
+                if not GPIO.getmode():
+                    GPIO.setmode(GPIO.BCM)
+                    GPIO.setwarnings(False)
+                    print("🔧 重新设置GPIO模式")
+            except Exception as gpio_setup_error:
+                print(f"⚠️ GPIO模式设置失败: {gpio_setup_error}")
             
-            # 清理LCD显示
+            # 先清理控制器
+            if hasattr(self, 'controller'):
+                try:
+                    self.controller.cleanup()
+                    print("✅ 控制器已清理")
+                except Exception as controller_error:
+                    print(f"⚠️ 控制器清理失败: {controller_error}")
+            
+            # 显示告别信息
+            if hasattr(self, 'oled'):
+                try:
+                    self.oled.show_text_oled("再见！")
+                    time.sleep(0.5)
+                    self.oled.clear()
+                    print("✅ OLED已清理")
+                except Exception as oled_error:
+                    print(f"⚠️ OLED清理失败: {oled_error}")
+            
+            # 清理LCD显示（确保GPIO状态正确）
             if hasattr(self, 'lcd'):
                 try:
+                    # 再次确认GPIO状态
+                    if GPIO.getmode() != GPIO.BCM:
+                        GPIO.setmode(GPIO.BCM)
+                        GPIO.setwarnings(False)
+                    
                     self.lcd.clear()
                     print("✅ LCD已清理")
                 except Exception as lcd_error:
                     print(f"⚠️ LCD清理失败: {lcd_error}")
+                    # 尝试备用清理方法
+                    try:
+                        print("🔄 尝试备用LCD清理方法...")
+                        # 创建一个黑色图像并显示，而不是调用clear()
+                        from PIL import Image
+                        black_image = Image.new('RGB', (320, 240), 'black')
+                        self.lcd.show_image(black_image)
+                        print("✅ LCD备用清理成功")
+                    except Exception as backup_error:
+                        print(f"❌ LCD备用清理也失败: {backup_error}")
             
-            # 清理GPIO（参考derive的方式）
+            # 最后清理GPIO
             try:
                 GPIO.cleanup()
                 print("✅ GPIO已清理")
             except Exception as gpio_error:
                 print(f"⚠️ GPIO清理失败: {gpio_error}")
             
-            print("已清理所有资源")
+            print("✅ 所有资源清理完成")
         except Exception as e:
-            print(f"清理时出错: {e}")
+            print(f"❌ 清理时出错: {e}")
 
     def show_long_text(self, text):
         """显示长文本，支持摇杆控制"""
