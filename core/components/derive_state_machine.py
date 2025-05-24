@@ -10,6 +10,8 @@ from .states import (
     GenerateFeedbackState, ShowFeedbackState, AskContinueState,
     SummaryState, CleanupState, VoiceInputMoodState, ProcessMoodState
 )
+from .states.take_photo_with_voice_state import TakePhotoWithVoiceState
+from .states.process_photo_voice_state import ProcessPhotoVoiceState
 
 class DeriveStateMachine(AbstractStateMachine):
     """史莱姆漂流状态机实现"""
@@ -36,6 +38,8 @@ class DeriveStateMachine(AbstractStateMachine):
         self.register_state(ShowGreetingState())
         self.register_state(AskPhotoState())
         self.register_state(TakePhotoState())
+        self.register_state(TakePhotoWithVoiceState())
+        self.register_state(ProcessPhotoVoiceState())
         self.register_state(AnalyzePhotoState())
         self.register_state(SuggestDestinationState())
         

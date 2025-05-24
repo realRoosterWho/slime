@@ -56,7 +56,7 @@ class ProcessMoodState(AbstractState):
             self._save_processed_mood(context, default_mood)
             
             context.oled_display.show_text_oled(
-                "⚠️ 处理过程出现问题\n\n"
+                "⚠️ 处理过程出现问题\n"
                 "已为你设置默认心情\n"
                 "继续漂流旅程..."
             )
@@ -79,7 +79,7 @@ class ProcessMoodState(AbstractState):
             
             # 显示GPT处理进度
             context.oled_display.show_text_oled(
-                "🤖 AI正在分析...\n\n"
+                "AI正在分析...\n"
                 "理解你的心情状态\n"
                 "优化表达方式..."
             )
@@ -133,7 +133,7 @@ class ProcessMoodState(AbstractState):
         
         result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            f"✨ 心情分析完成\n\n{display_text}\n\n按BT1开始生成史莱姆",
+            f"心情分析完成\n{display_text}\n\n按BT1开始生成史莱姆",
             context=context
         )
         

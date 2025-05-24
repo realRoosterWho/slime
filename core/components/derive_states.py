@@ -10,6 +10,8 @@ class DeriveState(Enum):
     SHOW_GREETING = auto()         # 显示打招呼
     ASK_PHOTO = auto()             # 询问拍照
     TAKE_PHOTO = auto()            # 拍照
+    TAKE_PHOTO_WITH_VOICE = auto() # 拍照+语音 (新增)
+    PROCESS_PHOTO_VOICE = auto()   # 处理拍照+语音数据 (新增)
     ANALYZE_PHOTO = auto()         # 分析照片
     SUGGEST_DESTINATION = auto()   # 建议目的地
     WAIT_FOR_NEW_PHOTO = auto()    # 等待新的照片

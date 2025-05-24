@@ -5,6 +5,8 @@ from .show_slime_image_state import ShowSlimeImageState
 from .show_greeting_state import ShowGreetingState
 from .ask_photo_state import AskPhotoState
 from .take_photo_state import TakePhotoState
+from .take_photo_with_voice_state import TakePhotoWithVoiceState
+from .process_photo_voice_state import ProcessPhotoVoiceState
 from .analyze_photo_state import AnalyzePhotoState
 from .suggest_destination_state import SuggestDestinationState
 
@@ -36,6 +38,8 @@ __all__ = [
     'ShowGreetingState',
     'AskPhotoState',
     'TakePhotoState',
+    'TakePhotoWithVoiceState',
+    'ProcessPhotoVoiceState',
     'AnalyzePhotoState',
     'SuggestDestinationState',
     'VoiceInputMoodState',

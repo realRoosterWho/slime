@@ -62,7 +62,7 @@ class VoiceInputManager:
             # 等待用户确认开始录音
             result = self.context.oled_display.wait_for_button_with_text(
                 self.context.controller,
-                "准备录音...\n\n请在听到提示音后\n说出你的心情状态\n\n按BT1开始录音",
+                "准备录音...\n说出你的心情状态\n按BT1开始录音",
                 context=self.context
             )
             
@@ -203,7 +203,7 @@ class VoiceInputManager:
         if len(display_text) > 80:
             display_text = display_text[:77] + "..."
         
-        result_display = f"识别结果:\n\n{display_text}\n\n按BT1确认 BT2重录"
+        result_display = f"识别结果:\n{display_text}\n按BT1确认 BT2重录"
         
         # 等待用户确认
         result = self.context.oled_display.wait_for_button_with_text(
@@ -225,21 +225,21 @@ class VoiceInputManager:
         """
         error_configs = {
             'microphone_not_found': {
-                'message': '未检测到麦克风\n\n将使用默认心情\n按BT1继续',
+                'message': '未检测到麦克风\n将使用默认心情\n按BT1继续',
                 'action': 'default'
             },
             'recording_failed': {
-                'message': f'录音失败\n\n{error_msg}\n\n按BT1重试 BT2跳过',
+                'message': f'录音失败\n{error_msg}\n\n按BT1重试 BT2跳过',
                 'action': 'retry_or_skip'
             },
             'recognition_failed': {
-                'message': '语音识别失败\n\n按BT1重录\n按BT2使用默认心情',
+                'message': '语音识别失败\n按BT1重录\n按BT2使用默认心情',
                 'action': 'retry_or_default'
             }
         }
         
         config = error_configs.get(error_type, {
-            'message': f'出现错误\n\n{error_msg}\n\n按BT1重试 BT2跳过',
+            'message': f'出现错误\n{error_msg}\n\n按BT1重试 BT2跳过',
             'action': 'retry_or_skip'
         })
         

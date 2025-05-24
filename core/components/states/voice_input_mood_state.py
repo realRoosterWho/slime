@@ -52,10 +52,7 @@ class VoiceInputMoodState(AbstractState):
     def _show_welcome_message(self, context):
         """显示欢迎信息"""
         context.oled_display.show_text_oled(
-            "史莱姆漂流系统\n\n"
-            "欢迎来到漂流世界！\n"
-            "让我们开始你的\n"
-            "专属史莱姆之旅"
+            "欢迎来到漂流世界！"
         )
         context.sleep(2)
     
@@ -64,8 +61,7 @@ class VoiceInputMoodState(AbstractState):
         # 显示选择界面
         result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            "语音输入心情\n\n"
-            "请选择输入方式：\n"
+            "语音输入心情\n"
             "按BT1 - 语音输入\n"
             "按BT2 - 使用默认",
             context=context
@@ -144,7 +140,7 @@ class VoiceInputMoodState(AbstractState):
         
         # 超过最大重试次数
         context.oled_display.show_text_oled(
-            "语音输入失败\n\n"
+            "语音输入失败\n"
             "已达到最大重试次数\n"
             "将使用默认心情"
         )
@@ -161,7 +157,7 @@ class VoiceInputMoodState(AbstractState):
         
         # 显示默认心情
         context.oled_display.show_text_oled(
-            "使用默认心情\n\n"
+            "使用默认心情\n"
             "已为你选择一个\n"
             "轻松愉快的心情状态"
         )
