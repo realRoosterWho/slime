@@ -86,12 +86,12 @@ class MenuSystem:
                 # 加载logo图像
                 logo_image = Image.open(logo_path)
                 
-                # 旋转图像180度以解决颠倒问题
-                rotated_logo = logo_image.rotate(0, expand=True)
+                # 应用水平翻转（左右镜像）
+                mirrored_logo = logo_image.transpose(Image.FLIP_LEFT_RIGHT)
                 
-                # 显示旋转后的logo
-                self.lcd.show_image(rotated_logo)
-                print(f"✅ Logo已显示在LCD上（已旋转180度）: {logo_path}")
+                # 显示镜像后的logo
+                self.lcd.show_image(mirrored_logo)
+                print(f"✅ Logo已显示在LCD上（已水平镜像）: {logo_path}")
             else:
                 print(f"⚠️ Logo文件未找到: {logo_path}")
                 # 显示默认的文本logo
