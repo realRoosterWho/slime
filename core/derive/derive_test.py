@@ -111,30 +111,19 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
     )
     return response
 
-def run_camera_test(save_path=None, filename="current_image.jpg"):
+def run_camera_test():
     """拍照函数"""
     # 获取项目根目录
     current_file = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-    
+    camera_script = os.path.join(project_root, "core", "camera", "camera_manager.py")
+
     try:
-        import sys
-        sys.path.insert(0, project_root)
-        from core.camera.camera_manager import CameraManager
-        
-        camera = CameraManager()
-        result = camera.take_photo(filename=filename, save_path=save_path)
-        
-        if result:
-            print(f"拍照完成，照片保存至: {result}")
-            return result
-        else:
-            print("拍照失败")
-            return None
-            
-    except Exception as e:
-        print(f"拍照过程出错: {e}")
-        return None
+        print("启动拍照脚本...")
+        subprocess.run(["/usr/bin/python3", camera_script], check=True)
+        print("拍照完成。")
+    except subprocess.CalledProcessError as e:
+        print(f"拍照脚本运行出错: {e}")
 
 def encode_image(image_path):
     """编码图片成base64"""
@@ -751,12 +740,10 @@ class DeriveStateMachine:
             display_text = "准备拍摄新照片\n请按下BT1按钮"
             button_text = "按下BT1按钮拍照"
             log_step = "新照片"
-            filename = f"new_photo_{self.logger.timestamp}.jpg"
         else:
             display_text = "准备拍照\n请按下BT1按钮"
             button_text = "按下BT1按钮拍照"
             log_step = "拍照"
-            filename = f"photo_{self.logger.timestamp}.jpg"
         
         self.oled_display.show_text_oled(display_text)
         
@@ -765,29 +752,24 @@ class DeriveStateMachine:
         
         self.oled_display.show_text_oled("正在拍照...")
         
-        # 直接将照片保存到日志目录
+        # 运行相机脚本拍照
+        run_camera_test()
+        
+        # 查找最新拍摄的照片
         try:
-            # 直接拍照到日志目录
-            photo_path = run_camera_test(save_path=self.logger.log_dir, filename=filename)
-            
-            if not photo_path or not os.path.exists(photo_path):
+            # 先检查项目根目录是否有照片
+            photo_path = os.path.join(self.get_project_root(), "current_image.jpg")
+            if not os.path.exists(photo_path):
                 raise FileNotFoundError("未找到拍摄的照片")
+            
+            # 保存带时间戳的照片副本
+            timestamped_key = self.save_photo_with_timestamp(photo_path, is_new_photo)
             
             # 在LCD上显示照片
             img = Image.open(photo_path)
             self.lcd_display.show_image(img)
             
-            # 保存照片路径到数据中
-            if is_new_photo:
-                self.data['new_image_path'] = photo_path
-                self.data['new_timestamped_image'] = photo_path
-                self.logger.save_image(photo_path, 'new_photo')
-            else:
-                self.data['image_path'] = photo_path
-                self.data['timestamped_image'] = photo_path
-                self.logger.save_image(photo_path, 'original_photo')
-            
-            self.logger.log_step(log_step, f"{'新' if is_new_photo else ''}照片已保存: {photo_path}")
+            self.logger.log_step(log_step, f"{'新' if is_new_photo else ''}照片已保存: {self.data[timestamped_key]}")
             
             # 等待用户确认照片
             self.oled_display.show_text_oled("照片已拍摄\n按BT1继续")

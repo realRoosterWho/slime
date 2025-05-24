@@ -377,35 +377,19 @@ def cleanup_handler(signum, frame):
     finally:
         sys.exit(0)
 
-def run_camera_test(save_path=None, filename="current_image.jpg"):
-    """拍照函数
-    Args:
-        save_path: 保存路径，如果为None则保存到当前目录
-        filename: 文件名，默认为current_image.jpg
-    """
+def run_camera_test():
+    """拍照函数"""
     # 获取项目根目录
     current_file = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-    
-    # 导入相机管理器并直接调用
+    camera_script = os.path.join(project_root, "core", "camera", "camera_manager.py")
+
     try:
-        import sys
-        sys.path.insert(0, project_root)
-        from core.camera.camera_manager import CameraManager
-        
-        camera = CameraManager()
-        result = camera.take_photo(filename=filename, save_path=save_path)
-        
-        if result:
-            print(f"拍照完成，照片保存至: {result}")
-            return result
-        else:
-            print("拍照失败")
-            return None
-            
-    except Exception as e:
-        print(f"拍照过程出错: {e}")
-        return None
+        print("启动拍照脚本...")
+        subprocess.run(["/usr/bin/python3", camera_script], check=True)
+        print("拍照完成。")
+    except subprocess.CalledProcessError as e:
+        print(f"拍照脚本运行出错: {e}")
 
 def encode_image(image_path):
     """编码图片成base64"""

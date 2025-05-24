@@ -27,14 +27,16 @@ class TakeNewPhotoState(AbstractState):
         context.oled_display.show_text_oled("正在拍照...")
         
         try:
-            # 生成文件名
-            filename = f"new_photo_{context.logger.timestamp}.jpg"
+            # 使用相机管理器拍照
+            run_camera_test()
             
-            # 直接拍照到日志目录
-            photo_path = run_camera_test(save_path=context.logger.log_dir, filename=filename)
-            
-            if not photo_path or not os.path.exists(photo_path):
+            # 查找最新拍摄的照片
+            photo_path = os.path.join(context.get_project_root(), "current_image.jpg")
+            if not os.path.exists(photo_path):
                 raise FileNotFoundError("未找到拍摄的照片")
+            
+            # 保存带时间戳的照片副本
+            timestamped_path = self._save_new_photo_with_timestamp(context, photo_path)
             
             # 在LCD上显示照片
             img = Image.open(photo_path)
@@ -42,10 +44,10 @@ class TakeNewPhotoState(AbstractState):
             
             # 将新照片路径保存到上下文
             context.set_data('new_photo_path', photo_path)
-            context.set_data('new_timestamped_image', photo_path)
+            context.set_data('new_timestamped_image', timestamped_path)
             
             context.logger.log_step("拍摄新照片", f"新照片已保存至: {photo_path}")
-            context.logger.save_image(photo_path, 'new_photo')
+            context.logger.save_image(timestamped_path, 'new_photo')
             
             # 等待用户确认照片
             result = context.oled_display.wait_for_button_with_text(
@@ -76,6 +78,18 @@ class TakeNewPhotoState(AbstractState):
             return DeriveState.WAIT_FOR_NEW_PHOTO
         
         return DeriveState.ANALYZE_NEW_PHOTO
+    
+    def _save_new_photo_with_timestamp(self, context, photo_path):
+        """保存带时间戳的新照片副本"""
+        filename = os.path.basename(photo_path)
+        name, ext = os.path.splitext(filename)
+        timestamped_filename = f"{name}_new_{context.logger.timestamp}{ext}"
+        timestamped_path = os.path.join(context.get_project_root(), timestamped_filename)
+        
+        # 复制照片
+        shutil.copy2(photo_path, timestamped_path)
+        
+        return timestamped_path
     
     def _wait_for_button(self, context, text):
         """等待按钮按下"""
