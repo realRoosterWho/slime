@@ -93,7 +93,7 @@ class PhotoVoiceManager:
     def _show_preparation(self):
         """显示准备界面"""
         self.context.oled_display.show_text_oled(
-            "拍照+语音模式\n准备摆pose\n并描述感受"
+            "拍照+语音模式\n准备拍摄\n并描述感受"
         )
         time.sleep(2)
     

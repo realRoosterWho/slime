@@ -32,7 +32,7 @@ class AskPhotoState(AbstractState):
         # 等待用户按钮确认开始拍照+语音
         result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            "拍照+语音模式\n\n15秒倒计时对准环境\n同时说出感受\n\nBT1开始",
+            "拍照+语音模式\n25秒倒对准环境说出感受\nBT1开始",
             context=context
         )
         

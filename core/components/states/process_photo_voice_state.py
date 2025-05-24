@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 
 from ..abstract_state import AbstractState
 from ..derive_states import DeriveState
@@ -44,8 +45,25 @@ class ProcessPhotoVoiceState(AbstractState):
         context.oled_display.show_text_oled("正在分析\n照片和语音...")
         
         try:
+            # 添加详细的调试信息
+            context.logger.log_step("照片路径检查", f"照片路径: {photo_path}")
+            
+            # 检查照片文件是否存在
+            if not os.path.exists(photo_path):
+                raise FileNotFoundError(f"照片文件不存在: {photo_path}")
+            
+            # 检查文件大小
+            file_size = os.path.getsize(photo_path)
+            context.logger.log_step("照片文件检查", f"文件大小: {file_size} bytes")
+            
+            if file_size == 0:
+                raise ValueError("照片文件为空")
+            
             # 编码照片为base64
+            context.logger.log_step("照片编码", "开始Base64编码...")
             base64_image = encode_image(photo_path)
+            context.logger.log_step("照片编码完成", f"Base64长度: {len(base64_image)} 字符")
+            
             data_url = f"data:image/jpeg;base64,{base64_image}"
             
             # 使用聊天工具进行组合分析
@@ -73,18 +91,30 @@ class ProcessPhotoVoiceState(AbstractState):
                 {"type": "input_image", "image_url": data_url}
             ]
             
+            context.logger.log_step("AI分析请求", "发送照片+语音到AI...")
+            
             # 调用分析
             combined_analysis = chat_utils.chat_with_continuity(input_content)
+            
+            # 检查AI是否真的看到了照片
+            if "抱歉" in combined_analysis or "无法" in combined_analysis or "看到" not in combined_analysis.lower():
+                context.logger.log_step("AI分析警告", "AI可能无法识别照片内容")
+                context.logger.log_step("AI回复检查", f"回复内容: {combined_analysis[:100]}...")
+                
+                # 回退到仅语音分析，但记录照片问题
+                context.logger.log_step("处理策略", "AI无法识别照片，回退到语音分析")
+                self._analyze_voice_only(context, voice_text)
+                return
             
             # 保存分析结果
             context.set_data('photo_description', combined_analysis)
             context.set_data('voice_enhanced_analysis', True)  # 标记为语音增强分析
             context.response_id = chat_utils.response_id
             
-            context.logger.log_step("照片+语音分析", combined_analysis)
+            context.logger.log_step("照片+语音分析成功", combined_analysis)
             
         except Exception as e:
-            context.logger.log_step("错误", f"照片+语音分析失败: {str(e)}")
+            context.logger.log_step("照片+语音分析错误", f"分析失败: {str(e)}")
             # 回退到仅语音分析
             self._analyze_voice_only(context, voice_text)
     

@@ -25,7 +25,7 @@ class TakeNewPhotoState(AbstractState):
             # 显示提示信息
             context.oled_display.show_text_oled(
                 "新照片+语音模式\n"
-                "准备摆pose\n"
+                "对准拍摄目标\n"
                 "并描述新发现"
             )
             time.sleep(2)

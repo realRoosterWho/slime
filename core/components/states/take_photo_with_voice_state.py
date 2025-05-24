@@ -71,7 +71,7 @@ class TakePhotoWithVoiceState(AbstractState):
     def _handle_photo_failure(self, context, error_msg: str):
         """处理拍照失败的情况"""
         context.oled_display.show_text_oled(
-            "拍照失败\n请重试\n\n按BT1重新拍照"
+            "拍照失败\n请重试\n按BT1重新拍照"
         )
         
         # 等待用户选择重试
