@@ -31,12 +31,12 @@ class VoiceInputManager:
         
         # 录音配置
         self.recording_config = {
-            'duration': 8,           # 录音时长
+            'duration': 15,          # 录音时长（改为15秒，与拍照+语音模式一致）
             'language': 'zh-CN',     # 语言
             'channels': 1            # 单声道
         }
     
-    def record_mood_voice(self, duration: int = 8) -> Tuple[bool, Optional[str], Optional[str]]:
+    def record_mood_voice(self, duration: int = 15) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         录制心情语音
         

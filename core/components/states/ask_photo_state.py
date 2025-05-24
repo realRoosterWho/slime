@@ -24,15 +24,15 @@ class AskPhotoState(AbstractState):
         context.oled_display.show_text_oled(f"史莱姆说：\n{photo_question}")
         context.sleep(3)
         
-        # 提供拍照模式选择
-        self._choose_photo_mode(context)
+        # 直接开始拍照+语音流程
+        self._start_photo_voice_process(context)
     
-    def _choose_photo_mode(self, context):
-        """让用户选择拍照模式"""
-        # 等待用户选择拍照模式
+    def _start_photo_voice_process(self, context):
+        """开始拍照+语音流程"""
+        # 等待用户按钮确认开始拍照+语音
         result = context.oled_display.wait_for_button_with_text(
             context.controller,
-            "选择拍照模式：\n\nBT1 - 快速拍照\nBT2 - 拍照+语音",
+            "拍照+语音模式\n\n15秒倒计时摆pose\n同时说出感受\n\nBT1开始",
             context=context
         )
         
@@ -41,34 +41,18 @@ class AskPhotoState(AbstractState):
             context.logger.log_step("用户操作", "用户长按返回菜单")
             return
         
-        # 根据按键选择模式
-        if hasattr(context.controller, 'last_button'):
-            if context.controller.last_button == 'BTN1':
-                # 选择快速拍照模式
-                context.set_data('photo_mode', 'quick')
-                context.logger.log_step("拍照模式", "用户选择快速拍照模式")
-                context.oled_display.show_text_oled("快速拍照模式\n准备拍照...")
-            elif context.controller.last_button == 'BTN2':
-                # 选择拍照+语音模式
-                context.set_data('photo_mode', 'voice')
-                context.logger.log_step("拍照模式", "用户选择拍照+语音模式")
-                context.oled_display.show_text_oled("拍照+语音模式\n15秒倒计时拍照")
-        else:
-            # 默认选择快速拍照
-            context.set_data('photo_mode', 'quick')
-            context.logger.log_step("拍照模式", "默认选择快速拍照模式")
+        # 设置为拍照+语音模式
+        context.set_data('photo_mode', 'voice')
+        context.logger.log_step("拍照模式", "开始拍照+语音模式")
         
+        # 显示准备提示
+        context.oled_display.show_text_oled("准备开始\n拍照+语音...")
         context.sleep(2)
     
     def get_next_state(self, context) -> Optional[DeriveState]:
-        """返回下一个状态：根据选择的模式决定"""
+        """返回下一个状态：拍照+语音"""
         if context.should_return_to_menu():
             return DeriveState.EXIT
         
-        # 根据用户选择的拍照模式决定下一个状态
-        photo_mode = context.get_data('photo_mode', 'quick')
-        
-        if photo_mode == 'voice':
-            return DeriveState.TAKE_PHOTO_WITH_VOICE
-        else:
-            return DeriveState.TAKE_PHOTO 
+        # 直接进入拍照+语音状态
+        return DeriveState.TAKE_PHOTO_WITH_VOICE 

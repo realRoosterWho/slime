@@ -91,7 +91,7 @@ class VoiceInputMoodState(AbstractState):
                 context.logger.log_step("语音录制", f"开始第 {retry_count + 1} 次录音尝试")
                 
                 # 录制语音
-                success, raw_text, error_msg = voice_manager.record_mood_voice(duration=8)
+                success, raw_text, error_msg = voice_manager.record_mood_voice(duration=15)
                 
                 if success and raw_text:
                     # 验证语音结果

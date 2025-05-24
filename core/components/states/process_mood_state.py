@@ -56,7 +56,7 @@ class ProcessMoodState(AbstractState):
             self._save_processed_mood(context, default_mood)
             
             context.oled_display.show_text_oled(
-                "⚠️ 处理过程出现问题\n"
+                "处理过程出现问题\n"
                 "已为你设置默认心情\n"
                 "继续漂流旅程..."
             )
@@ -65,9 +65,9 @@ class ProcessMoodState(AbstractState):
     def _show_processing_message(self, context, is_voice_input: bool):
         """显示处理中信息"""
         if is_voice_input:
-            message = "🧠 正在分析心情...\n\n通过AI理解你的\n真实感受..."
+            message = "正在分析心情...\n\n通过AI理解你的\n真实感受..."
         else:
-            message = "📝 正在准备心情...\n\n为你设置完美的\n漂流状态..."
+            message = "正在准备心情...\n\n为你设置完美的\n漂流状态..."
         
         context.oled_display.show_text_oled(message)
         context.sleep(1)
@@ -144,7 +144,7 @@ class ProcessMoodState(AbstractState):
         
         # 显示即将开始的提示
         context.oled_display.show_text_oled(
-            "🎨 准备生成史莱姆...\n\n"
+            "准备生成史莱姆...\n\n"
             "根据你的心情\n"
             "创造专属角色..."
         )
