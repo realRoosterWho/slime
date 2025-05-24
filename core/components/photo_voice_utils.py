@@ -18,12 +18,7 @@ except ImportError as e:
     STT_AVAILABLE = False
 
 # 导入相机模块
-try:
-    from ..camera.camera_manager import CameraManager
-    CAMERA_AVAILABLE = True
-except ImportError as e:
-    print(f"相机模块不可用: {e}")
-    CAMERA_AVAILABLE = False
+from .derive_utils import run_camera_test
 
 class PhotoVoiceManager:
     """拍照+语音录制管理器 - 处理15秒拍照倒计时和并行语音录制"""
@@ -32,8 +27,7 @@ class PhotoVoiceManager:
         self.context = context
         self.is_countdown_active = False
         self.is_voice_recording = False
-        self.countdown_thread = None
-        self.voice_thread = None
+        self.camera_thread = None
         self.progress_thread = None
         
         # 录制配置
@@ -44,16 +38,6 @@ class PhotoVoiceManager:
         self.photo_taken = False
         self.voice_text = None
         self.voice_error = None
-        
-        # 初始化相机管理器
-        if CAMERA_AVAILABLE:
-            try:
-                self.camera_manager = CameraManager()
-            except Exception as e:
-                print(f"相机初始化失败: {e}")
-                self.camera_manager = None
-        else:
-            self.camera_manager = None
         
     def take_photo_with_voice(self) -> Tuple[bool, Optional[str], Optional[str]]:
         """
@@ -74,7 +58,7 @@ class PhotoVoiceManager:
             # 等待用户确认开始
             result = self.context.oled_display.wait_for_button_with_text(
                 self.context.controller,
-                "准备拍照+语音15秒\n同时说出感受\n按BT1开始",
+                "拍照+语音模式\n\n同时进行拍照倒计时\n和语音录制\n\nBT1开始",
                 context=self.context
             )
             
@@ -110,165 +94,140 @@ class PhotoVoiceManager:
     def _show_preparation(self):
         """显示准备界面"""
         self.context.oled_display.show_text_oled(
-            "拍照+语音模式\n准备对准环境\n并描述感受"
+            "拍照+语音模式\n准备摆pose\n并描述感受"
         )
         time.sleep(2)
     
     def _start_photo_voice_process(self) -> bool:
-        """启动拍照倒计时和语音录制"""
+        """启动拍照脚本和语音录制 - 录音在主线程"""
         try:
-            # 预先启动相机（如果可用）
-            if self.camera_manager:
-                self.context.logger.log_step("相机准备", "预先启动相机")
-                self.camera_manager.start_camera()
-            
-            # 启动拍照倒计时线程
-            self.countdown_thread = threading.Thread(
-                target=self._photo_countdown_worker
-            )
-            
-            # 启动语音录制线程（如果可用）
-            if STT_AVAILABLE:
-                self.voice_thread = threading.Thread(
-                    target=self._voice_recording_worker
-                )
-            
-            # 启动进度显示线程
-            self.progress_thread = threading.Thread(
-                target=self._progress_display_worker
+            # 启动拍照脚本线程（并行执行）
+            self.camera_thread = threading.Thread(
+                target=self._camera_script_worker
             )
             
             # 显示开始提示
-            self.context.oled_display.show_text_oled("3秒后开始\n相机已准备就绪\n准备摆pose...")
-            time.sleep(3)
+            self.context.oled_display.show_text_oled("即将开始\n摆pose+说话...")
+            time.sleep(1)
             
-            # 开始所有线程
+            # 先启动拍照脚本
             self.is_countdown_active = True
+            self.camera_thread.start()
+            
+            # 主线程执行语音录制（如果可用）
             if STT_AVAILABLE:
                 self.is_voice_recording = True
+                success = self._record_voice_in_main_thread()
+            else:
+                success = True
+                # 如果没有语音功能，等待拍照完成
+                self.camera_thread.join()
             
-            self.countdown_thread.start()
-            if STT_AVAILABLE and self.voice_thread:
-                self.voice_thread.start()
-            self.progress_thread.start()
+            # 等待拍照线程完成（如果还没完成）
+            if self.camera_thread.is_alive():
+                self.camera_thread.join()
             
-            # 等待所有线程完成
-            self.countdown_thread.join()
-            if STT_AVAILABLE and self.voice_thread:
-                self.voice_thread.join()
-            self.progress_thread.join()
-            
-            # 完成后停止相机
-            if self.camera_manager:
-                self.camera_manager.stop_camera()
-            
-            return self.photo_taken
+            return self.photo_taken and success
             
         except Exception as e:
             self.voice_error = f"拍照+语音过程异常: {str(e)}"
             self._stop_all_processes()
             return False
     
-    def _photo_countdown_worker(self):
-        """拍照倒计时工作线程"""
+    def _record_voice_in_main_thread(self) -> bool:
+        """在主线程中执行语音录制"""
         try:
-            countdown = self.photo_countdown
+            self.context.logger.log_step("语音录制", "在主线程开始12秒语音录制")
             
-            while countdown > 0 and self.is_countdown_active:
-                time.sleep(1)
-                countdown -= 1
-            
-            if self.is_countdown_active:
-                # 倒计时结束，立即拍照（相机已预先启动）
-                self.context.logger.log_step("拍照", "倒计时结束，立即拍照")
-                
-                # 检查相机是否可用并已启动
-                if self.camera_manager and self.camera_manager.is_started:
-                    # 快速拍照，无启动延迟
-                    self.photo_taken = self.camera_manager.take_photo()
-                    if self.photo_taken:
-                        self.context.logger.log_step("拍照成功", "照片已保存")
-                    else:
-                        self.context.logger.log_step("拍照失败", "相机拍照失败")
-                else:
-                    # 相机不可用，使用备用方法
-                    self.context.logger.log_step("拍照备用", "使用备用拍照方法")
-                    from .derive_utils import run_camera_test
-                    try:
-                        run_camera_test()
-                        self.photo_taken = True
-                    except Exception as e:
-                        self.context.logger.log_step("备用拍照失败", str(e))
-                        self.photo_taken = False
-                
-        except Exception as e:
-            self.voice_error = f"拍照失败: {str(e)}"
-            self.photo_taken = False
-            self.context.logger.log_step("拍照异常", str(e))
-        finally:
-            self.is_countdown_active = False
-    
-    def _voice_recording_worker(self):
-        """语音录制工作线程"""
-        try:
             # 创建语音识别实例
             stt = SpeechToText(
                 language_code='zh-CN',
                 channels=1
             )
             
-            # 开始录音识别（限制在voice_duration时间内）
+            # 在主线程中执行录音，同时显示进度
+            start_time = time.time()
+            
+            # 启动进度显示子线程
+            self.progress_thread = threading.Thread(
+                target=self._progress_display_worker,
+                args=(start_time,)
+            )
+            self.progress_thread.start()
+            
+            # 主线程执行录音（阻塞）
             self.voice_text = stt.record_and_transcribe(duration=self.voice_duration)
+            
+            # 录音完成，停止进度显示
+            self.is_voice_recording = False
+            
+            # 等待进度显示线程结束
+            if self.progress_thread.is_alive():
+                self.progress_thread.join()
+            
+            # 显示完成状态
+            self.context.oled_display.show_text_oled(
+                "语音录制完成\n等待拍照完成...\n请稍候"
+            )
+            
+            self.context.logger.log_step("语音录制完成", f"录制到文本: {self.voice_text[:30] if self.voice_text else 'None'}...")
+            return True
             
         except Exception as e:
             self.voice_error = f"语音录制失败: {str(e)}"
             self.voice_text = None
-        finally:
             self.is_voice_recording = False
+            self.context.logger.log_step("语音录制失败", str(e))
+            return False
     
-    def _progress_display_worker(self):
-        """进度显示工作线程"""
-        start_time = time.time()
-        
-        while (self.is_countdown_active or self.is_voice_recording):
+    def _camera_script_worker(self):
+        """拍照脚本工作线程 - 直接启动camera脚本"""
+        try:
+            self.context.logger.log_step("拍照脚本", "启动run camera脚本")
+            # 直接调用camera脚本，让脚本自己处理倒计时和拍照
+            run_camera_test()
+            self.photo_taken = True
+            self.context.logger.log_step("拍照完成", "camera脚本执行完成")
+                
+        except Exception as e:
+            self.voice_error = f"拍照脚本失败: {str(e)}"
+            self.photo_taken = False
+            self.context.logger.log_step("拍照失败", str(e))
+        finally:
+            self.is_countdown_active = False
+    
+    def _progress_display_worker(self, start_time: float):
+        """进度显示工作线程 - 显示语音录制进度"""
+        while self.is_voice_recording:
             elapsed = time.time() - start_time
             
-            # 生成组合进度显示
-            progress_text = self._generate_combined_progress(elapsed)
+            # 生成语音录制进度显示
+            progress_text = self._generate_voice_progress(elapsed)
             self.context.oled_display.show_text_oled(progress_text)
             
             time.sleep(0.5)  # 0.5秒更新一次
-        
-        # 显示完成状态
-        self.context.oled_display.show_text_oled(
-            "拍照完成\n语音识别中...\n请稍候"
-        )
     
-    def _generate_combined_progress(self, elapsed: float) -> str:
-        """生成组合进度显示"""
-        # 拍照倒计时进度
-        photo_remaining = max(0, self.photo_countdown - elapsed)
-        photo_progress = min(elapsed / self.photo_countdown, 1.0)
-        
+    def _generate_voice_progress(self, elapsed: float) -> str:
+        """生成语音录制进度显示"""
         # 语音录制进度
         voice_progress = min(elapsed / self.voice_duration, 1.0) if STT_AVAILABLE else 0
+        remaining_time = max(0, self.voice_duration - elapsed)
         
-        # 进度条（缩短以适应3行显示）
-        bar_length = 6
-        photo_filled = int(bar_length * photo_progress)
+        # 进度条
+        bar_length = 8
         voice_filled = int(bar_length * voice_progress)
+        voice_bar = '#' * voice_filled + '-' * (bar_length - voice_filled)
+        percentage = int(voice_progress * 100)
         
-        photo_bar = '#' * photo_filled + '-' * (bar_length - photo_filled)
-        voice_bar = '#' * voice_filled + '-' * (bar_length - voice_filled) if STT_AVAILABLE else '------'
-        
-        # 组合显示（3行）
-        display_text = f"拍照 {photo_remaining:.0f}s [{photo_bar}]\n"
+        # 简化显示（3行）
         if STT_AVAILABLE:
-            display_text += f"语音 [{voice_bar}]\n"
-            display_text += "请摆pose并说话"
+            display_text = f"语音录制中\n"
+            display_text += f"[{voice_bar}] {percentage}%\n"
+            display_text += f"剩余 {remaining_time:.0f} 秒"
         else:
-            display_text += "语音不可用\n"
-            display_text += "请摆pose"
+            display_text = "拍照模式\n"
+            display_text += "语音功能不可用\n"
+            display_text += "仅拍照"
         
         return display_text
     
@@ -276,10 +235,6 @@ class PhotoVoiceManager:
         """停止所有进程"""
         self.is_countdown_active = False
         self.is_voice_recording = False
-        
-        # 停止相机
-        if self.camera_manager:
-            self.camera_manager.stop_camera()
     
     def validate_photo_voice_result(self, photo_success: bool, voice_text: Optional[str]) -> bool:
         """验证拍照+语音结果的有效性"""
