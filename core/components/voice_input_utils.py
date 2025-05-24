@@ -62,7 +62,7 @@ class VoiceInputManager:
             # 等待用户确认开始录音
             result = self.context.oled_display.wait_for_button_with_text(
                 self.context.controller,
-                "🎤 准备录音...\n\n请在听到提示音后\n说出你的心情状态\n\n按BT1开始录音",
+                "准备录音...\n\n请在听到提示音后\n说出你的心情状态\n\n按BT1开始录音",
                 context=self.context
             )
             
@@ -91,10 +91,7 @@ class VoiceInputManager:
     def _show_recording_preparation(self):
         """显示录音准备界面"""
         self.context.oled_display.show_text_oled(
-            "🌟 史莱姆漂流系统\n\n"
-            "请告诉我你现在的心情\n"
-            "按BT1开始录音\n"
-            "按BT2使用默认心情"
+            "说出你的心情\nBT1开始录音\nBT2默认心情"
         )
         time.sleep(1)
     
@@ -114,7 +111,7 @@ class VoiceInputManager:
             )
             
             # 显示开始提示
-            self.context.oled_display.show_text_oled("🎤 录音即将开始...\n准备说出你的心情")
+            self.context.oled_display.show_text_oled("即将开始录音\n准备说话...")
             time.sleep(1)
             
             # 开始录音
@@ -174,24 +171,24 @@ class VoiceInputManager:
         # 显示录音完成
         if self.is_recording or elapsed_time >= duration:
             self.context.oled_display.show_text_oled(
-                "✅ 录音完成\n\n正在识别语音...\n[■■■■■■■■■■] 100%"
+                "录音完成\n正在识别...\n[########] 100%"
             )
     
     def _generate_progress_text(self, elapsed_time: float, total_duration: int) -> str:
-        """生成进度显示文本"""
+        """生成进度显示文本 - 简化版本，只占用3行"""
         progress = min(elapsed_time / total_duration, 1.0)
-        bar_length = 10
+        bar_length = 8  # 缩短进度条长度
         filled_length = int(bar_length * progress)
         
-        # 进度条: [████████▓▓] 80%
-        bar = '█' * filled_length + '▓' * (bar_length - filled_length)
+        # 进度条: [####----] 50%
+        bar = '#' * filled_length + '-' * (bar_length - filled_length)
         percentage = int(progress * 100)
         
         remaining_time = max(0, total_duration - elapsed_time)
         
-        display_text = f"🎤 录音中... {elapsed_time:.0f}/{total_duration}秒\n"
+        # 简化为3行显示
+        display_text = f"录音 {elapsed_time:.0f}/{total_duration}秒\n"
         display_text += f"[{bar}] {percentage}%\n"
-        display_text += f"\n请说出你的心情...\n"
         display_text += f"剩余 {remaining_time:.0f} 秒"
         
         return display_text
@@ -206,7 +203,7 @@ class VoiceInputManager:
         if len(display_text) > 80:
             display_text = display_text[:77] + "..."
         
-        result_display = f"📝 识别结果:\n\n{display_text}\n\n按BT1确认 BT2重录"
+        result_display = f"识别结果:\n\n{display_text}\n\n按BT1确认 BT2重录"
         
         # 等待用户确认
         result = self.context.oled_display.wait_for_button_with_text(
@@ -228,21 +225,21 @@ class VoiceInputManager:
         """
         error_configs = {
             'microphone_not_found': {
-                'message': '❌ 未检测到麦克风\n\n将使用默认心情\n按BT1继续',
+                'message': '未检测到麦克风\n\n将使用默认心情\n按BT1继续',
                 'action': 'default'
             },
             'recording_failed': {
-                'message': f'❌ 录音失败\n\n{error_msg}\n\n按BT1重试 BT2跳过',
+                'message': f'录音失败\n\n{error_msg}\n\n按BT1重试 BT2跳过',
                 'action': 'retry_or_skip'
             },
             'recognition_failed': {
-                'message': '❌ 语音识别失败\n\n按BT1重录\n按BT2使用默认心情',
+                'message': '语音识别失败\n\n按BT1重录\n按BT2使用默认心情',
                 'action': 'retry_or_default'
             }
         }
         
         config = error_configs.get(error_type, {
-            'message': f'❌ 出现错误\n\n{error_msg}\n\n按BT1重试 BT2跳过',
+            'message': f'出现错误\n\n{error_msg}\n\n按BT1重试 BT2跳过',
             'action': 'retry_or_skip'
         })
         
