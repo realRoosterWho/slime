@@ -31,8 +31,7 @@ class PhotoVoiceManager:
         self.progress_thread = None
         
         # 录制配置
-        self.photo_countdown = 15  # 15秒拍照倒计时
-        self.voice_duration = 12   # 语音录制12秒（在倒计时期间）
+        self.voice_duration = 25   # 语音录制25秒（测试用，更充足的时间）
         
         # 结果存储
         self.photo_taken = False
@@ -137,7 +136,7 @@ class PhotoVoiceManager:
     def _record_voice_in_main_thread(self) -> bool:
         """在主线程中执行语音录制"""
         try:
-            self.context.logger.log_step("语音录制", "在主线程开始12秒语音录制")
+            self.context.logger.log_step("语音录制", "在主线程开始25秒语音录制")
             
             # 创建语音识别实例
             stt = SpeechToText(
