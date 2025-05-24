@@ -8,7 +8,7 @@ from .states import (
     WaitForNewPhotoState, TakeNewPhotoState, AnalyzeNewPhotoState,
     AnalyzeRewardState, GenerateRewardImageState, ShowRewardState,
     GenerateFeedbackState, ShowFeedbackState, AskContinueState,
-    SummaryState, CleanupState
+    SummaryState, CleanupState, VoiceInputMoodState, ProcessMoodState
 )
 
 class DeriveStateMachine(AbstractStateMachine):
@@ -25,6 +25,10 @@ class DeriveStateMachine(AbstractStateMachine):
     
     def initialize_states(self) -> None:
         """初始化所有状态"""
+        # 注册语音输入系统状态 (新增)
+        self.register_state(VoiceInputMoodState())
+        self.register_state(ProcessMoodState())
+        
         # 注册基础流程状态
         self.register_state(InitState())
         self.register_state(GenSlimeImageState())
@@ -52,12 +56,12 @@ class DeriveStateMachine(AbstractStateMachine):
         self.register_state(SummaryState())
         self.register_state(CleanupState())
         
-        print("✅ 状态机初始化完成，已注册 19 个状态")
-        print("📋 基础流程 8 个 + 奖励系统 6 个 + 反馈系统 3 个 + 结束系统 2 个状态")
+        print("✅ 状态机初始化完成，已注册 21 个状态")
+        print("📋 语音输入 2 个 + 基础流程 8 个 + 奖励系统 6 个 + 反馈系统 3 个 + 结束系统 2 个状态")
     
     def get_initial_state(self) -> DeriveState:
         """获取初始状态"""
-        return DeriveState.INIT
+        return DeriveState.VOICE_INPUT_MOOD  # 修改为语音输入状态
 
 def main():
     """测试函数"""

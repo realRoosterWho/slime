@@ -2,6 +2,8 @@ from enum import Enum, auto
 
 class DeriveState(Enum):
     """漂流状态枚举"""
+    VOICE_INPUT_MOOD = auto()      # 语音输入心情 (新增)
+    PROCESS_MOOD = auto()          # 处理心情 (新增)
     INIT = auto()                  # 初始化
     GEN_SLIME_IMAGE = auto()       # 生成史莱姆图片
     SHOW_SLIME_IMAGE = auto()      # 显示史莱姆图片

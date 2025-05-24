@@ -34,19 +34,10 @@ def cleanup_handler(signum, frame):
         sys.exit(0)
 
 def get_initial_text_from_user():
-    """获取用户输入的初始文本（如果在控制台环境）"""
-    # 对于硬件环境，使用默认文本
-    # 将来可以扩展为通过界面输入
-    default_texts = [
-        "感觉空气布满了水雾，有一种看不清前方道路的错觉，觉得很放松。你能带我在这个氛围里面漂流吗？",
-        "今天心情很好，想要探索一些新奇有趣的地方。",
-        "感到有些疲惫，希望能找到一个安静美好的地方休息。",
-        "充满好奇心，想要发现一些神秘或者有趣的事物。",
-        "心情平静，想要体验一段轻松愉快的旅程。"
-    ]
-    
-    # 随机选择或使用第一个作为默认
-    return default_texts[2]
+    """获取用户输入的初始文本（现在通过语音输入状态处理）"""
+    # 注意：这个函数现在仅作为备用，实际的文本获取通过语音输入状态完成
+    # 这里返回None，表示需要通过语音输入状态获取
+    return None
 
 def main():
     """主函数"""
@@ -66,13 +57,16 @@ def main():
         
         print("✅ 组件加载成功")
         
-        # 获取初始文本
+        # 获取初始文本（现在通过语音输入状态处理）
         initial_text = get_initial_text_from_user()
-        print(f"📝 初始心情: {initial_text[:50]}...")
+        if initial_text:
+            print(f"📝 备用文本: {initial_text[:50]}...")
+        else:
+            print("🎤 将通过语音输入获取用户心情")
         
         # 创建并运行状态机
         print("🚀 启动状态机...")
-        state_machine = DeriveStateMachine(initial_text)
+        state_machine = DeriveStateMachine(initial_text)  # 可以传入None
         
         # 初始化状态机
         print("⚙️  初始化状态...")
@@ -113,7 +107,8 @@ def main():
         print("1. 检查硬件连接是否正常")
         print("2. 确认网络连接是否稳定")
         print("3. 检查API密钥配置")
-        print("4. 查看完整日志了解详细错误")
+        print("4. 检查语音识别模块是否可用")
+        print("5. 查看完整日志了解详细错误")
         
         sys.exit(1)  # 错误退出
         

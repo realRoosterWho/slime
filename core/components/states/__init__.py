@@ -8,6 +8,10 @@ from .take_photo_state import TakePhotoState
 from .analyze_photo_state import AnalyzePhotoState
 from .suggest_destination_state import SuggestDestinationState
 
+# 语音输入系统状态 (新增)
+from .voice_input_mood_state import VoiceInputMoodState
+from .process_mood_state import ProcessMoodState
+
 # 奖励系统状态
 from .wait_for_new_photo_state import WaitForNewPhotoState
 from .take_new_photo_state import TakeNewPhotoState
@@ -34,6 +38,8 @@ __all__ = [
     'TakePhotoState',
     'AnalyzePhotoState',
     'SuggestDestinationState',
+    'VoiceInputMoodState',
+    'ProcessMoodState',
     'WaitForNewPhotoState',
     'TakeNewPhotoState',
     'AnalyzeNewPhotoState',
