@@ -40,7 +40,7 @@ class GenerateRewardImageState(AbstractState):
                 - It should be an item the slime can wear, use, or display
                 - The item should directly relate to their quirk: "{quirk}"
                 - The item should look magical and special
-                - Colors should be vibrant and appealing
+                - Simple but recognizable design suitable for 1-bit graphics
                 - The item should look like it could make the slime's dreams come true
                 
                 Examples based on quirk:
@@ -49,20 +49,23 @@ class GenerateRewardImageState(AbstractState):
                 - If quirk involves exploring, show a mystical compass or map
                 - If quirk involves music, show a magical instrument
                 
-                STRICT pixel art requirements:
-                - 8-bit or 16-bit retro pixel art style ONLY
-                - Visible pixel grid structure, every pixel clearly defined
+                STRICT 1-bit monochrome pixel art requirements:
+                - ONLY BLACK AND WHITE (1-bit color depth)
+                - Pure monochrome like classic Game Boy or early computer graphics
+                - Visible pixel grid structure with chunky square pixels
                 - Hard edges with NO anti-aliasing or smoothing
-                - Limited color palette (maximum 16 colors)
-                - Blocky, pixelated appearance like classic RPG items
+                - NO grayscale, NO color, ONLY pure black and pure white
+                - Blocky, pixelated appearance like classic handheld RPG items
                 - NO cartoon, anime, or smooth vector art styles
                 - Sharp, geometric pixel boundaries
-                - Reminiscent of classic RPG game items (Final Fantasy, Dragon Quest style)
-                - NO gradients, NO soft shading, only flat colors and dithering
-                - Item should look like a collectible from an 8-bit video game
+                - Reminiscent of original Game Boy RPG items (early Final Fantasy Legend style)
+                - Each pixel should be clearly visible as black or white squares
+                - NO gradients, NO dithering, only solid black and solid white areas
+                - High contrast monochrome aesthetic
+                - Item should look like a collectible from a 1-bit handheld game
                 
-                Style: pixel art, 8-bit, retro RPG item, classic arcade, pixelated
-                Background: simple solid color, focus on the pixelated reward item
+                Style: 1-bit pixel art, monochrome, black and white, classic Game Boy RPG item, retro handheld gaming
+                Background: pure white, focus on the black pixelated reward item
                 """
             else:
                 # encouragement级别：符合偏执反应的史莱姆蛋
@@ -74,9 +77,9 @@ class GenerateRewardImageState(AbstractState):
                 
                 Generate a unique slime egg that reflects this reaction pattern:
                 - The egg should visually represent the reflex: "{reflex}"
-                - Pattern and colors on the egg should hint at this behavioral trait
+                - Black pixel patterns on white egg that hint at this behavioral trait
                 - The egg should look mysterious but encouraging
-                - Surface patterns, textures, or markings that suggest the reflex behavior
+                - Simple geometric patterns suitable for 1-bit graphics
                 - A sense that this egg contains a slime with similar interesting quirks
                 
                 Examples based on reflex:
@@ -85,20 +88,23 @@ class GenerateRewardImageState(AbstractState):
                 - If reflex involves exploring, show an egg with map-like markings or compass designs
                 - If reflex involves being cautious, show an egg with protective shell patterns
                 
-                STRICT pixel art requirements:
-                - 8-bit or 16-bit retro pixel art style ONLY
-                - Visible pixel grid structure, every pixel clearly defined
+                STRICT 1-bit monochrome pixel art requirements:
+                - ONLY BLACK AND WHITE (1-bit color depth)
+                - Pure monochrome like classic Game Boy or early computer graphics
+                - Visible pixel grid structure with chunky square pixels
                 - Hard edges with NO anti-aliasing or smoothing
-                - Limited color palette (maximum 16 colors)
-                - Blocky, pixelated egg with chunky pixel patterns
+                - NO grayscale, NO color, ONLY pure black and pure white
+                - Blocky, pixelated egg with chunky black pixel patterns on white
                 - NO cartoon, anime, or smooth vector art styles
                 - Sharp, geometric pixel boundaries
-                - Reminiscent of classic video game collectible eggs
-                - NO gradients, NO soft shading, only flat colors and dithering
-                - Egg should look like it came from a retro platformer game
+                - Reminiscent of classic handheld game collectible eggs
+                - Each pixel should be clearly visible as black or white squares
+                - NO gradients, NO dithering, only solid black and solid white areas
+                - High contrast monochrome aesthetic
+                - Egg should look like it came from a retro 1-bit platformer game
                 
-                Style: pixel art, 8-bit, retro gaming egg, classic arcade, pixelated
-                Background: simple solid color, focus on the pixelated egg
+                Style: 1-bit pixel art, monochrome, black and white, classic Game Boy egg, retro handheld gaming
+                Background: pure white, focus on the black and white pixelated egg
                 The egg should look hopeful and promising, not disappointing
                 """
             

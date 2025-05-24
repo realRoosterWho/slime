@@ -57,37 +57,42 @@ class GenSlimeImageState(AbstractState):
         """生成史莱姆图片的提示词"""
         slime_description = context.get_data('slime_description', '')
         
-        # 构建强化像素风格的史莱姆提示词
+        # 构建1-bit黑白像素风格的史莱姆提示词
         prompt = f"""
         A cute slime character with the following traits: {slime_description}
         
-        STRICT pixel art requirements:
-        - 8-bit or 16-bit retro pixel art style ONLY
-        - Visible pixel grid structure
+        STRICT 1-bit monochrome pixel art requirements:
+        - ONLY BLACK AND WHITE (1-bit color depth)
+        - Pure monochrome like classic Game Boy or early computer graphics
+        - Visible pixel grid structure with chunky square pixels
         - Hard edges with NO anti-aliasing or smoothing
-        - Limited color palette (maximum 16 colors)
-        - Blocky, pixelated appearance like classic arcade games
+        - NO grayscale, NO color, ONLY pure black and pure white
+        - Blocky, pixelated appearance like classic 1980s handheld games
         - NO cartoon, anime, or smooth vector art styles
         - Sharp, geometric pixel boundaries
-        - Reminiscent of Nintendo Game Boy or NES graphics
-        - Each pixel should be clearly visible and defined
-        - NO gradients, NO soft shading, only flat colors and dithering
+        - Reminiscent of original Game Boy or Apple II graphics
+        - Each pixel should be clearly visible as black or white squares
+        - NO gradients, NO dithering, only solid black and solid white areas
+        - High contrast monochrome aesthetic
         
         Character design:
-        - Simple geometric blob shape made of visible pixels
-        - Large square/rectangular eyes (2-4 pixels each)
-        - Tiny pixel mouth (1-2 pixels)
-        - Body should look like it's made of chunky pixel blocks
-        - Clear silhouette suitable for retro gaming
+        - Simple geometric blob shape made of black pixels on white background
+        - Large square/rectangular eyes (solid black pixels)
+        - Tiny pixel mouth (black pixels)
+        - Body outline in thick black pixels
+        - Interior can be white or have simple black pixel patterns
+        - Clear silhouette suitable for 1-bit retro gaming
+        - Must look like it came from a monochrome handheld game
         
         Technical specifications:
-        - Pixel art, pixelated, 8-bit graphics, retro gaming style
-        - Centered character on simple background
-        - Bright, saturated colors typical of old video games
+        - 1-bit pixel art, monochrome, black and white only
+        - Centered character on white background
+        - High contrast for maximum clarity on monochrome displays
         - NO modern digital art techniques
-        - Must look like it came from a 1980s-1990s video game
+        - Must look like original Game Boy graphics
+        - Think Tetris, early Mario Land, or classic LCD games
         
-        Style: pixel art, 8-bit, retro gaming, classic arcade, pixelated
+        Style: 1-bit pixel art, monochrome, black and white, classic Game Boy style, retro handheld gaming
         """
         
         return prompt 
