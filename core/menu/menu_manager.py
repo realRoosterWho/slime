@@ -139,12 +139,25 @@ class MenuSystem:
                 self.oled.show_text_oled("新版本不可用\n使用旧版本")
                 time.sleep(2)
                 derive_script = os.path.join(current_dir, "core", "derive", "derive_test.py")
+                # 使用旧的运行方式
+                result = subprocess.run([sys.executable, derive_script], check=False)
             else:
                 derive_script = new_derive_script
-            
-            # 运行漂流程序
-            print(f"启动漂流程序: {derive_script}")
-            result = subprocess.run([sys.executable, derive_script], check=False)
+                # 使用新的前台运行方式，不做缓冲
+                print(f"启动漂流程序: {derive_script}")
+                proc = subprocess.Popen(
+                    [sys.executable, "-u", "start_new_derive.py"],
+                    cwd=current_dir,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr
+                )
+                result_code = proc.wait()
+                
+                # 创建一个模拟的result对象来保持兼容性
+                class MockResult:
+                    def __init__(self, returncode):
+                        self.returncode = returncode
+                result = MockResult(result_code)
             
             # 检查退出码
             if result.returncode == 42:
