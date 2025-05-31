@@ -32,6 +32,12 @@ class MenuSystem:
             'hotspot': {
                 'ssid': 'RW',
                 'password': '23333333'
+            },
+            'campus': {
+                'ssid': 'Shanghaitech',
+                'username': '2023551018',
+                'password': 'Imissyou1224.',
+                'type': 'enterprise'  # 标记为企业级WiFi
             }
         }
         
@@ -47,8 +53,9 @@ class MenuSystem:
             "开始漂流",      # derive_test.py
             "功能测试",      # openai_test.py (原漂流测试)
             "扫描可用wifi",
-            "使用默认wifi",
+            "使用调试wifi",
             "使用热点wifi",
+            "连接校园网",     # 新增：企业级WiFi连接
             "查看当前wifi",
             "系统信息",
             "重启设备",
@@ -451,15 +458,99 @@ class MenuSystem:
             # 返回主菜单
             self.display_menu()
 
+    def safe_connect_enterprise_wifi(self, wifi_config):
+        """安全的企业级WiFi连接方法 - 临时连接，不保存配置"""
+        try:
+            # 先获取当前连接信息作为备份
+            current_wifi = self.get_current_wifi()
+            
+            ssid = wifi_config['ssid']
+            username = wifi_config['username']
+            password = wifi_config['password']
+            
+            self.oled.show_text_oled(f"正在连接:\n{ssid}\n\n临时连接模式\n不会保存配置")
+            
+            # 使用更安全的连接方式：临时连接
+            try:
+                # 删除可能存在的同名连接
+                subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], 
+                             check=False, capture_output=True)
+                time.sleep(0.5)
+                
+                # 使用企业级WiFi连接（WPA-EAP）
+                connect_result = subprocess.run([
+                    'sudo', 'nmcli', 'device', 'wifi', 'connect', ssid,
+                    '802-1x.identity', username,
+                    '802-1x.password', password,
+                    '802-1x.eap', 'peap',
+                    '802-1x.phase2-auth', 'mschapv2',
+                    'wifi-sec.key-mgmt', 'wpa-eap'
+                ], check=False, capture_output=True, text=True)
+                
+                if connect_result.returncode == 0:
+                    # 连接成功，等待验证
+                    time.sleep(5)  # 企业级WiFi需要更长的连接时间
+                    new_wifi = self.get_current_wifi()
+                    
+                    if new_wifi == ssid:
+                        print(f"成功连接到企业级WiFi {ssid}")
+                        
+                        # 🔑 关键：连接成功后立即删除配置，实现临时连接
+                        print("删除WiFi配置以防止自动重连...")
+                        time.sleep(2)  # 等待连接稳定
+                        subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], 
+                                     check=False, capture_output=True)
+                        
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n临时连接模式\n配置未保存\n\n按任意键返回菜单"
+                        )
+                    else:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"❌ 连接验证失败\n\n可能的原因：\n- 用户名或密码错误\n- 网络认证超时\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单"
+                        )
+                        print("企业级WiFi连接验证失败")
+                else:
+                    # 连接失败
+                    error_msg = connect_result.stderr.strip() if connect_result.stderr else "未知错误"
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        f"❌ 连接失败\n\n{error_msg[:20]}...\n\n可能的原因：\n- 不在校园网范围内\n- 认证信息错误\n\n当前WiFi保持不变:\n{current_wifi or '未连接'}\n\n按任意键返回菜单"
+                    )
+                    print(f"企业级WiFi连接失败: {error_msg}")
+                
+            except Exception as e:
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    f"❌ 连接出错\n\n{str(e)[:20]}...\n\n当前WiFi保持不变\n\n按任意键返回菜单"
+                )
+                print(f"企业级WiFi连接异常: {e}")
+            
+        except Exception as e:
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"连接过程出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
+            print(f"企业级WiFi连接过程出错: {e}")
+        finally:
+            # 返回主菜单
+            self.display_menu()
+
     def show_networks(self, networks):
         """显示找到的网络列表 - 已移除，改为show_wifi_selection_list"""
         pass
 
     def connect_wifi(self, wifi_config):
-        """连接WiFi的通用方法 - 改用安全连接方式"""
-        ssid = wifi_config['ssid']
-        password = wifi_config['password']
-        self.safe_connect_wifi(ssid, password)
+        """连接WiFi的通用方法 - 支持普通和企业级WiFi"""
+        if wifi_config.get('type') == 'enterprise':
+            # 企业级WiFi使用专门的连接方法
+            self.safe_connect_enterprise_wifi(wifi_config)
+        else:
+            # 普通WiFi使用原来的方法
+            ssid = wifi_config['ssid']
+            password = wifi_config['password']
+            self.safe_connect_wifi(ssid, password)
 
     def connect_default_wifi(self):
         """连接默认WiFi"""
@@ -468,6 +559,10 @@ class MenuSystem:
     def connect_hotspot_wifi(self):
         """连接热点WiFi"""
         self.connect_wifi(self.wifi_configs['hotspot'])
+
+    def connect_campus_wifi(self):
+        """连接校园网（企业级WiFi）"""
+        self.connect_wifi(self.wifi_configs['campus'])
 
     def show_system_info(self):
         """显示系统信息"""
@@ -517,10 +612,12 @@ class MenuSystem:
             self.run_openai_test()
         elif selected_item == "扫描可用wifi":
             self.scan_wifi()
-        elif selected_item == "使用默认wifi":
+        elif selected_item == "使用调试wifi":
             self.connect_default_wifi()
         elif selected_item == "使用热点wifi":
             self.connect_hotspot_wifi()
+        elif selected_item == "连接校园网":
+            self.connect_campus_wifi()
         elif selected_item == "查看当前wifi":
             self.show_current_wifi()
         elif selected_item == "系统信息":
