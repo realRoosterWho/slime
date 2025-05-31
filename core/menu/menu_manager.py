@@ -113,17 +113,29 @@ class MenuSystem:
                 print(f"❌ 备用logo显示也失败: {fallback_error}")
 
     def signal_handler(self, signum, frame):
-        """信号处理函数"""
-        print("\n🛑 检测到退出信号，正在清理并退出...")
+        """信号处理函数 - 优化版，快速退出"""
+        print("\n🛑 检测到退出信号，正在快速退出...")
         self.should_exit = True
-        # 立即清理并退出，避免重复触发
+        
+        # 快速清理，避免卡死
         try:
-            self.cleanup()
+            # 只做最基本的清理
+            if hasattr(self, 'controller'):
+                self.controller.cleanup()
+                print("✅ 控制器已清理")
+            
+            # 快速GPIO清理
+            try:
+                GPIO.cleanup()
+                print("✅ GPIO已清理")
+            except:
+                pass
+                
         except Exception as e:
-            print(f"清理时出错: {e}")
-        finally:
-            print("👋 程序已退出")
-            sys.exit(0)
+            print(f"⚠️ 快速清理出错: {e}")
+        
+        print("👋 程序已快速退出")
+        os._exit(0)  # 强制退出，避免卡死
     
     def on_up(self):
         """向上选择"""
@@ -683,18 +695,11 @@ class MenuSystem:
         return True
     
     def cleanup(self):
-        """清理资源"""
+        """清理资源 - 优化版，避免卡死"""
+        print("🧹 开始清理资源...")
+        
         try:
-            # 首先确保GPIO模式正确设置
-            try:
-                if not GPIO.getmode():
-                    GPIO.setmode(GPIO.BCM)
-                    GPIO.setwarnings(False)
-                    print("🔧 重新设置GPIO模式")
-            except Exception as gpio_setup_error:
-                print(f"⚠️ GPIO模式设置失败: {gpio_setup_error}")
-            
-            # 先清理控制器
+            # 1. 清理控制器（最重要）
             if hasattr(self, 'controller'):
                 try:
                     self.controller.cleanup()
@@ -702,40 +707,27 @@ class MenuSystem:
                 except Exception as controller_error:
                     print(f"⚠️ 控制器清理失败: {controller_error}")
             
-            # 显示告别信息
+            # 2. 快速清理OLED（避免卡死）
             if hasattr(self, 'oled'):
                 try:
-                    self.oled.show_text_oled("再见！")
-                    time.sleep(0.5)
+                    # 跳过可能卡死的show_text_oled，直接清理
                     self.oled.clear()
                     print("✅ OLED已清理")
                 except Exception as oled_error:
                     print(f"⚠️ OLED清理失败: {oled_error}")
             
-            # 清理LCD显示（确保GPIO状态正确）
+            # 3. 快速清理LCD（避免卡死）
             if hasattr(self, 'lcd'):
                 try:
-                    # 再次确认GPIO状态
-                    if GPIO.getmode() != GPIO.BCM:
-                        GPIO.setmode(GPIO.BCM)
-                        GPIO.setwarnings(False)
-                    
-                    self.lcd.clear()
+                    # 使用简单的黑屏清理
+                    from PIL import Image
+                    black_image = Image.new('RGB', (320, 240), 'black')
+                    self.lcd.show_image(black_image)
                     print("✅ LCD已清理")
                 except Exception as lcd_error:
                     print(f"⚠️ LCD清理失败: {lcd_error}")
-                    # 尝试备用清理方法
-                    try:
-                        print("🔄 尝试备用LCD清理方法...")
-                        # 创建一个黑色图像并显示，而不是调用clear()
-                        from PIL import Image
-                        black_image = Image.new('RGB', (320, 240), 'black')
-                        self.lcd.show_image(black_image)
-                        print("✅ LCD备用清理成功")
-                    except Exception as backup_error:
-                        print(f"❌ LCD备用清理也失败: {backup_error}")
             
-            # 最后清理GPIO
+            # 4. 最后清理GPIO
             try:
                 GPIO.cleanup()
                 print("✅ GPIO已清理")
@@ -743,8 +735,12 @@ class MenuSystem:
                 print(f"⚠️ GPIO清理失败: {gpio_error}")
             
             print("✅ 所有资源清理完成")
+            
         except Exception as e:
-            print(f"❌ 清理时出错: {e}")
+            print(f"❌ 清理过程出错: {e}")
+        
+        # 强制刷新输出
+        sys.stdout.flush()
 
     def show_long_text(self, text):
         """显示长文本，支持摇杆控制"""
@@ -824,19 +820,29 @@ if __name__ == "__main__":
         sys.exit(0)
         
     except KeyboardInterrupt:
-        print("\n🛑 检测到Ctrl+C，正在退出...")
+        print("\n🛑 检测到Ctrl+C，正在快速退出...")
         if menu:
             try:
-                menu.cleanup()
+                # 快速清理，避免卡死
+                if hasattr(menu, 'controller'):
+                    menu.controller.cleanup()
+                    print("✅ 控制器已清理")
+                GPIO.cleanup()
+                print("✅ GPIO已清理")
             except Exception as e:
-                print(f"清理时出错: {e}")
+                print(f"⚠️ 快速清理出错: {e}")
         print("👋 程序已退出")
-        sys.exit(0)
+        import os
+        os._exit(0)
     except Exception as e:
-        print(f"❌ 错误: {e}")
+        print(f"❌ 程序异常: {e}")
         if menu:
             try:
-                menu.cleanup()
-            except Exception:
+                # 快速清理
+                if hasattr(menu, 'controller'):
+                    menu.controller.cleanup()
+                GPIO.cleanup()
+            except:
                 pass
-        sys.exit(1)
+        import os
+        os._exit(1)
