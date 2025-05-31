@@ -51,8 +51,8 @@ class MenuSystem:
             "使用热点wifi",
             "查看当前wifi",
             "系统信息",
-            "重启系统",
-            "关闭系统",
+            "重启设备",
+            "关闭设备",
             "退出系统"
         ]
         
@@ -264,8 +264,8 @@ class MenuSystem:
                     networks.append(line)
             
             if networks:
-                # 显示找到的网络
-                self.show_networks(networks)
+                # 先显示热点连接选项
+                self.show_hotspot_connection_option(networks)
             else:
                 self.oled.show_text_oled("未找到网络")
                 time.sleep(2)
@@ -275,6 +275,126 @@ class MenuSystem:
             print(f"扫描错误: {e}")
             self.oled.show_text_oled("扫描失败")
             time.sleep(2)
+            self.display_menu()
+
+    def show_hotspot_connection_option(self, networks):
+        """显示热点连接选项"""
+        try:
+            print("显示热点连接选项")
+            # 使用wait_for_button_with_text显示选择界面
+            result = self.oled.wait_for_button_with_text(
+                self.controller,
+                "扫描完成！\n\nBT1 - 尝试连接手机热点\nBT2 - 查看所有WiFi列表\n\n摇杆上下滚动查看",
+                font_size=10,
+                chars_per_line=18,
+                visible_lines=4
+            )
+            
+            # 检查用户选择
+            if hasattr(self.controller, 'last_button'):
+                if self.controller.last_button == 'BTN1':
+                    # 选择连接手机热点
+                    self.try_connect_mobile_hotspot()
+                elif self.controller.last_button == 'BTN2':
+                    # 显示所有WiFi列表
+                    self.show_networks(networks)
+                else:
+                    # 默认返回菜单
+                    self.display_menu()
+            else:
+                # 没有检测到按键，返回菜单
+                self.display_menu()
+                
+        except Exception as e:
+            print(f"显示热点选项出错: {e}")
+            self.display_menu()
+
+    def try_connect_mobile_hotspot(self):
+        """尝试连接手机热点"""
+        try:
+            hotspot_ssid = "RW_1963"  # 默认热点名称
+            default_password = "11111111"  # 默认密码
+            
+            # 显示确认界面
+            confirm_text = f"您选择了WiFi: {hotspot_ssid}\n\n现在将尝试用默认密码\n{default_password}\n进行连接\n\n若要连接请修改热点密码\n\n按BT1尝试连接\n按BT2返回菜单"
+            
+            result = self.oled.wait_for_button_with_text(
+                self.controller,
+                confirm_text,
+                font_size=10,
+                chars_per_line=18,
+                visible_lines=4
+            )
+            
+            # 检查用户选择
+            if hasattr(self.controller, 'last_button'):
+                if self.controller.last_button == 'BTN1':
+                    # 尝试连接
+                    self.safe_connect_wifi(hotspot_ssid, default_password)
+                else:
+                    # 返回菜单
+                    self.display_menu()
+            else:
+                self.display_menu()
+                
+        except Exception as e:
+            print(f"热点连接出错: {e}")
+            self.oled.show_text_oled("连接出错")
+            time.sleep(2)
+            self.display_menu()
+
+    def safe_connect_wifi(self, ssid, password):
+        """安全的WiFi连接方法 - 失败时不会断开当前连接"""
+        try:
+            # 先获取当前连接信息作为备份
+            current_wifi = self.get_current_wifi()
+            
+            self.oled.show_text_oled(f"正在连接:\n{ssid}\n\n请稍候...")
+            
+            # 使用更安全的连接方式：先尝试添加连接配置，不立即断开当前连接
+            try:
+                # 删除可能存在的同名连接（但不断开当前连接）
+                subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], 
+                             check=False, capture_output=True)
+                time.sleep(0.5)
+                
+                # 尝试连接新WiFi（如果失败，当前连接仍然保持）
+                connect_result = subprocess.run([
+                    'sudo', 'nmcli', 'device', 'wifi', 'connect', ssid,
+                    'password', password,
+                    'ifname', 'wlan0'
+                ], check=False, capture_output=True, text=True)
+                
+                if connect_result.returncode == 0:
+                    # 连接成功，等待验证
+                    time.sleep(3)
+                    new_wifi = self.get_current_wifi()
+                    
+                    if new_wifi == ssid:
+                        self.oled.show_text_oled(f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n按任意键返回菜单")
+                        print(f"成功连接到 {ssid}")
+                    else:
+                        self.oled.show_text_oled(f"❌ 连接验证失败\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单")
+                        print("连接验证失败")
+                else:
+                    # 连接失败
+                    error_msg = connect_result.stderr.strip() if connect_result.stderr else "未知错误"
+                    self.oled.show_text_oled(f"❌ 连接失败\n\n{error_msg[:20]}...\n\n当前WiFi保持不变:\n{current_wifi or '未连接'}\n\n按任意键返回菜单")
+                    print(f"WiFi连接失败: {error_msg}")
+                
+            except Exception as e:
+                self.oled.show_text_oled(f"❌ 连接出错\n\n{str(e)[:20]}...\n\n当前WiFi保持不变\n\n按任意键返回菜单")
+                print(f"WiFi连接异常: {e}")
+            
+            # 等待用户按键确认
+            self.controller.wait_for_any_button(timeout=10)
+            
+        except Exception as e:
+            self.oled.show_text_oled("连接过程出错")
+            print(f"WiFi连接过程出错: {e}")
+            time.sleep(2)
+        finally:
+            # 返回主菜单
             self.display_menu()
 
     def show_networks(self, networks):
@@ -314,59 +434,10 @@ class MenuSystem:
             self.display_menu()
 
     def connect_wifi(self, wifi_config):
-        """连接WiFi的通用方法"""
-        try:
-            ssid = wifi_config['ssid']
-            password = wifi_config['password']
-            
-            self.oled.show_text_oled(f"正在连接:\n{ssid}")
-            
-            # 使用nmcli连接WiFi
-            try:
-                # 先断开当前连接
-                subprocess.run(['sudo', 'nmcli', 'device', 'disconnect', 'wlan0'], check=False)
-                time.sleep(1)
-                
-                # 删除可能存在的同名连接
-                subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], check=False)
-                time.sleep(1)
-                
-                # 添加并激活新连接
-                subprocess.run([
-                    'sudo', 'nmcli', 'device', 'wifi', 'connect', ssid,
-                    'password', password,
-                    'ifname', 'wlan0'
-                ], check=True)
-                
-                # 等待连接
-                attempts = 0
-                max_attempts = 3
-                while attempts < max_attempts:
-                    time.sleep(3)
-                    current_wifi = self.get_current_wifi()
-                    if current_wifi == ssid:
-                        self.oled.show_text_oled(f"已连接到:\n{ssid}")
-                        print(f"成功连接到 {ssid}")
-                        break
-                    attempts += 1
-                    if attempts < max_attempts:
-                        print(f"重试连接... ({attempts}/{max_attempts})")
-                else:
-                    self.oled.show_text_oled("连接失败")
-                    print("WiFi连接失败")
-                
-            except Exception as e:
-                print(f"NetworkManager连接错误: {e}")
-                self.oled.show_text_oled("连接失败")
-            
-            time.sleep(2)
-            
-        except Exception as e:
-            self.oled.show_text_oled("连接出错")
-            print(f"WiFi连接错误: {e}")
-            time.sleep(2)
-        finally:
-            self.display_menu()
+        """连接WiFi的通用方法 - 改用安全连接方式"""
+        ssid = wifi_config['ssid']
+        password = wifi_config['password']
+        self.safe_connect_wifi(ssid, password)
 
     def connect_default_wifi(self):
         """连接默认WiFi"""
