@@ -829,29 +829,29 @@ class DisplayManager:
             count_text = f"({current_selection + 1}/{total_options})"
             draw.text((85, 2), count_text, font=small_font, fill=255)
             
-            # 计算显示范围（改为真正的滚动显示）
+            # 计算显示范围（重新设计，更简单可靠）
             visible_count = 3
             if total_options <= visible_count:
                 # 选项少于等于3个，全部显示
                 start_idx = 0
                 end_idx = total_options
             else:
-                # 选项多于3个，使用滚动窗口
-                # 始终让当前选择的项目在窗口中间（如果可能）
-                half_window = visible_count // 2  # = 1
+                # 选项多于3个，使用简单的滚动窗口
+                # 规则：尽量让当前选择保持在窗口中间，但确保边界正确
                 
-                if current_selection <= half_window:
-                    # 靠近开头，显示前3个
+                # 首先尝试将当前选择放在中间位置
+                start_idx = current_selection - 1
+                end_idx = current_selection + 2
+                
+                # 调整边界：确保不越界
+                if start_idx < 0:
+                    # 如果开始索引小于0，从0开始
                     start_idx = 0
                     end_idx = visible_count
-                elif current_selection >= total_options - half_window - 1:
-                    # 靠近结尾，显示后3个
-                    start_idx = total_options - visible_count
+                elif end_idx > total_options:
+                    # 如果结束索引超过总数，从末尾倒推
                     end_idx = total_options
-                else:
-                    # 在中间，当前选择居中
-                    start_idx = current_selection - half_window
-                    end_idx = current_selection + half_window + 1
+                    start_idx = total_options - visible_count
             
             # 绘制选项
             y = 15
