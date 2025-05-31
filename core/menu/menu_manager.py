@@ -34,7 +34,7 @@ class MenuSystem:
                 'password': '23333333'
             },
             'campus': {
-                'ssid': 'Shanghaitech',
+                'ssid': 'ShanghaiTech',
                 'username': '2023551018',
                 'password': 'Imissyou1224.',
                 'type': 'enterprise'  # 标记为企业级WiFi
@@ -403,7 +403,7 @@ class MenuSystem:
             
             # 使用更安全的连接方式：先尝试添加连接配置，不立即断开当前连接
             try:
-                # 删除可能存在的同名连接（但不断开当前连接）
+                # 删除可能存在的旧临时连接
                 subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], 
                              check=False, capture_output=True)
                 time.sleep(0.5)
@@ -455,6 +455,15 @@ class MenuSystem:
             )
             print(f"WiFi连接过程出错: {e}")
         finally:
+            # 无论成功失败，都尝试清理临时连接配置
+            try:
+                if 'connection_name' in locals():
+                    print(f"清理临时连接配置: {connection_name}")
+                    subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
+                                 check=False, capture_output=True)
+            except Exception as cleanup_error:
+                print(f"清理临时配置时出错: {cleanup_error}")
+            
             # 返回主菜单
             self.display_menu()
 
@@ -472,20 +481,40 @@ class MenuSystem:
             
             # 使用更安全的连接方式：临时连接
             try:
-                # 删除可能存在的同名连接
+                # 使用企业级WiFi连接（WPA-EAP）
+                # 第一步：创建企业级WiFi连接配置
+                connection_name = f"{ssid}-temp"  # 使用临时连接名
+                
+                # 删除可能存在的同名连接和旧临时连接
                 subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], 
+                             check=False, capture_output=True)
+                subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
                              check=False, capture_output=True)
                 time.sleep(0.5)
                 
-                # 使用企业级WiFi连接（WPA-EAP）
-                connect_result = subprocess.run([
-                    'sudo', 'nmcli', 'device', 'wifi', 'connect', ssid,
-                    '802-1x.identity', username,
-                    '802-1x.password', password,
+                create_result = subprocess.run([
+                    'sudo', 'nmcli', 'connection', 'add',
+                    'type', 'wifi',
+                    'con-name', connection_name,
+                    'ifname', 'wlan0',
+                    'ssid', ssid,
+                    'wifi-sec.key-mgmt', 'wpa-eap',
                     '802-1x.eap', 'peap',
                     '802-1x.phase2-auth', 'mschapv2',
-                    'wifi-sec.key-mgmt', 'wpa-eap'
+                    '802-1x.identity', username,
+                    '802-1x.password', password
                 ], check=False, capture_output=True, text=True)
+                
+                if create_result.returncode == 0:
+                    print(f"企业级WiFi配置创建成功: {connection_name}")
+                    
+                    # 第二步：激活连接
+                    connect_result = subprocess.run([
+                        'sudo', 'nmcli', 'connection', 'up', connection_name
+                    ], check=False, capture_output=True, text=True)
+                else:
+                    print(f"企业级WiFi配置创建失败: {create_result.stderr}")
+                    connect_result = create_result  # 使用创建结果作为连接结果
                 
                 if connect_result.returncode == 0:
                     # 连接成功，等待验证
@@ -498,7 +527,7 @@ class MenuSystem:
                         # 🔑 关键：连接成功后立即删除配置，实现临时连接
                         print("删除WiFi配置以防止自动重连...")
                         time.sleep(2)  # 等待连接稳定
-                        subprocess.run(['sudo', 'nmcli', 'connection', 'delete', ssid], 
+                        subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
                                      check=False, capture_output=True)
                         
                         self.oled.wait_for_button_with_text(
@@ -534,6 +563,15 @@ class MenuSystem:
             )
             print(f"企业级WiFi连接过程出错: {e}")
         finally:
+            # 无论成功失败，都尝试清理临时连接配置
+            try:
+                if 'connection_name' in locals():
+                    print(f"清理临时连接配置: {connection_name}")
+                    subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
+                                 check=False, capture_output=True)
+            except Exception as cleanup_error:
+                print(f"清理临时配置时出错: {cleanup_error}")
+            
             # 返回主菜单
             self.display_menu()
 
