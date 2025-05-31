@@ -107,17 +107,29 @@ class MenuSystem:
 
     def signal_handler(self, signum, frame):
         """信号处理函数"""
-        print("\n🛑 检测到退出信号，准备退出...")
+        print("\n🛑 检测到退出信号，正在清理并退出...")
         self.should_exit = True
+        # 立即清理并退出，避免重复触发
+        try:
+            self.cleanup()
+        except Exception as e:
+            print(f"清理时出错: {e}")
+        finally:
+            print("👋 程序已退出")
+            sys.exit(0)
     
     def on_up(self):
         """向上选择"""
+        if self.should_exit:
+            return
         if self.oled.menu_up():
             self.display_menu()
             time.sleep(0.2)
     
     def on_down(self):
         """向下选择"""
+        if self.should_exit:
+            return
         if self.oled.menu_down(len(self.menu_items)):
             self.display_menu()
             time.sleep(0.2)
@@ -662,6 +674,7 @@ class MenuSystem:
                 print(f"❌ 备用初始化也失败: {fallback_error}")
 
 if __name__ == "__main__":
+    menu = None
     try:
         menu = MenuSystem()
         print("菜单系统运行中...")
@@ -675,9 +688,18 @@ if __name__ == "__main__":
         menu.cleanup()
         sys.exit(0)
         
+    except KeyboardInterrupt:
+        print("\n🛑 检测到Ctrl+C，正在退出...")
+        if menu:
+            try:
+                menu.cleanup()
+            except Exception as e:
+                print(f"清理时出错: {e}")
+        print("👋 程序已退出")
+        sys.exit(0)
     except Exception as e:
         print(f"❌ 错误: {e}")
-        if 'menu' in globals():
+        if menu:
             try:
                 menu.cleanup()
             except Exception:
