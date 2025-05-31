@@ -107,7 +107,12 @@ class MenuSystem:
 
     def signal_handler(self, signum, frame):
         """信号处理函数"""
-        print("\n🛑 检测到退出信号，准备退出...")
+        print("\n�� 检测到退出信号，准备退出...")
+        
+        # 如果在WiFi浏览模式，先退出
+        if hasattr(self, 'in_wifi_browser') and self.in_wifi_browser:
+            self.exit_wifi_browser()
+        
         self.should_exit = True
     
     def on_up(self):
@@ -278,14 +283,65 @@ class MenuSystem:
             self.display_menu()
 
     def show_networks(self, networks):
-        """显示找到的网络列表"""
+        """显示找到的网络列表，支持滚动浏览"""
         self.network_list = networks
         self.network_selection = 0
+        self.in_wifi_browser = True  # 标记当前在WiFi浏览模式
+        
+        # 保存原来的回调函数
+        self.original_up_callback = self.controller.joystick_callbacks.get('UP')
+        self.original_down_callback = self.controller.joystick_callbacks.get('DOWN')
+        self.original_btn1_callback = self.controller.button_callbacks.get('BTN1', {}).get('press')
+        
+        # 注册WiFi浏览模式的回调
+        self.controller.register_joystick_callback('UP', self.on_wifi_up)
+        self.controller.register_joystick_callback('DOWN', self.on_wifi_down)
+        self.controller.register_button_callback('BTN1', self.on_wifi_exit, 'press')
+        
+        # 显示WiFi列表和提示
         self.display_networks()
+        print("WiFi浏览模式：上下摇杆选择，按BTN1退回菜单")
+
+    def on_wifi_up(self):
+        """WiFi列表向上选择"""
+        if self.network_selection > 0:
+            self.network_selection -= 1
+            self.display_networks()
+            time.sleep(0.2)
+
+    def on_wifi_down(self):
+        """WiFi列表向下选择"""
+        if self.network_selection < len(self.network_list) - 1:
+            self.network_selection += 1
+            self.display_networks()
+            time.sleep(0.2)
+
+    def on_wifi_exit(self):
+        """退出WiFi浏览模式，返回主菜单"""
+        self.exit_wifi_browser()
+
+    def exit_wifi_browser(self):
+        """退出WiFi浏览模式"""
+        if hasattr(self, 'in_wifi_browser') and self.in_wifi_browser:
+            self.in_wifi_browser = False
+            
+            # 恢复原来的回调函数
+            self.controller.register_joystick_callback('UP', self.original_up_callback)
+            self.controller.register_joystick_callback('DOWN', self.original_down_callback)
+            self.controller.register_button_callback('BTN1', self.original_btn1_callback, 'press')
+            
+            # 返回主菜单
+            self.display_menu()
+            print("已退出WiFi浏览模式，返回主菜单")
 
     def display_networks(self):
         """显示网络列表"""
+        if not hasattr(self, 'network_list') or not self.network_list:
+            return
+            
         total_networks = len(self.network_list)
+        
+        # 计算显示范围（每页显示3个）
         if total_networks <= 3:
             start_idx = 0
             end_idx = total_networks
@@ -300,10 +356,17 @@ class MenuSystem:
                 start_idx = self.network_selection - 1
                 end_idx = self.network_selection + 2
 
-        network_text = ""
+        # 构建显示文本
+        network_text = f"WiFi列表 ({self.network_selection + 1}/{total_networks})\n"
         for i in range(start_idx, end_idx):
             prefix = "> " if i == self.network_selection else "  "
-            network_text += f"{prefix}{self.network_list[i]}\n"
+            network_name = self.network_list[i]
+            # 限制WiFi名称长度以适应显示
+            if len(network_name) > 12:
+                network_name = network_name[:12] + "..."
+            network_text += f"{prefix}{network_name}\n"
+        
+        network_text += "\n按BTN1退回菜单"
         network_text = network_text.rstrip()
         self.oled.show_text_oled(network_text)
 
@@ -444,13 +507,21 @@ class MenuSystem:
         if self.should_exit:
             return False
         self.controller.check_inputs()
-        self.display_menu()  # 刷新显示
+        
+        # 只有在非WiFi浏览模式下才刷新主菜单
+        if not hasattr(self, 'in_wifi_browser') or not self.in_wifi_browser:
+            self.display_menu()  # 刷新显示
+        
         time.sleep(0.1)  # 避免CPU占用过高
         return True
     
     def cleanup(self):
         """清理资源"""
         try:
+            # 如果在WiFi浏览模式，先退出
+            if hasattr(self, 'in_wifi_browser') and self.in_wifi_browser:
+                self.exit_wifi_browser()
+            
             # 首先确保GPIO模式正确设置
             try:
                 if not GPIO.getmode():
