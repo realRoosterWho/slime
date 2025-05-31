@@ -829,32 +829,48 @@ class DisplayManager:
             count_text = f"({current_selection + 1}/{total_options})"
             draw.text((85, 2), count_text, font=small_font, fill=255)
             
-            # 计算显示范围（重新设计，更简单可靠）
+            # 计算显示范围（修复跳过行内容的问题）
             visible_count = 3
             if total_options <= visible_count:
                 # 选项少于等于3个，全部显示
                 start_idx = 0
                 end_idx = total_options
             else:
-                # 选项多于3个，使用简单的滚动窗口
-                # 规则：尽量让当前选择保持在窗口中间，但确保边界正确
+                # 选项多于3个，使用滚动窗口
+                # 改进的逻辑：确保显示窗口连续且不跳过任何选项
                 
-                # 首先尝试将当前选择放在中间位置
-                start_idx = current_selection - 1
-                end_idx = current_selection + 2
-                
-                # 调整边界：确保不越界
-                if start_idx < 0:
-                    # 如果开始索引小于0，从0开始
+                if current_selection == 0:
+                    # 选择第一项时，显示前3项
                     start_idx = 0
                     end_idx = visible_count
-                elif end_idx > total_options:
-                    # 如果结束索引超过总数，从末尾倒推
-                    end_idx = total_options
+                elif current_selection == total_options - 1:
+                    # 选择最后一项时，显示最后3项
                     start_idx = total_options - visible_count
+                    end_idx = total_options
+                else:
+                    # 中间选项：尽量让当前选择居中
+                    # 但确保窗口不会跳过任何选项
+                    center_start = current_selection - 1
+                    center_end = current_selection + 2
+                    
+                    if center_start >= 0 and center_end <= total_options:
+                        # 居中显示是安全的
+                        start_idx = center_start
+                        end_idx = center_end
+                    elif center_start < 0:
+                        # 太靠前，从开头显示
+                        start_idx = 0
+                        end_idx = visible_count
+                    else:
+                        # 太靠后，从末尾显示
+                        start_idx = total_options - visible_count
+                        end_idx = total_options
             
             # 绘制选项
             y = 15
+            # 添加调试信息（可选）
+            print(f"DEBUG: 显示范围 {start_idx}-{end_idx}, 当前选择: {current_selection}, 总选项: {total_options}")
+            
             for i in range(start_idx, end_idx):
                 # 高亮当前选择的项目
                 if i == current_selection:
