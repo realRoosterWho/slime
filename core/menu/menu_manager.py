@@ -358,7 +358,7 @@ class MenuSystem:
                 confirm_text,
                 font_size=10,
                 chars_per_line=18,
-                visible_lines=4
+                visible_lines=3
             )
             
             if hasattr(self.controller, 'last_button'):
