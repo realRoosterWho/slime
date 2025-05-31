@@ -107,7 +107,12 @@ class MenuSystem:
 
     def signal_handler(self, signum, frame):
         """信号处理函数"""
-        print("\n🛑 检测到退出信号，准备退出...")
+        print("\n检测到退出信号，准备退出...")
+        
+        # 如果在WiFi选择模式，先退出
+        if hasattr(self, 'in_wifi_selection') and self.in_wifi_selection:
+            self.exit_wifi_selection()
+        
         self.should_exit = True
     
     def on_up(self):
@@ -264,59 +269,124 @@ class MenuSystem:
                     networks.append(line)
             
             if networks:
-                # 先显示热点连接选项
-                self.show_hotspot_connection_option(networks)
+                # 直接显示WiFi列表供用户选择
+                self.show_wifi_selection_list(networks)
             else:
-                self.oled.show_text_oled("未找到网络")
-                time.sleep(2)
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    "未找到WiFi网络\n\n请检查WiFi是否开启\n\n按任意键返回菜单"
+                )
                 self.display_menu()
                 
         except Exception as e:
             print(f"扫描错误: {e}")
-            self.oled.show_text_oled("扫描失败")
-            time.sleep(2)
-            self.display_menu()
-
-    def show_hotspot_connection_option(self, networks):
-        """显示热点连接选项"""
-        try:
-            print("显示热点连接选项")
-            # 使用wait_for_button_with_text显示选择界面
-            result = self.oled.wait_for_button_with_text(
+            self.oled.wait_for_button_with_text(
                 self.controller,
-                "扫描完成！\n\nBT1 - 尝试连接手机热点\nBT2 - 查看所有WiFi列表\n\n摇杆上下滚动查看",
-                font_size=10,
-                chars_per_line=18,
-                visible_lines=4
+                f"扫描失败\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
             )
-            
-            # 检查用户选择
-            if hasattr(self.controller, 'last_button'):
-                if self.controller.last_button == 'BTN1':
-                    # 选择连接手机热点
-                    self.try_connect_mobile_hotspot()
-                elif self.controller.last_button == 'BTN2':
-                    # 显示所有WiFi列表
-                    self.show_networks(networks)
-                else:
-                    # 默认返回菜单
-                    self.display_menu()
-            else:
-                # 没有检测到按键，返回菜单
-                self.display_menu()
-                
-        except Exception as e:
-            print(f"显示热点选项出错: {e}")
             self.display_menu()
 
-    def try_connect_mobile_hotspot(self):
-        """尝试连接手机热点"""
-        try:
-            hotspot_ssid = "RW_1963"  # 默认热点名称
-            default_password = "11111111"  # 默认密码
+    def show_wifi_selection_list(self, networks):
+        """显示WiFi选择列表，支持摇杆选择"""
+        self.wifi_networks = networks
+        self.wifi_selection_index = 0
+        self.in_wifi_selection = True
+        
+        # 保存原来的回调函数
+        self.original_up_callback = self.controller.joystick_callbacks.get('UP')
+        self.original_down_callback = self.controller.joystick_callbacks.get('DOWN')
+        self.original_btn1_callback = self.controller.button_callbacks.get('BTN1', {}).get('press')
+        self.original_btn2_callback = self.controller.button_callbacks.get('BTN2', {}).get('press')
+        
+        # 注册WiFi选择模式的回调
+        self.controller.register_joystick_callback('UP', self.wifi_selection_up)
+        self.controller.register_joystick_callback('DOWN', self.wifi_selection_down)
+        self.controller.register_button_callback('BTN1', self.wifi_selection_connect, 'press')
+        self.controller.register_button_callback('BTN2', self.wifi_selection_exit, 'press')
+        
+        # 显示WiFi选择界面
+        self.display_wifi_selection()
+        print("WiFi选择模式：上下摇杆选择，BT1连接，BT2返回菜单")
+
+    def wifi_selection_up(self):
+        """WiFi选择向上"""
+        if self.wifi_selection_index > 0:
+            self.wifi_selection_index -= 1
+            self.display_wifi_selection()
+            time.sleep(0.2)
+
+    def wifi_selection_down(self):
+        """WiFi选择向下"""
+        if self.wifi_selection_index < len(self.wifi_networks) - 1:
+            self.wifi_selection_index += 1
+            self.display_wifi_selection()
+            time.sleep(0.2)
+
+    def wifi_selection_connect(self):
+        """尝试连接选中的WiFi"""
+        if hasattr(self, 'wifi_networks') and self.wifi_networks:
+            selected_wifi = self.wifi_networks[self.wifi_selection_index]
+            self.exit_wifi_selection()
+            self.try_connect_selected_wifi(selected_wifi)
+
+    def wifi_selection_exit(self):
+        """退出WiFi选择模式"""
+        self.exit_wifi_selection()
+        self.display_menu()
+
+    def exit_wifi_selection(self):
+        """退出WiFi选择模式"""
+        if hasattr(self, 'in_wifi_selection') and self.in_wifi_selection:
+            self.in_wifi_selection = False
             
-            # 显示确认界面
-            confirm_text = f"您选择了WiFi: {hotspot_ssid}\n\n现在将尝试用默认密码\n{default_password}\n进行连接\n\n若要连接请修改热点密码\n\n按BT1尝试连接\n按BT2返回菜单"
+            # 恢复原来的回调函数
+            self.controller.register_joystick_callback('UP', self.original_up_callback)
+            self.controller.register_joystick_callback('DOWN', self.original_down_callback)
+            self.controller.register_button_callback('BTN1', self.original_btn1_callback, 'press')
+            self.controller.register_button_callback('BTN2', self.original_btn2_callback, 'press')
+
+    def display_wifi_selection(self):
+        """显示WiFi选择界面"""
+        if not hasattr(self, 'wifi_networks') or not self.wifi_networks:
+            return
+            
+        total_networks = len(self.wifi_networks)
+        
+        # 计算显示范围（每页显示3个）
+        if total_networks <= 3:
+            start_idx = 0
+            end_idx = total_networks
+        else:
+            if self.wifi_selection_index == 0:
+                start_idx = 0
+                end_idx = 3
+            elif self.wifi_selection_index == total_networks - 1:
+                start_idx = total_networks - 3
+                end_idx = total_networks
+            else:
+                start_idx = self.wifi_selection_index - 1
+                end_idx = self.wifi_selection_index + 2
+
+        # 构建显示文本
+        wifi_text = f"选择WiFi ({self.wifi_selection_index + 1}/{total_networks})\n"
+        for i in range(start_idx, end_idx):
+            prefix = "> " if i == self.wifi_selection_index else "  "
+            network_name = self.wifi_networks[i]
+            # 限制WiFi名称长度以适应显示
+            if len(network_name) > 12:
+                network_name = network_name[:12] + "..."
+            wifi_text += f"{prefix}{network_name}\n"
+        
+        wifi_text += "\nBT1连接 BT2返回"
+        self.oled.show_text_oled(wifi_text)
+
+    def try_connect_selected_wifi(self, selected_wifi):
+        """尝试连接选中的WiFi"""
+        try:
+            default_password = "11111111"
+            
+            # 对所有WiFi都使用默认密码尝试连接
+            confirm_text = f"您选择了WiFi:\n{selected_wifi}\n\n将使用默认密码:\n{default_password}\n进行连接\n\n请确保您的WiFi热点\n密码已设为此密码\n\n按BT1开始连接\n按BT2返回菜单"
             
             result = self.oled.wait_for_button_with_text(
                 self.controller,
@@ -326,22 +396,30 @@ class MenuSystem:
                 visible_lines=4
             )
             
-            # 检查用户选择
             if hasattr(self.controller, 'last_button'):
                 if self.controller.last_button == 'BTN1':
-                    # 尝试连接
-                    self.safe_connect_wifi(hotspot_ssid, default_password)
+                    # 使用默认密码连接
+                    self.safe_connect_wifi(selected_wifi, default_password)
                 else:
-                    # 返回菜单
                     self.display_menu()
             else:
                 self.display_menu()
                 
         except Exception as e:
-            print(f"热点连接出错: {e}")
-            self.oled.show_text_oled("连接出错")
-            time.sleep(2)
+            print(f"WiFi连接出错: {e}")
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"连接出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
             self.display_menu()
+
+    def show_hotspot_connection_option(self, networks):
+        """显示热点连接选项 - 已移除，改为直接显示WiFi列表"""
+        pass
+
+    def try_connect_mobile_hotspot(self):
+        """尝试连接手机热点 - 已移除，改为在WiFi选择中处理"""
+        pass
 
     def safe_connect_wifi(self, ssid, password):
         """安全的WiFi连接方法 - 失败时不会断开当前连接"""
@@ -371,67 +449,46 @@ class MenuSystem:
                     new_wifi = self.get_current_wifi()
                     
                     if new_wifi == ssid:
-                        self.oled.show_text_oled(f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n按任意键返回菜单")
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n按任意键返回菜单"
+                        )
                         print(f"成功连接到 {ssid}")
                     else:
-                        self.oled.show_text_oled(f"❌ 连接验证失败\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单")
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"❌ 连接验证失败\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单"
+                        )
                         print("连接验证失败")
                 else:
                     # 连接失败
                     error_msg = connect_result.stderr.strip() if connect_result.stderr else "未知错误"
-                    self.oled.show_text_oled(f"❌ 连接失败\n\n{error_msg[:20]}...\n\n当前WiFi保持不变:\n{current_wifi or '未连接'}\n\n按任意键返回菜单")
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        f"❌ 连接失败\n\n{error_msg[:20]}...\n\n当前WiFi保持不变:\n{current_wifi or '未连接'}\n\n按任意键返回菜单"
+                    )
                     print(f"WiFi连接失败: {error_msg}")
                 
             except Exception as e:
-                self.oled.show_text_oled(f"❌ 连接出错\n\n{str(e)[:20]}...\n\n当前WiFi保持不变\n\n按任意键返回菜单")
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    f"❌ 连接出错\n\n{str(e)[:20]}...\n\n当前WiFi保持不变\n\n按任意键返回菜单"
+                )
                 print(f"WiFi连接异常: {e}")
             
-            # 等待用户按键确认
-            self.controller.wait_for_any_button(timeout=10)
-            
         except Exception as e:
-            self.oled.show_text_oled("连接过程出错")
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"连接过程出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
             print(f"WiFi连接过程出错: {e}")
-            time.sleep(2)
         finally:
             # 返回主菜单
             self.display_menu()
 
     def show_networks(self, networks):
-        """显示找到的网络列表，支持滚动浏览"""
-        if not networks:
-            self.oled.show_text_oled("未找到网络")
-            time.sleep(2)
-            self.display_menu()
-            return
-        
-        # 构建WiFi列表文本
-        wifi_text = "扫描到的WiFi网络:\n\n"
-        for i, network in enumerate(networks, 1):
-            # 限制WiFi名称长度
-            network_name = network if len(network) <= 15 else network[:15] + "..."
-            wifi_text += f"{i}. {network_name}\n"
-        
-        wifi_text += "\n使用摇杆上下滚动查看\n按BTN1退回菜单"
-        
-        # 使用DisplayManager的wait_for_button_with_text功能
-        try:
-            print("显示WiFi列表，支持滚动浏览")
-            # 使用wait_for_button_with_text支持滚动显示
-            self.oled.wait_for_button_with_text(
-                self.controller,
-                wifi_text,
-                font_size=10,
-                chars_per_line=20,
-                visible_lines=4
-            )
-            print("用户按下按钮，退回主菜单")
-            
-        except Exception as e:
-            print(f"WiFi浏览出错: {e}")
-        finally:
-            # 返回主菜单
-            self.display_menu()
+        """显示找到的网络列表 - 已移除，改为show_wifi_selection_list"""
+        pass
 
     def connect_wifi(self, wifi_config):
         """连接WiFi的通用方法 - 改用安全连接方式"""
@@ -503,9 +560,9 @@ class MenuSystem:
             self.show_current_wifi()
         elif selected_item == "系统信息":
             self.show_system_info()
-        elif selected_item == "重启系统":
+        elif selected_item == "重启设备":
             self.system_reboot()
-        elif selected_item == "关闭系统":
+        elif selected_item == "关闭设备":
             self.system_shutdown()
         else:  # 退出系统
             self.oled.show_message("再见！")
@@ -521,13 +578,21 @@ class MenuSystem:
         if self.should_exit:
             return False
         self.controller.check_inputs()
-        self.display_menu()  # 刷新显示
+        
+        # 只有在非WiFi选择模式下才刷新主菜单
+        if not hasattr(self, 'in_wifi_selection') or not self.in_wifi_selection:
+            self.display_menu()  # 刷新显示
+        
         time.sleep(0.1)  # 避免CPU占用过高
         return True
     
     def cleanup(self):
         """清理资源"""
         try:
+            # 如果在WiFi选择模式，先退出
+            if hasattr(self, 'in_wifi_selection') and self.in_wifi_selection:
+                self.exit_wifi_selection()
+            
             # 首先确保GPIO模式正确设置
             try:
                 if not GPIO.getmode():
