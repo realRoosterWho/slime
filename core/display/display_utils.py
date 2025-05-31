@@ -787,3 +787,227 @@ class DisplayManager:
             button_state['DOWN'] = current_down
             
             time.sleep(0.05)  # 减少检查间隔，提高响应性 
+
+    def wait_for_selection(self, controller, options, title="请选择", context=None):
+        """显示选择列表并等待用户选择
+        Args:
+            controller: InputController实例
+            options: 选项列表，如["选项1", "选项2", "选项3"]
+            title: 标题文本
+            context: DeriveContext实例（可选，用于检测返回菜单）
+        Returns:
+            int: 选择的索引（0开始），-1表示取消/返回
+        """
+        if not options:
+            return -1
+            
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, 12)
+            small_font = ImageFont.truetype(self.font_path, 8)  # 小字体用于提示
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+
+        # 选择状态
+        current_selection = 0
+        total_options = len(options)
+        
+        def draw_selection():
+            """绘制选择界面"""
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制标题
+            draw.text((10, 2), title, font=small_font, fill=255)
+            
+            # 绘制选项计数
+            count_text = f"({current_selection + 1}/{total_options})"
+            draw.text((85, 2), count_text, font=small_font, fill=255)
+            
+            # 计算显示范围（每页显示3个选项）
+            visible_count = 3
+            if total_options <= visible_count:
+                start_idx = 0
+                end_idx = total_options
+            else:
+                if current_selection == 0:
+                    start_idx = 0
+                    end_idx = visible_count
+                elif current_selection == total_options - 1:
+                    start_idx = total_options - visible_count
+                    end_idx = total_options
+                else:
+                    start_idx = current_selection - 1
+                    end_idx = current_selection + 2
+            
+            # 绘制选项
+            y = 15
+            for i in range(start_idx, end_idx):
+                prefix = "> " if i == current_selection else "  "
+                option_text = options[i]
+                # 限制选项文本长度
+                if len(option_text) > 14:
+                    option_text = option_text[:14] + "..."
+                draw.text((10, y), f"{prefix}{option_text}", font=font, fill=255)
+                y += 15
+            
+            # 绘制滚动指示器
+            if start_idx > 0:  # 顶部箭头
+                draw.polygon([(120, 15), (123, 12), (126, 15)], fill=255)
+            if end_idx < total_options:  # 底部箭头
+                draw.polygon([(120, 55), (123, 58), (126, 55)], fill=255)
+            
+            # 绘制操作提示
+            draw.text((10, 55), "BT1确认 BT2返回", font=small_font, fill=255)
+            
+            self._display_image(image)
+        
+        # 保存按钮和摇杆状态
+        button_state = {
+            'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
+            'BTN2': GPIO.input(controller.BUTTON_PINS['BTN2']),
+            'UP': GPIO.input(controller.JOYSTICK_PINS['UP']),
+            'DOWN': GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+        }
+        
+        # 绘制初始界面
+        draw_selection()
+        
+        while True:
+            # 检查context的返回菜单状态（如果提供了context）
+            if context and context.should_return_to_menu():
+                print("检测到返回菜单状态，中断选择")
+                return -1
+            
+            # 检查按钮1 (确认选择)
+            current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
+            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
+                print(f"选择了: {options[current_selection]} (索引: {current_selection})")
+                time.sleep(0.1)  # 防抖
+                return current_selection
+            button_state['BTN1'] = current_btn1
+            
+            # 检查按钮2 (取消/返回)
+            current_btn2 = GPIO.input(controller.BUTTON_PINS['BTN2'])
+            if current_btn2 == 0 and button_state['BTN2'] == 1:  # 按钮被按下
+                print("用户取消选择")
+                time.sleep(0.1)  # 防抖
+                return -1
+            button_state['BTN2'] = current_btn2
+            
+            # 检查摇杆上
+            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
+            if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
+                if current_selection > 0:
+                    current_selection -= 1
+                    draw_selection()
+                    time.sleep(0.2)
+            button_state['UP'] = current_up
+            
+            # 检查摇杆下
+            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
+                if current_selection < total_options - 1:
+                    current_selection += 1
+                    draw_selection()
+                    time.sleep(0.2)
+            button_state['DOWN'] = current_down
+            
+            time.sleep(0.05)  # 减少检查间隔
+
+    def show_continue_drift_option(self, controller, question="是否继续漂流？", context=None):
+        """显示是否继续漂流的选择界面
+        Args:
+            controller: InputController实例
+            question: 显示的问题文本
+            context: DeriveContext实例（可选）
+        Returns:
+            bool: True表示继续，False表示结束
+        """
+        # 创建新图像
+        image = Image.new("1", (self.width, self.height))
+        draw = ImageDraw.Draw(image)
+        
+        try:
+            font = ImageFont.truetype(self.font_path, 12)
+            small_font = ImageFont.truetype(self.font_path, 8)  # 小字体用于提示
+        except:
+            print("警告：无法加载中文字体，将使用默认字体")
+            font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+        
+        # 处理文本换行 - 将问题文本分行显示
+        lines = self.split_text(question, 18)  # 18个字符一行
+        
+        def draw_question():
+            # 清空图像
+            draw.rectangle((0, 0, self.width, self.height), fill=0)
+            
+            # 绘制问题文本
+            y = 10
+            for line in lines:
+                draw.text((10, y), line, font=font, fill=255)
+                y += 15  # 行间距
+            
+            # 在底部显示按钮选项
+            draw.text((10, 50), "按BT1继续漂流", font=font, fill=255)
+            draw.text((10, 50+15), "按BT2结束漂流", font=font, fill=255)
+            
+            # 在右上角添加按钮提示
+            draw.text((85, 2), "BT1 BT2", font=small_font, fill=255)
+            
+            self._display_image(image)
+        
+        # 保存按钮状态
+        button_state = {
+            'BTN1': GPIO.input(controller.BUTTON_PINS['BTN1']),
+            'BTN2': GPIO.input(controller.BUTTON_PINS['BTN2'])
+        }
+        
+        # 绘制界面
+        draw_question()
+        
+        while True:
+            # 检查context的返回菜单状态（如果提供了context）
+            if context and context.should_return_to_menu():
+                print("检测到返回菜单状态，中断选择")
+                return False
+            
+            # 检查按钮1 (继续漂流)
+            current_btn1 = GPIO.input(controller.BUTTON_PINS['BTN1'])
+            if current_btn1 == 0 and button_state['BTN1'] == 1:  # 按钮被按下
+                time.sleep(0.1)  # 防抖
+                return True
+            button_state['BTN1'] = current_btn1
+            
+            # 检查按钮2 (结束漂流)
+            current_btn2 = GPIO.input(controller.BUTTON_PINS['BTN2'])
+            if current_btn2 == 0 and button_state['BTN2'] == 1:  # 按钮被按下
+                time.sleep(0.1)  # 防抖
+                return False
+            button_state['BTN2'] = current_btn2
+            
+            # 检查摇杆上
+            current_up = GPIO.input(controller.JOYSTICK_PINS['UP'])
+            if current_up == 0 and button_state['UP'] == 1:  # 摇杆向上
+                if start_line > 0:
+                    start_line = max(0, start_line - visible_lines)
+                    draw_current_page()
+                    time.sleep(0.1)
+            button_state['UP'] = current_up
+            
+            # 检查摇杆下
+            current_down = GPIO.input(controller.JOYSTICK_PINS['DOWN'])
+            if current_down == 0 and button_state['DOWN'] == 1:  # 摇杆向下
+                if start_line + visible_lines < total_lines:
+                    start_line = min(total_lines - visible_lines, start_line + visible_lines)
+                    draw_current_page()
+                    time.sleep(0.1)
+            button_state['DOWN'] = current_down
+            
+            time.sleep(0.05)  # 减少检查间隔，提高响应性 
