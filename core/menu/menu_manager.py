@@ -339,7 +339,7 @@ class MenuSystem:
             default_password = "11111111"
             
             # 对所有WiFi都使用默认密码尝试连接
-            confirm_text = f"您选择了WiFi:\n{selected_wifi}\n\n将使用默认密码:\n{default_password}\n进行连接\n\n请确保您的WiFi热点\n密码已设为此密码\n\n按BT1开始连接\n按BT2返回菜单"
+            confirm_text = f"您选择了WiFi:\n{selected_wifi}\n将使用默认密码:\n{default_password}\n进行连接\n\n请确保您的WiFi热点\n密码已设为此密码\n\n按BT1开始连接\n按BT2返回菜单"
             
             result = self.oled.wait_for_button_with_text(
                 self.controller,

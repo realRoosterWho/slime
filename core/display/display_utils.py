@@ -829,31 +829,40 @@ class DisplayManager:
             count_text = f"({current_selection + 1}/{total_options})"
             draw.text((85, 2), count_text, font=small_font, fill=255)
             
-            # 计算显示范围（每页显示3个选项）
+            # 计算显示范围（改为真正的滚动显示）
             visible_count = 3
             if total_options <= visible_count:
+                # 选项少于等于3个，全部显示
                 start_idx = 0
                 end_idx = total_options
             else:
-                if current_selection == 0:
+                # 选项多于3个，使用滚动窗口
+                # 始终让当前选择的项目在窗口中间（如果可能）
+                half_window = visible_count // 2  # = 1
+                
+                if current_selection <= half_window:
+                    # 靠近开头，显示前3个
                     start_idx = 0
                     end_idx = visible_count
-                elif current_selection == total_options - 1:
+                elif current_selection >= total_options - half_window - 1:
+                    # 靠近结尾，显示后3个
                     start_idx = total_options - visible_count
                     end_idx = total_options
                 else:
-                    start_idx = current_selection - 1
-                    end_idx = current_selection + 2
+                    # 在中间，当前选择居中
+                    start_idx = current_selection - half_window
+                    end_idx = current_selection + half_window + 1
             
             # 绘制选项
             y = 15
             for i in range(start_idx, end_idx):
-                prefix = "> " if i == current_selection else "  "
-                option_text = options[i]
-                # 限制选项文本长度
-                if len(option_text) > 14:
-                    option_text = option_text[:14] + "..."
-                draw.text((10, y), f"{prefix}{option_text}", font=font, fill=255)
+                # 高亮当前选择的项目
+                if i == current_selection:
+                    # 绘制选中项的背景
+                    draw.rectangle((8, y-2, self.width-8, y+12), fill=255)
+                    draw.text((10, y), f"> {options[i][:12]}...", font=font, fill=0)
+                else:
+                    draw.text((10, y), f"  {options[i][:14]}...", font=font, fill=255)
                 y += 15
             
             # 绘制滚动指示器
