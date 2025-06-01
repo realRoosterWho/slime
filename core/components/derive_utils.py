@@ -489,7 +489,8 @@ def cleanup_handler(signum, frame):
     except Exception as e:
         print(f"清理过程中出错: {e}")
     finally:
-        sys.exit(0)
+        import os
+        os._exit(0)  # 强制退出，避免卡死
 
 def run_camera_test():
     """拍照函数"""

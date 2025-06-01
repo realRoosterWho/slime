@@ -1,6 +1,7 @@
 import RPi.GPIO as GPIO
 import time
 from typing import Dict, Callable, Optional
+import signal
 
 class InputController:
     """输入控制器类，用于管理摇杆和按钮输入"""
@@ -115,23 +116,45 @@ class InputController:
         # 获取初始状态
         last_state = GPIO.input(pin)
         
-        while True:
-            current_state = GPIO.input(pin)
-            
-            # 检测按钮按下事件（从高电平到低电平）
-            if current_state == 0 and last_state == 1:
-                print(f"✅ 按钮 {button_name} 被按下")
-                time.sleep(0.1)  # 防抖
-                return True
-            
-            last_state = current_state
-            
-            # 检查超时
-            if timeout is not None and (time.time() - start_time) > timeout:
-                print(f"⏰ 等待按钮 {button_name} 超时")
-                return False
-            
-            time.sleep(0.05)  # 减少CPU使用率
+        # 添加中断检查标志
+        interrupted = False
+        
+        def signal_handler(signum, frame):
+            nonlocal interrupted
+            interrupted = True
+            print(f"\n收到信号 {signum}，中断按钮等待")
+        
+        # 临时设置信号处理器
+        original_sigint = signal.signal(signal.SIGINT, signal_handler)
+        original_sigterm = signal.signal(signal.SIGTERM, signal_handler)
+        
+        try:
+            while not interrupted:
+                current_state = GPIO.input(pin)
+                
+                # 检测按钮按下事件（从高电平到低电平）
+                if current_state == 0 and last_state == 1:
+                    print(f"✅ 按钮 {button_name} 被按下")
+                    time.sleep(0.1)  # 防抖
+                    return True
+                
+                last_state = current_state
+                
+                # 检查超时
+                if timeout is not None and (time.time() - start_time) > timeout:
+                    print(f"⏰ 等待按钮 {button_name} 超时")
+                    return False
+                
+                time.sleep(0.05)  # 减少CPU使用率
+                
+        finally:
+            # 恢复原来的信号处理器
+            signal.signal(signal.SIGINT, original_sigint)
+            signal.signal(signal.SIGTERM, original_sigterm)
+        
+        # 如果被中断，返回False
+        print(f"⚠️ 按钮等待被中断")
+        return False
     
     def wait_for_any_button(self, timeout: float = None) -> str:
         """等待任意按钮被按下

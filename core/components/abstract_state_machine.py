@@ -3,6 +3,7 @@ from typing import Dict, Optional
 import sys
 import signal
 import time
+import os
 
 from .abstract_state import AbstractState
 from .derive_states import DeriveState
@@ -305,7 +306,7 @@ class AbstractStateMachine(ABC):
         except Exception as e:
             print(f"清理过程中出错: {e}")
         finally:
-            sys.exit(0)
+            os._exit(0)  # 强制退出，避免卡死
     
     def _cleanup(self) -> None:
         """清理资源 - 优化版本"""
