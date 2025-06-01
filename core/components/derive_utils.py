@@ -342,8 +342,8 @@ class DeriveImageUtils:
                     "prompt": prompt,
                     "aspect_ratio": "4:3",  # 使用正确的长宽比参数，4:3适合320x240显示
                     "num_images": 1,
-                    "output_format": "jpeg",  # 指定输出格式
-                    "safety_tolerance": "2"   # 安全等级
+                    "output_format": "jpg",  # 修正：应该是"jpg"不是"jpeg"
+                    "safety_tolerance": 2   # 修正：应该是整数不是字符串
                 }
             )
             
