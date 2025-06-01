@@ -119,20 +119,58 @@ class MenuSystem:
                 print(f"❌ 备用logo显示也失败: {fallback_error}")
 
     def signal_handler(self, signum, frame):
-        """信号处理函数 - 优化版，快速退出"""
+        """信号处理函数 - 优化版，超快速退出"""
         if self.cleanup_done:
             print("🔄 清理已完成，强制退出...")
             import os
             os._exit(0)
         
-        print("\n🛑 检测到退出信号，正在快速退出...")
+        print("\n🛑 检测到退出信号，正在超快速退出...")
         self.should_exit = True
         
-        # 调用统一的清理方法
-        try:
-            self.cleanup()
-        except Exception as e:
-            print(f"⚠️ 清理出错: {e}")
+        # 使用超时机制进行清理
+        import threading
+        import time
+        
+        def fast_cleanup():
+            try:
+                # 只做最基本的清理，避免阻塞操作
+                if hasattr(self, 'controller'):
+                    self.controller.cleanup()
+                    print("✅ 控制器已清理")
+                
+                # 启动后台WiFi清理（不等待完成）
+                if hasattr(self, 'temp_connections') and self.temp_connections:
+                    try:
+                        import os
+                        script_dir = os.path.dirname(os.path.abspath(__file__))
+                        wifi_cleanup_script = os.path.join(script_dir, "wifi_cleanup.py")
+                        if os.path.exists(wifi_cleanup_script):
+                            subprocess.Popen([
+                                sys.executable, wifi_cleanup_script, "--background"
+                            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            print("🔧 后台WiFi清理已启动")
+                    except Exception as wifi_error:
+                        print(f"⚠️ 启动WiFi清理失败: {wifi_error}")
+                
+                # 跳过显示设备清理，直接清理GPIO
+                GPIO.cleanup()
+                print("✅ GPIO已清理")
+                
+                self.cleanup_done = True
+            except Exception as e:
+                print(f"⚠️ 快速清理出错: {e}")
+        
+        # 创建清理线程，设置2秒超时
+        cleanup_thread = threading.Thread(target=fast_cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
+        cleanup_thread.join(timeout=2.0)
+        
+        if cleanup_thread.is_alive():
+            print("⚠️ 清理超时，强制退出...")
+        else:
+            print("✅ 快速清理完成")
         
         print("👋 程序已快速退出")
         import os
@@ -901,26 +939,17 @@ class MenuSystem:
         return True
     
     def cleanup(self):
-        """清理资源 - 优化版，避免卡死"""
+        """清理资源 - 超快速版本，避免卡死"""
         if self.cleanup_done:
             return
         self.cleanup_done = True
-        print("🧹 开始清理资源...")
+        print("🧹 开始快速清理资源...")
         
         try:
-            # 1. 清理临时WiFi连接配置
-            if hasattr(self, 'temp_connections') and self.temp_connections:
-                print("🔧 清理临时WiFi连接...")
-                for connection_name in self.temp_connections:
-                    try:
-                        subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
-                                     check=False, capture_output=True)
-                        print(f"✅ 已删除临时连接: {connection_name}")
-                    except Exception as temp_error:
-                        print(f"⚠️ 删除临时连接失败: {connection_name} - {temp_error}")
-                self.temp_connections.clear()
+            # 1. 跳过WiFi清理（避免subprocess阻塞）
+            # WiFi连接会在系统关闭时自动断开，不需要手动清理
             
-            # 2. 清理控制器（最重要）
+            # 2. 清理控制器（最重要且通常不会阻塞）
             if hasattr(self, 'controller'):
                 try:
                     self.controller.cleanup()
@@ -928,34 +957,17 @@ class MenuSystem:
                 except Exception as controller_error:
                     print(f"⚠️ 控制器清理失败: {controller_error}")
             
-            # 3. 快速清理OLED（避免卡死）
-            if hasattr(self, 'oled'):
-                try:
-                    # 跳过可能卡死的show_text_oled，直接清理
-                    self.oled.clear()
-                    print("✅ OLED已清理")
-                except Exception as oled_error:
-                    print(f"⚠️ OLED清理失败: {oled_error}")
+            # 3. 跳过显示设备的复杂清理（避免卡死）
+            # 直接清理GPIO即可，显示设备会在程序退出时自动释放
             
-            # 4. 快速清理LCD（避免卡死）
-            if hasattr(self, 'lcd'):
-                try:
-                    # 使用简单的黑屏清理
-                    from PIL import Image
-                    black_image = Image.new('RGB', (320, 240), 'black')
-                    self.lcd.show_image(black_image)
-                    print("✅ LCD已清理")
-                except Exception as lcd_error:
-                    print(f"⚠️ LCD清理失败: {lcd_error}")
-            
-            # 5. 最后清理GPIO
+            # 4. 清理GPIO（最终步骤）
             try:
                 GPIO.cleanup()
                 print("✅ GPIO已清理")
             except Exception as gpio_error:
                 print(f"⚠️ GPIO清理失败: {gpio_error}")
             
-            print("✅ 所有资源清理完成")
+            print("✅ 快速清理完成")
             
         except Exception as e:
             print(f"❌ 清理过程出错: {e}")
@@ -1110,33 +1122,65 @@ if __name__ == "__main__":
         sys.exit(0)
         
     except KeyboardInterrupt:
-        print("\n🛑 检测到Ctrl+C，正在快速退出...")
-        if menu and not menu.cleanup_done:
+        print("\n🛑 检测到Ctrl+C，正在超快速退出...")
+        
+        # 使用超时机制进行清理
+        import threading
+        import time
+        
+        def emergency_cleanup():
             try:
-                # 快速清理，避免卡死
-                if hasattr(menu, 'controller'):
-                    menu.controller.cleanup()
-                    print("✅ 控制器已清理")
-                GPIO.cleanup()
-                print("✅ GPIO已清理")
-                menu.cleanup_done = True
+                if menu and not getattr(menu, 'cleanup_done', False):
+                    # 只做最基本的清理，避免阻塞操作
+                    if hasattr(menu, 'controller'):
+                        menu.controller.cleanup()
+                        print("✅ 控制器已清理")
+                    # 跳过显示设备清理，直接清理GPIO
+                    GPIO.cleanup()
+                    print("✅ GPIO已清理")
+                    menu.cleanup_done = True
+                elif menu and menu.cleanup_done:
+                    print("🔄 清理已完成，直接退出...")
             except Exception as e:
-                print(f"⚠️ 快速清理出错: {e}")
-        elif menu and menu.cleanup_done:
-            print("🔄 清理已完成，直接退出...")
+                print(f"⚠️ 紧急清理出错: {e}")
+        
+        # 创建清理线程，设置1.5秒超时
+        cleanup_thread = threading.Thread(target=emergency_cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
+        cleanup_thread.join(timeout=1.5)
+        
+        if cleanup_thread.is_alive():
+            print("⚠️ 清理超时，强制退出...")
+        else:
+            print("✅ 紧急清理完成")
+        
         print("👋 程序已退出")
         import os
         os._exit(0)
     except Exception as e:
         print(f"❌ 程序异常: {e}")
-        if menu and not menu.cleanup_done:
+        
+        # 使用超时机制进行异常清理
+        import threading
+        import time
+        
+        def exception_cleanup():
             try:
-                # 快速清理
-                if hasattr(menu, 'controller'):
-                    menu.controller.cleanup()
-                GPIO.cleanup()
-                menu.cleanup_done = True
+                if menu and not getattr(menu, 'cleanup_done', False):
+                    # 快速清理
+                    if hasattr(menu, 'controller'):
+                        menu.controller.cleanup()
+                    GPIO.cleanup()
+                    menu.cleanup_done = True
             except:
                 pass
+        
+        # 创建清理线程，设置1秒超时
+        cleanup_thread = threading.Thread(target=exception_cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
+        cleanup_thread.join(timeout=1.0)
+        
         import os
         os._exit(1)
