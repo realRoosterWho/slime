@@ -632,10 +632,43 @@ class MenuSystem:
                     
                     # 显示结果
                     if disconnected_count > 0:
-                        self.oled.wait_for_button_with_text(
-                            self.controller,
-                            f"✅ 断开成功！\n\n已断开并清理:\n{disconnected_count}个连接\n\n校园网配置已清理\n\n按任意键返回菜单"
-                        )
+                        # 尝试自动重连调试WiFi
+                        debug_wifi_ssid = self.wifi_configs['default']['ssid']
+                        print(f"尝试自动重连调试WiFi: {debug_wifi_ssid}")
+                        
+                        time.sleep(2)  # 等待网络状态稳定
+                        
+                        try:
+                            # 尝试连接调试WiFi
+                            reconnect_result = subprocess.run([
+                                'sudo', 'nmcli', 'connection', 'up', debug_wifi_ssid
+                            ], check=False, capture_output=True, text=True)
+                            
+                            if reconnect_result.returncode == 0:
+                                time.sleep(2)  # 等待连接验证
+                                current_wifi = self.get_current_wifi()
+                                
+                                if current_wifi == debug_wifi_ssid:
+                                    self.oled.wait_for_button_with_text(
+                                        self.controller,
+                                        f"✅ 断开成功！\n\n已断开并清理:\n{disconnected_count}个连接\n\n自动重连到:\n{debug_wifi_ssid}\n\n按任意键返回菜单"
+                                    )
+                                else:
+                                    self.oled.wait_for_button_with_text(
+                                        self.controller,
+                                        f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 自动重连失败\n请手动连接WiFi\n\n按任意键返回菜单"
+                                    )
+                            else:
+                                self.oled.wait_for_button_with_text(
+                                    self.controller,
+                                    f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 未找到调试WiFi\n请手动连接网络\n\n按任意键返回菜单"
+                                )
+                        except Exception as reconnect_error:
+                            print(f"自动重连出错: {reconnect_error}")
+                            self.oled.wait_for_button_with_text(
+                                self.controller,
+                                f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 自动重连出错\n请手动连接WiFi\n\n按任意键返回菜单"
+                            )
                     else:
                         self.oled.wait_for_button_with_text(
                             self.controller,
