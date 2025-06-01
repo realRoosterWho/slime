@@ -576,12 +576,116 @@ class MenuSystem:
             self.safe_connect_wifi(ssid, password)
 
     def connect_default_wifi(self):
-        """连接默认WiFi"""
-        self.connect_wifi(self.wifi_configs['default'])
+        """连接默认WiFi（优先使用已配置的RW_1963）"""
+        try:
+            # 先检查是否已存在RW_1963配置
+            check_result = subprocess.run([
+                'sudo', 'nmcli', 'connection', 'show', 'RW_1963'
+            ], check=False, capture_output=True, text=True)
+            
+            if check_result.returncode == 0:
+                # 找到已存在的配置，直接使用
+                current_wifi = self.get_current_wifi()
+                
+                self.oled.show_text_oled("正在连接调试WiFi\nRW_1963\n\n使用已有配置")
+                
+                # 直接激活已存在的RW_1963连接
+                connect_result = subprocess.run([
+                    'sudo', 'nmcli', 'connection', 'up', 'RW_1963'
+                ], check=False, capture_output=True, text=True)
+                
+                if connect_result.returncode == 0:
+                    # 连接成功，等待验证
+                    time.sleep(3)  
+                    new_wifi = self.get_current_wifi()
+                    
+                    if new_wifi == 'RW_1963':
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 连接成功！\n\n当前WiFi:\nRW_1963\n\n按任意键返回菜单"
+                        )
+                        print("成功连接到调试WiFi（使用已有配置）")
+                    else:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"❌ 连接验证失败\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单"
+                        )
+                        print("调试WiFi连接验证失败")
+                else:
+                    # 连接失败，回退到旧方法
+                    print("使用已有配置连接失败，尝试重新创建配置")
+                    self.connect_wifi(self.wifi_configs['default'])
+                    return
+            else:
+                # 没有找到已存在的配置，使用原来的方法
+                print("未找到RW_1963配置，使用密码创建新连接")
+                self.connect_wifi(self.wifi_configs['default'])
+                return
+                
+        except Exception as e:
+            print(f"检查调试WiFi配置出错: {e}")
+            # 出错时回退到原来的方法
+            self.connect_wifi(self.wifi_configs['default'])
+            return
+        finally:
+            # 返回主菜单
+            self.display_menu()
 
     def connect_hotspot_wifi(self):
-        """连接热点WiFi"""
-        self.connect_wifi(self.wifi_configs['hotspot'])
+        """连接热点WiFi（优先使用已配置的RW）"""
+        try:
+            # 先检查是否已存在RW配置
+            check_result = subprocess.run([
+                'sudo', 'nmcli', 'connection', 'show', 'RW'
+            ], check=False, capture_output=True, text=True)
+            
+            if check_result.returncode == 0:
+                # 找到已存在的配置，直接使用
+                current_wifi = self.get_current_wifi()
+                
+                self.oled.show_text_oled("正在连接热点WiFi\nRW\n\n使用已有配置")
+                
+                # 直接激活已存在的RW连接
+                connect_result = subprocess.run([
+                    'sudo', 'nmcli', 'connection', 'up', 'RW'
+                ], check=False, capture_output=True, text=True)
+                
+                if connect_result.returncode == 0:
+                    # 连接成功，等待验证
+                    time.sleep(3)  
+                    new_wifi = self.get_current_wifi()
+                    
+                    if new_wifi == 'RW':
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 连接成功！\n\n当前WiFi:\nRW\n\n按任意键返回菜单"
+                        )
+                        print("成功连接到热点WiFi（使用已有配置）")
+                    else:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"❌ 连接验证失败\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单"
+                        )
+                        print("热点WiFi连接验证失败")
+                else:
+                    # 连接失败，回退到旧方法
+                    print("使用已有配置连接失败，尝试重新创建配置")
+                    self.connect_wifi(self.wifi_configs['hotspot'])
+                    return
+            else:
+                # 没有找到已存在的配置，使用原来的方法
+                print("未找到RW配置，使用密码创建新连接")
+                self.connect_wifi(self.wifi_configs['hotspot'])
+                return
+                
+        except Exception as e:
+            print(f"检查热点WiFi配置出错: {e}")
+            # 出错时回退到原来的方法
+            self.connect_wifi(self.wifi_configs['hotspot'])
+            return
+        finally:
+            # 返回主菜单
+            self.display_menu()
 
     def connect_campus_wifi(self):
         """连接校园网（使用已配置的ShanghaiTech）"""
@@ -669,8 +773,9 @@ class MenuSystem:
                     # 尝试自动重连调试WiFi
                     debug_wifi_ssid = self.wifi_configs['default']['ssid']
                     try:
+                        # 优先尝试使用已有的RW_1963配置
                         reconnect_result = subprocess.run([
-                            'sudo', 'nmcli', 'connection', 'up', debug_wifi_ssid
+                            'sudo', 'nmcli', 'connection', 'up', 'RW_1963'
                         ], check=False, capture_output=True, text=True)
                         
                         time.sleep(2)
