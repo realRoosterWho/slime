@@ -22,6 +22,7 @@ class MenuSystem:
         # 添加指示器帧计数（移到最前面）
         self.indicator_frame = 0
         self.should_exit = False  # 将退出标志移到类内部
+        self.cleanup_done = False  # 新增：防止重复清理的标志
         
         # WiFi配置
         self.wifi_configs = {
@@ -118,6 +119,11 @@ class MenuSystem:
 
     def signal_handler(self, signum, frame):
         """信号处理函数 - 优化版，快速退出"""
+        if self.cleanup_done:
+            print("🔄 清理已完成，强制退出...")
+            import os
+            os._exit(0)
+        
         print("\n🛑 检测到退出信号，正在快速退出...")
         self.should_exit = True
         
@@ -893,6 +899,9 @@ class MenuSystem:
     
     def cleanup(self):
         """清理资源 - 优化版，避免卡死"""
+        if self.cleanup_done:
+            return
+        self.cleanup_done = True
         print("🧹 开始清理资源...")
         
         try:
@@ -1030,7 +1039,7 @@ if __name__ == "__main__":
         
     except KeyboardInterrupt:
         print("\n🛑 检测到Ctrl+C，正在快速退出...")
-        if menu:
+        if menu and not menu.cleanup_done:
             try:
                 # 快速清理，避免卡死
                 if hasattr(menu, 'controller'):
@@ -1038,19 +1047,23 @@ if __name__ == "__main__":
                     print("✅ 控制器已清理")
                 GPIO.cleanup()
                 print("✅ GPIO已清理")
+                menu.cleanup_done = True
             except Exception as e:
                 print(f"⚠️ 快速清理出错: {e}")
+        elif menu and menu.cleanup_done:
+            print("🔄 清理已完成，直接退出...")
         print("👋 程序已退出")
         import os
         os._exit(0)
     except Exception as e:
         print(f"❌ 程序异常: {e}")
-        if menu:
+        if menu and not menu.cleanup_done:
             try:
                 # 快速清理
                 if hasattr(menu, 'controller'):
                     menu.controller.cleanup()
                 GPIO.cleanup()
+                menu.cleanup_done = True
             except:
                 pass
         import os
