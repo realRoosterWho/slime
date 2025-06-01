@@ -41,6 +41,9 @@ class MenuSystem:
             }
         }
         
+        # 记录临时连接配置名，用于程序退出时清理
+        self.temp_connections = []
+        
         # 初始化显示
         self.oled = DisplayManager("OLED")
         self.lcd = DisplayManager("LCD")  # 添加LCD显示管理器
@@ -56,6 +59,7 @@ class MenuSystem:
             "使用调试wifi",
             "使用热点wifi",
             "连接校园网",     # 新增：企业级WiFi连接
+            "断开校园网",     # 新增：断开企业级WiFi并清理配置
             "查看当前wifi",
             "系统信息",
             "重启设备",
@@ -117,24 +121,14 @@ class MenuSystem:
         print("\n🛑 检测到退出信号，正在快速退出...")
         self.should_exit = True
         
-        # 快速清理，避免卡死
+        # 调用统一的清理方法
         try:
-            # 只做最基本的清理
-            if hasattr(self, 'controller'):
-                self.controller.cleanup()
-                print("✅ 控制器已清理")
-            
-            # 快速GPIO清理
-            try:
-                GPIO.cleanup()
-                print("✅ GPIO已清理")
-            except:
-                pass
-                
+            self.cleanup()
         except Exception as e:
-            print(f"⚠️ 快速清理出错: {e}")
+            print(f"⚠️ 清理出错: {e}")
         
         print("👋 程序已快速退出")
+        import os
         os._exit(0)  # 强制退出，避免卡死
     
     def on_up(self):
@@ -435,7 +429,7 @@ class MenuSystem:
                     if new_wifi == ssid:
                         self.oled.wait_for_button_with_text(
                             self.controller,
-                            f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n按任意键返回菜单"
+                            f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n临时连接模式\n程序退出时清理\n\n按任意键返回菜单"
                         )
                         print(f"成功连接到 {ssid}")
                     else:
@@ -467,15 +461,6 @@ class MenuSystem:
             )
             print(f"WiFi连接过程出错: {e}")
         finally:
-            # 无论成功失败，都尝试清理临时连接配置
-            try:
-                if 'connection_name' in locals():
-                    print(f"清理临时连接配置: {connection_name}")
-                    subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
-                                 check=False, capture_output=True)
-            except Exception as cleanup_error:
-                print(f"清理临时配置时出错: {cleanup_error}")
-            
             # 返回主菜单
             self.display_menu()
 
@@ -536,15 +521,12 @@ class MenuSystem:
                     if new_wifi == ssid:
                         print(f"成功连接到企业级WiFi {ssid}")
                         
-                        # 🔑 关键：连接成功后立即删除配置，实现临时连接
-                        print("删除WiFi配置以防止自动重连...")
-                        time.sleep(2)  # 等待连接稳定
-                        subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
-                                     check=False, capture_output=True)
+                        # 🔑 关键：连接成功后不立即删除配置，记录临时配置名以便后续清理
+                        self.temp_connections.append(connection_name)
                         
                         self.oled.wait_for_button_with_text(
                             self.controller,
-                            f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n临时连接模式\n配置未保存\n\n按任意键返回菜单"
+                            f"✅ 连接成功！\n\n当前WiFi:\n{ssid}\n\n临时连接模式\n程序退出时清理\n\n按任意键返回菜单"
                         )
                     else:
                         self.oled.wait_for_button_with_text(
@@ -575,15 +557,6 @@ class MenuSystem:
             )
             print(f"企业级WiFi连接过程出错: {e}")
         finally:
-            # 无论成功失败，都尝试清理临时连接配置
-            try:
-                if 'connection_name' in locals():
-                    print(f"清理临时连接配置: {connection_name}")
-                    subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
-                                 check=False, capture_output=True)
-            except Exception as cleanup_error:
-                print(f"清理临时配置时出错: {cleanup_error}")
-            
             # 返回主菜单
             self.display_menu()
 
@@ -613,6 +586,73 @@ class MenuSystem:
     def connect_campus_wifi(self):
         """连接校园网（企业级WiFi）"""
         self.connect_wifi(self.wifi_configs['campus'])
+
+    def disconnect_campus_wifi(self):
+        """断开校园网并清理临时配置"""
+        try:
+            if not self.temp_connections:
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    "没有检测到\n临时校园网连接\n\n按任意键返回菜单"
+                )
+                self.display_menu()
+                return
+            
+            # 显示确认界面
+            confirm_text = f"确认断开校园网？\n\n当前临时连接数:\n{len(self.temp_connections)}\n\n断开后将清理\n所有临时配置\n\n按BT1确认断开\n按BT2返回菜单"
+            
+            result = self.oled.wait_for_button_with_text(
+                self.controller,
+                confirm_text,
+                font_size=10,
+                chars_per_line=18,
+                visible_lines=4
+            )
+            
+            if hasattr(self.controller, 'last_button'):
+                if self.controller.last_button == 'BTN1':
+                    # 确认断开
+                    self.oled.show_text_oled("正在断开校园网\n并清理配置...")
+                    
+                    # 清理所有临时连接
+                    disconnected_count = 0
+                    for connection_name in self.temp_connections[:]:  # 使用副本遍历
+                        try:
+                            subprocess.run(['sudo', 'nmcli', 'connection', 'down', connection_name], 
+                                         check=False, capture_output=True)
+                            subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
+                                         check=False, capture_output=True)
+                            print(f"✅ 已断开并删除: {connection_name}")
+                            disconnected_count += 1
+                        except Exception as e:
+                            print(f"⚠️ 断开连接失败: {connection_name} - {e}")
+                    
+                    # 清空临时连接列表
+                    self.temp_connections.clear()
+                    
+                    # 显示结果
+                    if disconnected_count > 0:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 断开成功！\n\n已断开并清理:\n{disconnected_count}个连接\n\n校园网配置已清理\n\n按任意键返回菜单"
+                        )
+                    else:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            "⚠️ 断开过程完成\n\n但可能存在错误\n\n请检查网络状态\n\n按任意键返回菜单"
+                        )
+                else:
+                    self.display_menu()
+            else:
+                self.display_menu()
+                
+        except Exception as e:
+            print(f"断开校园网出错: {e}")
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"断开出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
+            self.display_menu()
 
     def show_system_info(self):
         """显示系统信息"""
@@ -668,6 +708,8 @@ class MenuSystem:
             self.connect_hotspot_wifi()
         elif selected_item == "连接校园网":
             self.connect_campus_wifi()
+        elif selected_item == "断开校园网":
+            self.disconnect_campus_wifi()
         elif selected_item == "查看当前wifi":
             self.show_current_wifi()
         elif selected_item == "系统信息":
@@ -699,7 +741,19 @@ class MenuSystem:
         print("🧹 开始清理资源...")
         
         try:
-            # 1. 清理控制器（最重要）
+            # 1. 清理临时WiFi连接配置
+            if hasattr(self, 'temp_connections') and self.temp_connections:
+                print("🔧 清理临时WiFi连接...")
+                for connection_name in self.temp_connections:
+                    try:
+                        subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
+                                     check=False, capture_output=True)
+                        print(f"✅ 已删除临时连接: {connection_name}")
+                    except Exception as temp_error:
+                        print(f"⚠️ 删除临时连接失败: {connection_name} - {temp_error}")
+                self.temp_connections.clear()
+            
+            # 2. 清理控制器（最重要）
             if hasattr(self, 'controller'):
                 try:
                     self.controller.cleanup()
@@ -707,7 +761,7 @@ class MenuSystem:
                 except Exception as controller_error:
                     print(f"⚠️ 控制器清理失败: {controller_error}")
             
-            # 2. 快速清理OLED（避免卡死）
+            # 3. 快速清理OLED（避免卡死）
             if hasattr(self, 'oled'):
                 try:
                     # 跳过可能卡死的show_text_oled，直接清理
@@ -716,7 +770,7 @@ class MenuSystem:
                 except Exception as oled_error:
                     print(f"⚠️ OLED清理失败: {oled_error}")
             
-            # 3. 快速清理LCD（避免卡死）
+            # 4. 快速清理LCD（避免卡死）
             if hasattr(self, 'lcd'):
                 try:
                     # 使用简单的黑屏清理
@@ -727,7 +781,7 @@ class MenuSystem:
                 except Exception as lcd_error:
                     print(f"⚠️ LCD清理失败: {lcd_error}")
             
-            # 4. 最后清理GPIO
+            # 5. 最后清理GPIO
             try:
                 GPIO.cleanup()
                 print("✅ GPIO已清理")
