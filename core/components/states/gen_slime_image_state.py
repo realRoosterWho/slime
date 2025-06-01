@@ -57,9 +57,31 @@ class GenSlimeImageState(AbstractState):
         """生成史莱姆图片的提示词"""
         slime_description = context.get_data('slime_description', '')
         
-        # 构建1-bit黑白像素风格的史莱姆提示词
+        # 构建1-bit黑白像素风格的史莱姆场景提示词
         prompt = f"""
-        A cute slime character with the following traits: {slime_description}
+        A complete 1-bit pixel art scene featuring a cute slime character with these traits: {slime_description}
+        
+        SCENE COMPOSITION:
+        - Create a complete environment that matches the slime's personality and traits
+        - Include background elements that complement the slime's characteristics
+        - Add environmental details that tell a story about this slime
+        - Show the slime interacting with or existing in its natural habitat
+        - Background should reflect the slime's mood, abilities, or personality
+        
+        BACKGROUND ELEMENTS (all in 1-bit pixel art):
+        - Simple geometric shapes for scenery (trees, rocks, clouds, buildings)
+        - Environmental objects that match the slime's story or traits
+        - Ground/floor patterns using black pixel textures
+        - Sky or ceiling with simple pixel patterns
+        - Props or objects that the slime might interact with
+        - Simple architectural or natural elements
+        - Weather effects using simple black pixel patterns (rain lines, snow dots)
+        
+        CHARACTER INTEGRATION:
+        - Position the slime naturally within the scene
+        - Show the slime's relationship to its environment
+        - Reflect the slime's personality through its pose and surroundings
+        - Make the scene tell a story about who this slime is
         
         STRICT 1-bit monochrome pixel art requirements:
         - ONLY BLACK AND WHITE (1-bit color depth)
@@ -75,24 +97,33 @@ class GenSlimeImageState(AbstractState):
         - NO gradients, NO dithering, only solid black and solid white areas
         - High contrast monochrome aesthetic
         
-        Character design:
-        - Simple geometric blob shape made of black pixels on white background
+        CHARACTER DESIGN:
+        - Simple geometric blob shape made of black pixels
         - Large square/rectangular eyes (solid black pixels)
         - Tiny pixel mouth (black pixels)
         - Body outline in thick black pixels
         - Interior can be white or have simple black pixel patterns
+        - Expression and pose that matches the personality described
         - Clear silhouette suitable for 1-bit retro gaming
         - Must look like it came from a monochrome handheld game
         
-        Technical specifications:
+        ENVIRONMENTAL DETAILS:
+        - Simple geometric background objects using black pixel outlines
+        - Textured surfaces using black pixel patterns
+        - Simple repeating patterns for ground, walls, or sky
+        - Environmental storytelling through pixel placement
+        - Objects that enhance the slime's character story
+        
+        TECHNICAL SPECIFICATIONS:
         - 1-bit pixel art, monochrome, black and white only
-        - Centered character on white background
+        - Complete scene composition with foreground and background
         - High contrast for maximum clarity on monochrome displays
         - NO modern digital art techniques
-        - Must look like original Game Boy graphics
-        - Think Tetris, early Mario Land, or classic LCD games
+        - Must look like original Game Boy game screenshots
+        - Think classic platformer games, RPGs, or adventure games
+        - Detailed but simple environment that tells a story
         
-        Style: 1-bit pixel art, monochrome, black and white, classic Game Boy style, retro handheld gaming
+        Style: 1-bit pixel art, monochrome, black and white, classic Game Boy RPG/platformer game screenshot with detailed environment and storytelling
         """
         
         return prompt 
