@@ -31,7 +31,7 @@ def chat_with_gpt(input_content, system_content=None, previous_response_id=None)
         input_data.insert(0, {"role": "system", "content": system_content})
         
     response = client.responses.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         input=input_data,
         previous_response_id=previous_response_id
     )

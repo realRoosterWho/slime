@@ -31,125 +31,28 @@ class GenerateRewardImageState(AbstractState):
             if reward_level == 'great':
                 # great级别：装扮或符合幻想癖好的物品
                 reward_prompt = f"""
-                A complete 1-bit pixel art scene featuring a magical accessory or item that perfectly matches a slime's fantasy quirk.
+                Create a magical 1-bit pixel art scene showcasing a special reward item for a slime whose greatest quirk is: {quirk}
                 
-                Slime's quirk/fantasy: "{quirk}"
-                Reward description: "{reward_description}"
+                This reward should be a magical item that perfectly fulfills the slime's deepest fantasy. Design something that would make this slime's heart sing with joy - whether it's a beautiful collection display, magical crafting tools, an enchanted compass for exploration, or whatever fits their unique personality.
                 
-                SCENE COMPOSITION:
-                - Create a magical environment where this special reward item belongs
-                - Show the item in its natural magical setting or workshop
-                - Include background elements that enhance the item's significance
-                - Create a scene that tells the story of how special this reward is
-                - Environment should reflect the magical nature of the quirk fulfillment
+                Show this precious item in a magical setting that tells its story. Perhaps place it on an ornate pedestal in a treasure chamber, or display it in a cozy workshop surrounded by related magical tools. The environment should make the reward feel truly special and significant.
                 
-                REWARD ITEM DESIGN:
-                - An accessory, decoration, or special item that would fulfill this slime's fantasy quirk
-                - It should be an item the slime can wear, use, or display
-                - The item should directly relate to their quirk: "{quirk}"
-                - The item should look magical and special
-                - Simple but recognizable design suitable for 1-bit graphics
-                - The item should look like it could make the slime's dreams come true
+                Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Make the magical item the clear focal point, but let the environment enhance its importance and tell the story of why this reward is so perfect for this particular slime.
                 
-                BACKGROUND ELEMENTS (all in 1-bit pixel art):
-                - Magical workshop, treasure chamber, or mystical environment
-                - Shelves, pedestals, or display areas with pixel patterns
-                - Magical symbols or runes using simple black pixel designs
-                - Tools, books, or artifacts related to the quirk in the background
-                - Environmental storytelling through pixel placement
-                - Simple architectural elements that suggest a special place
-                
-                Examples based on quirk:
-                - If quirk involves collecting, show a treasure room with display cases and shelves
-                - If quirk involves creating, show a magical workshop with tools and materials
-                - If quirk involves exploring, show a map room with compass and navigation tools
-                - If quirk involves music, show a concert hall or music studio setting
-                
-                STRICT 1-bit monochrome pixel art requirements:
-                - ONLY BLACK AND WHITE (1-bit color depth)
-                - Pure monochrome like classic Game Boy or early computer graphics
-                - Visible pixel grid structure with chunky square pixels
-                - Hard edges with NO anti-aliasing or smoothing
-                - NO grayscale, NO color, ONLY pure black and pure white
-                - Blocky, pixelated appearance like classic handheld RPG item scenes
-                - NO cartoon, anime, or smooth vector art styles
-                - Sharp, geometric pixel boundaries
-                - Reminiscent of original Game Boy RPG treasure rooms (early Final Fantasy Legend style)
-                - Each pixel should be clearly visible as black or white squares
-                - NO gradients, NO dithering, only solid black and solid white areas
-                - High contrast monochrome aesthetic
-                - Scene should look like a reward screen from a 1-bit handheld game
-                
-                ENVIRONMENTAL DETAILS:
-                - Simple geometric background objects using black pixel outlines
-                - Textured surfaces using black pixel patterns
-                - Simple repeating patterns for walls, floors, or magical effects
-                - Objects that enhance the reward's significance and story
-                - Magical atmosphere through pixel art environmental design
-                
-                Style: 1-bit pixel art, monochrome, black and white, classic Game Boy RPG treasure room/reward chamber with detailed magical environment
+                The reward description mentions: {reward_description}
                 """
             else:
                 # encouragement级别：符合偏执反应的史莱姆蛋
                 reward_prompt = f"""
-                A complete 1-bit pixel art scene featuring a special slime egg that embodies the slime's quirky reaction pattern.
+                Create a heartwarming 1-bit pixel art scene featuring a special slime egg that embodies this unique reaction pattern: {reflex}
                 
-                Slime's reflex/reaction: "{reflex}"
-                Reward description: "{reward_description}"
+                This egg should look promising and full of potential, with gentle patterns on its shell that hint at the wonderful personality trait it contains. Design the egg so that someone looking at it would think "I wonder what amazing little slime is growing in there!"
                 
-                SCENE COMPOSITION:
-                - Create a nurturing environment where this special egg is being cared for
-                - Show the egg in a natural or magical incubation setting
-                - Include background elements that suggest growth and potential
-                - Create a scene that tells the story of new life and encouragement
-                - Environment should reflect hope and the promise of new adventures
+                Place this special egg in a nurturing environment that suggests care and growth. Maybe show it resting in a cozy nest, sitting safely in a warm cave, or being tended in a magical incubation chamber. The setting should feel safe, encouraging, and full of hope for the future.
                 
-                EGG DESIGN:
-                - A unique slime egg that reflects this reaction pattern
-                - The egg should visually represent the reflex: "{reflex}"
-                - Black pixel patterns on white egg that hint at this behavioral trait
-                - The egg should look mysterious but encouraging
-                - Simple geometric patterns suitable for 1-bit graphics
-                - A sense that this egg contains a slime with similar interesting quirks
+                Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Make the egg feel like a precious gift that holds great promise, surrounded by an environment that speaks of patience, care, and anticipation.
                 
-                BACKGROUND ELEMENTS (all in 1-bit pixel art):
-                - Nurturing environment like a cozy cave, garden, or incubation chamber
-                - Natural elements like grass, rocks, or simple plant life
-                - Soft bedding or nest materials using pixel patterns
-                - Other environmental hints about slime care and growth
-                - Simple architectural or natural elements that suggest safety
-                - Warm, welcoming atmosphere through pixel art design
-                
-                Examples based on reflex:
-                - If reflex involves curiosity, show an egg in a library or study with books and scrolls
-                - If reflex involves collecting, show an egg in a treasure chamber with gentle lighting
-                - If reflex involves exploring, show an egg in a map room or navigation chamber
-                - If reflex involves being cautious, show an egg in a protected, cozy sanctuary
-                
-                STRICT 1-bit monochrome pixel art requirements:
-                - ONLY BLACK AND WHITE (1-bit color depth)
-                - Pure monochrome like classic Game Boy or early computer graphics
-                - Visible pixel grid structure with chunky square pixels
-                - Hard edges with NO anti-aliasing or smoothing
-                - NO grayscale, NO color, ONLY pure black and pure white
-                - Blocky, pixelated egg with chunky black pixel patterns on white
-                - NO cartoon, anime, or smooth vector art styles
-                - Sharp, geometric pixel boundaries
-                - Reminiscent of classic handheld game egg incubation scenes
-                - Each pixel should be clearly visible as black or white squares
-                - NO gradients, NO dithering, only solid black and solid white areas
-                - High contrast monochrome aesthetic
-                - Scene should look like it came from a retro 1-bit life simulation game
-                
-                ENVIRONMENTAL DETAILS:
-                - Simple geometric background objects using black pixel outlines
-                - Textured surfaces using black pixel patterns for nesting materials
-                - Simple repeating patterns for ground, walls, or natural elements
-                - Environmental storytelling through careful pixel placement
-                - Objects that enhance the sense of care and growth potential
-                
-                Style: 1-bit pixel art, monochrome, black and white, classic Game Boy egg incubation/care scene with nurturing environment
-                The scene should look hopeful and promising, showing the egg in a caring environment
+                The reward description mentions: {reward_description}
                 """
             
             context.logger.log_prompt("reward_image_prompt", reward_prompt)

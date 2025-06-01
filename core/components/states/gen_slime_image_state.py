@@ -57,73 +57,17 @@ class GenSlimeImageState(AbstractState):
         """生成史莱姆图片的提示词"""
         slime_description = context.get_data('slime_description', '')
         
-        # 构建1-bit黑白像素风格的史莱姆场景提示词
+        # 构建自然语言风格的史莱姆场景提示词，符合Flux最佳实践
         prompt = f"""
-        A complete 1-bit pixel art scene featuring a cute slime character with these traits: {slime_description}
+        Create a charming 1-bit pixel art scene featuring a slime character with these specific traits: {slime_description}
         
-        SCENE COMPOSITION:
-        - Create a complete environment that matches the slime's personality and traits
-        - Include background elements that complement the slime's characteristics
-        - Add environmental details that tell a story about this slime
-        - Show the slime interacting with or existing in its natural habitat
-        - Background should reflect the slime's mood, abilities, or personality
+        The slime should be the main character in this scene, clearly displaying its personality through its expression and pose. Design the slime as a simple blob shape with large square eyes and a tiny mouth, but make sure its unique characteristics from the description really shine through.
         
-        BACKGROUND ELEMENTS (all in 1-bit pixel art):
-        - Simple geometric shapes for scenery (trees, rocks, clouds, buildings)
-        - Environmental objects that match the slime's story or traits
-        - Ground/floor patterns using black pixel textures
-        - Sky or ceiling with simple pixel patterns
-        - Props or objects that the slime might interact with
-        - Simple architectural or natural elements
-        - Weather effects using simple black pixel patterns (rain lines, snow dots)
+        Place this slime in a simple environment that matches its personality and tells its story. The background should complement the slime's character without overwhelming it - perhaps a cozy cave if it's shy, a garden if it loves nature, or a workshop if it's creative.
         
-        CHARACTER INTEGRATION:
-        - Position the slime naturally within the scene
-        - Show the slime's relationship to its environment
-        - Reflect the slime's personality through its pose and surroundings
-        - Make the scene tell a story about who this slime is
+        Render everything in classic Game Boy style monochrome pixel art. Use only pure black and white pixels with no gray tones. The pixels should look chunky and clearly defined, just like the original handheld games from the 1980s. Focus on high contrast and clean, sharp edges.
         
-        STRICT 1-bit monochrome pixel art requirements:
-        - ONLY BLACK AND WHITE (1-bit color depth)
-        - Pure monochrome like classic Game Boy or early computer graphics
-        - Visible pixel grid structure with chunky square pixels
-        - Hard edges with NO anti-aliasing or smoothing
-        - NO grayscale, NO color, ONLY pure black and pure white
-        - Blocky, pixelated appearance like classic 1980s handheld games
-        - NO cartoon, anime, or smooth vector art styles
-        - Sharp, geometric pixel boundaries
-        - Reminiscent of original Game Boy or Apple II graphics
-        - Each pixel should be clearly visible as black or white squares
-        - NO gradients, NO dithering, only solid black and solid white areas
-        - High contrast monochrome aesthetic
-        
-        CHARACTER DESIGN:
-        - Simple geometric blob shape made of black pixels
-        - Large square/rectangular eyes (solid black pixels)
-        - Tiny pixel mouth (black pixels)
-        - Body outline in thick black pixels
-        - Interior can be white or have simple black pixel patterns
-        - Expression and pose that matches the personality described
-        - Clear silhouette suitable for 1-bit retro gaming
-        - Must look like it came from a monochrome handheld game
-        
-        ENVIRONMENTAL DETAILS:
-        - Simple geometric background objects using black pixel outlines
-        - Textured surfaces using black pixel patterns
-        - Simple repeating patterns for ground, walls, or sky
-        - Environmental storytelling through pixel placement
-        - Objects that enhance the slime's character story
-        
-        TECHNICAL SPECIFICATIONS:
-        - 1-bit pixel art, monochrome, black and white only
-        - Complete scene composition with foreground and background
-        - High contrast for maximum clarity on monochrome displays
-        - NO modern digital art techniques
-        - Must look like original Game Boy game screenshots
-        - Think classic platformer games, RPGs, or adventure games
-        - Detailed but simple environment that tells a story
-        
-        Style: 1-bit pixel art, monochrome, black and white, classic Game Boy RPG/platformer game screenshot with detailed environment and storytelling
+        Make this scene feel warm and inviting, showing the slime living its best life in its perfect little world.
         """
         
         return prompt 
