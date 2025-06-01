@@ -340,13 +340,10 @@ class DeriveImageUtils:
                 "black-forest-labs/flux-1.1-pro",
                 input={
                     "prompt": prompt,
-                    "prompt_upsampling": True,
-                    "width": 427,    # 修正为适配320x240 LCD的比例
-                    "height": 320,   # 修正为适配320x240 LCD的比例
-                    "num_outputs": 1,
-                    "scheduler": "K_EULER",
-                    "num_inference_steps": 25,
-                    "guidance_scale": 7.5,
+                    "aspect_ratio": "4:3",  # 使用正确的长宽比参数，4:3适合320x240显示
+                    "num_images": 1,
+                    "output_format": "jpeg",  # 指定输出格式
+                    "safety_tolerance": "2"   # 安全等级
                 }
             )
             

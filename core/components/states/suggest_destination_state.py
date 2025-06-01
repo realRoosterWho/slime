@@ -22,7 +22,7 @@ class SuggestDestinationState(AbstractState):
             
             # 生成更具体的建议
             suggestion_prompt = f"""
-            基于照片内容和史莱姆的执念，生成一个具体的建议，引导玩家寻找符合执念的场景。
+            基于照片内容和史莱姆的执念，生成一个具体的建议，引导玩家寻找符合执念的场景，最好与照片中出现的元素有相关性与联系。
             
             照片内容: {context.get_data('photo_description')}
             史莱姆执念: {context.get_slime_attribute('obsession')}
@@ -30,7 +30,7 @@ class SuggestDestinationState(AbstractState):
             
             请提供:
             1. 一个简短的建议(不超过20个字)
-            2. 一个简短的理由，为什么这个方向与执念相关
+            2. 一个简短的理由，为什么这个方向与执念相关，以及为什么这个方向与照片中的元素有相关性与联系
             
             回复格式:
             {{"suggestion": "建议", "reason": "理由"}}
