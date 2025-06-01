@@ -584,22 +584,140 @@ class MenuSystem:
         self.connect_wifi(self.wifi_configs['hotspot'])
 
     def connect_campus_wifi(self):
-        """连接校园网（企业级WiFi）"""
-        self.connect_wifi(self.wifi_configs['campus'])
+        """连接校园网（企业级WiFi）- 优先使用已存在的配置"""
+        try:
+            # 先检查是否已存在ShanghaiTech配置
+            check_result = subprocess.run([
+                'sudo', 'nmcli', 'connection', 'show', 'ShanghaiTech'
+            ], check=False, capture_output=True, text=True)
+            
+            if check_result.returncode == 0:
+                # 找到已存在的配置，询问用户是否使用
+                confirm_text = f"检测到已配置的\n校园网连接:\nShanghaiTech\n\n按BT1使用已有配置\n按BT2创建临时配置\n按其他键返回菜单"
+                
+                result = self.oled.wait_for_button_with_text(
+                    self.controller,
+                    confirm_text,
+                    font_size=10,
+                    chars_per_line=18,
+                    visible_lines=4
+                )
+                
+                if hasattr(self.controller, 'last_button'):
+                    if self.controller.last_button == 'BTN1':
+                        # 使用已存在的配置
+                        self.use_existing_campus_wifi()
+                        return
+                    elif self.controller.last_button == 'BTN2':
+                        # 创建新的临时配置
+                        self.connect_wifi(self.wifi_configs['campus'])
+                        return
+                    else:
+                        self.display_menu()
+                        return
+                else:
+                    self.display_menu()
+                    return
+            else:
+                # 没有找到已存在的配置，直接创建临时配置
+                self.connect_wifi(self.wifi_configs['campus'])
+                
+        except Exception as e:
+            print(f"检查校园网配置出错: {e}")
+            # 出错时回退到原来的方法
+            self.connect_wifi(self.wifi_configs['campus'])
+
+    def use_existing_campus_wifi(self):
+        """使用已存在的ShanghaiTech配置连接校园网"""
+        try:
+            current_wifi = self.get_current_wifi()
+            
+            self.oled.show_text_oled("正在连接校园网\n使用已有配置\n\nShanghaiTech")
+            
+            # 直接激活已存在的连接
+            connect_result = subprocess.run([
+                'sudo', 'nmcli', 'connection', 'up', 'ShanghaiTech'
+            ], check=False, capture_output=True, text=True)
+            
+            if connect_result.returncode == 0:
+                # 连接成功，等待验证
+                time.sleep(3)  # 等待连接建立
+                new_wifi = self.get_current_wifi()
+                
+                if new_wifi == 'ShanghaiTech':
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        f"✅ 连接成功！\n\n当前WiFi:\nShanghaiTech\n\n使用已保存配置\n无需临时清理\n\n按任意键返回菜单"
+                    )
+                    print("成功连接到校园网（使用已有配置）")
+                else:
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        f"❌ 连接验证失败\n\n可能的原因：\n- 网络信号弱\n- 认证服务器繁忙\n\n当前仍连接:\n{current_wifi or '未知'}\n\n按任意键返回菜单"
+                    )
+                    print("校园网连接验证失败")
+            else:
+                # 连接失败
+                error_msg = connect_result.stderr.strip() if connect_result.stderr else "未知错误"
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    f"❌ 连接失败\n\n{error_msg[:20]}...\n\n可能的原因：\n- 不在校园网范围内\n- 配置信息过期\n\n当前WiFi保持不变:\n{current_wifi or '未连接'}\n\n按任意键返回菜单"
+                )
+                print(f"校园网连接失败: {error_msg}")
+                
+        except Exception as e:
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"❌ 连接出错\n\n{str(e)[:20]}...\n\n当前WiFi保持不变\n\n按任意键返回菜单"
+            )
+            print(f"使用已有配置连接出错: {e}")
+        finally:
+            # 返回主菜单
+            self.display_menu()
 
     def disconnect_campus_wifi(self):
         """断开校园网并清理临时配置"""
         try:
-            if not self.temp_connections:
+            # 检查当前是否连接到ShanghaiTech
+            current_wifi = self.get_current_wifi()
+            is_connected_to_campus = (current_wifi == 'ShanghaiTech')
+            
+            # 检查是否有临时连接
+            has_temp_connections = bool(self.temp_connections)
+            
+            # 检查是否存在已保存的ShanghaiTech配置
+            check_saved_result = subprocess.run([
+                'sudo', 'nmcli', 'connection', 'show', 'ShanghaiTech'
+            ], check=False, capture_output=True, text=True)
+            has_saved_config = (check_saved_result.returncode == 0)
+            
+            if not is_connected_to_campus and not has_temp_connections:
                 self.oled.wait_for_button_with_text(
                     self.controller,
-                    "没有检测到\n临时校园网连接\n\n按任意键返回菜单"
+                    "未连接到校园网\n\n当前WiFi:\n" + (current_wifi or "未连接") + "\n\n按任意键返回菜单"
                 )
                 self.display_menu()
                 return
             
-            # 显示确认界面
-            confirm_text = f"确认断开校园网？\n\n当前临时连接数:\n{len(self.temp_connections)}\n\n断开后将清理\n所有临时配置\n\n按BT1确认断开\n按BT2返回菜单"
+            # 构建确认消息
+            status_lines = []
+            if is_connected_to_campus:
+                status_lines.append("✓ 当前连接: ShanghaiTech")
+            if has_temp_connections:
+                status_lines.append(f"✓ 临时连接: {len(self.temp_connections)}个")
+            if has_saved_config and not has_temp_connections:
+                status_lines.append("✓ 已保存配置存在")
+            
+            status_text = "\n".join(status_lines)
+            
+            if has_saved_config and not has_temp_connections:
+                # 如果只有已保存的配置，询问是否断开连接（但保留配置）
+                confirm_text = f"校园网状态:\n{status_text}\n\n按BT1仅断开连接\n(保留配置)\n按BT2返回菜单"
+                action_type = "disconnect_only"
+            else:
+                # 如果有临时连接，询问是否清理
+                confirm_text = f"校园网状态:\n{status_text}\n\n按BT1断开并清理\n按BT2返回菜单"
+                action_type = "disconnect_and_clean"
             
             result = self.oled.wait_for_button_with_text(
                 self.controller,
@@ -611,69 +729,10 @@ class MenuSystem:
             
             if hasattr(self.controller, 'last_button'):
                 if self.controller.last_button == 'BTN1':
-                    # 确认断开
-                    self.oled.show_text_oled("正在断开校园网\n并清理配置...")
-                    
-                    # 清理所有临时连接
-                    disconnected_count = 0
-                    for connection_name in self.temp_connections[:]:  # 使用副本遍历
-                        try:
-                            subprocess.run(['sudo', 'nmcli', 'connection', 'down', connection_name], 
-                                         check=False, capture_output=True)
-                            subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
-                                         check=False, capture_output=True)
-                            print(f"✅ 已断开并删除: {connection_name}")
-                            disconnected_count += 1
-                        except Exception as e:
-                            print(f"⚠️ 断开连接失败: {connection_name} - {e}")
-                    
-                    # 清空临时连接列表
-                    self.temp_connections.clear()
-                    
-                    # 显示结果
-                    if disconnected_count > 0:
-                        # 尝试自动重连调试WiFi
-                        debug_wifi_ssid = self.wifi_configs['default']['ssid']
-                        print(f"尝试自动重连调试WiFi: {debug_wifi_ssid}")
-                        
-                        time.sleep(2)  # 等待网络状态稳定
-                        
-                        try:
-                            # 尝试连接调试WiFi
-                            reconnect_result = subprocess.run([
-                                'sudo', 'nmcli', 'connection', 'up', debug_wifi_ssid
-                            ], check=False, capture_output=True, text=True)
-                            
-                            if reconnect_result.returncode == 0:
-                                time.sleep(2)  # 等待连接验证
-                                current_wifi = self.get_current_wifi()
-                                
-                                if current_wifi == debug_wifi_ssid:
-                                    self.oled.wait_for_button_with_text(
-                                        self.controller,
-                                        f"✅ 断开成功！\n\n已断开并清理:\n{disconnected_count}个连接\n\n自动重连到:\n{debug_wifi_ssid}\n\n按任意键返回菜单"
-                                    )
-                                else:
-                                    self.oled.wait_for_button_with_text(
-                                        self.controller,
-                                        f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 自动重连失败\n请手动连接WiFi\n\n按任意键返回菜单"
-                                    )
-                            else:
-                                self.oled.wait_for_button_with_text(
-                                    self.controller,
-                                    f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 未找到调试WiFi\n请手动连接网络\n\n按任意键返回菜单"
-                                )
-                        except Exception as reconnect_error:
-                            print(f"自动重连出错: {reconnect_error}")
-                            self.oled.wait_for_button_with_text(
-                                self.controller,
-                                f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 自动重连出错\n请手动连接WiFi\n\n按任意键返回菜单"
-                            )
+                    if action_type == "disconnect_only":
+                        self.disconnect_saved_campus_wifi()
                     else:
-                        self.oled.wait_for_button_with_text(
-                            self.controller,
-                            "⚠️ 断开过程完成\n\n但可能存在错误\n\n请检查网络状态\n\n按任意键返回菜单"
-                        )
+                        self.disconnect_and_clean_campus_wifi()
                 else:
                     self.display_menu()
             else:
@@ -683,8 +742,137 @@ class MenuSystem:
             print(f"断开校园网出错: {e}")
             self.oled.wait_for_button_with_text(
                 self.controller,
+                f"检查状态出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
+            self.display_menu()
+
+    def disconnect_saved_campus_wifi(self):
+        """断开已保存的校园网配置（不删除配置）"""
+        try:
+            self.oled.show_text_oled("正在断开校园网\n保留已保存配置")
+            
+            # 断开ShanghaiTech连接
+            disconnect_result = subprocess.run([
+                'sudo', 'nmcli', 'connection', 'down', 'ShanghaiTech'
+            ], check=False, capture_output=True, text=True)
+            
+            time.sleep(2)  # 等待断开完成
+            
+            # 尝试自动重连调试WiFi
+            debug_wifi_ssid = self.wifi_configs['default']['ssid']
+            print(f"尝试自动重连调试WiFi: {debug_wifi_ssid}")
+            
+            try:
+                reconnect_result = subprocess.run([
+                    'sudo', 'nmcli', 'connection', 'up', debug_wifi_ssid
+                ], check=False, capture_output=True, text=True)
+                
+                if reconnect_result.returncode == 0:
+                    time.sleep(2)
+                    current_wifi = self.get_current_wifi()
+                    
+                    if current_wifi == debug_wifi_ssid:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 断开成功！\n\n校园网已断开\n配置已保留\n\n自动重连到:\n{debug_wifi_ssid}\n\n按任意键返回菜单"
+                        )
+                    else:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 校园网已断开\n配置已保留\n\n⚠️ 自动重连失败\n请手动连接WiFi\n\n按任意键返回菜单"
+                        )
+                else:
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        f"✅ 校园网已断开\n配置已保留\n\n⚠️ 未找到调试WiFi\n请手动连接网络\n\n按任意键返回菜单"
+                    )
+            except Exception as reconnect_error:
+                print(f"自动重连出错: {reconnect_error}")
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    f"✅ 校园网已断开\n配置已保留\n\n⚠️ 自动重连出错\n请手动连接WiFi\n\n按任意键返回菜单"
+                )
+                
+        except Exception as e:
+            self.oled.wait_for_button_with_text(
+                self.controller,
                 f"断开出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
             )
+        finally:
+            self.display_menu()
+
+    def disconnect_and_clean_campus_wifi(self):
+        """断开校园网并清理临时配置（原有功能）"""
+        try:
+            self.oled.show_text_oled("正在断开校园网\n并清理临时配置...")
+            
+            # 清理所有临时连接
+            disconnected_count = 0
+            for connection_name in self.temp_connections[:]:  # 使用副本遍历
+                try:
+                    subprocess.run(['sudo', 'nmcli', 'connection', 'down', connection_name], 
+                                 check=False, capture_output=True)
+                    subprocess.run(['sudo', 'nmcli', 'connection', 'delete', connection_name], 
+                                 check=False, capture_output=True)
+                    print(f"✅ 已断开并删除: {connection_name}")
+                    disconnected_count += 1
+                except Exception as e:
+                    print(f"⚠️ 断开连接失败: {connection_name} - {e}")
+            
+            # 清空临时连接列表
+            self.temp_connections.clear()
+            
+            # 显示结果
+            if disconnected_count > 0:
+                # 尝试自动重连调试WiFi
+                debug_wifi_ssid = self.wifi_configs['default']['ssid']
+                print(f"尝试自动重连调试WiFi: {debug_wifi_ssid}")
+                
+                time.sleep(2)  # 等待网络状态稳定
+                
+                try:
+                    # 尝试连接调试WiFi
+                    reconnect_result = subprocess.run([
+                        'sudo', 'nmcli', 'connection', 'up', debug_wifi_ssid
+                    ], check=False, capture_output=True, text=True)
+                    
+                    if reconnect_result.returncode == 0:
+                        time.sleep(2)  # 等待连接验证
+                        current_wifi = self.get_current_wifi()
+                        
+                        if current_wifi == debug_wifi_ssid:
+                            self.oled.wait_for_button_with_text(
+                                self.controller,
+                                f"✅ 断开成功！\n\n已断开并清理:\n{disconnected_count}个临时连接\n\n自动重连到:\n{debug_wifi_ssid}\n\n按任意键返回菜单"
+                            )
+                        else:
+                            self.oled.wait_for_button_with_text(
+                                self.controller,
+                                f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 自动重连失败\n请手动连接WiFi\n\n按任意键返回菜单"
+                            )
+                    else:
+                        self.oled.wait_for_button_with_text(
+                            self.controller,
+                            f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 未找到调试WiFi\n请手动连接网络\n\n按任意键返回菜单"
+                        )
+                except Exception as reconnect_error:
+                    print(f"自动重连出错: {reconnect_error}")
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        f"✅ 校园网已断开\n\n清理了{disconnected_count}个连接\n\n⚠️ 自动重连出错\n请手动连接WiFi\n\n按任意键返回菜单"
+                    )
+            else:
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    "⚠️ 断开过程完成\n\n但可能存在错误\n\n请检查网络状态\n\n按任意键返回菜单"
+                )
+                
+        except Exception as e:
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"断开出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
+        finally:
             self.display_menu()
 
     def show_system_info(self):
