@@ -153,7 +153,15 @@ class MenuSystem:
                     except Exception as wifi_error:
                         print(f"⚠️ 启动WiFi清理失败: {wifi_error}")
                 
-                # 跳过显示设备清理，直接清理GPIO
+                # 清理OLED显示（在超时保护下）
+                if hasattr(self, 'oled'):
+                    try:
+                        self.oled.clear()
+                        print("✅ OLED已清理")
+                    except Exception as oled_error:
+                        print(f"⚠️ OLED清理失败: {oled_error}")
+                
+                # 清理GPIO（最终步骤）
                 GPIO.cleanup()
                 print("✅ GPIO已清理")
                 
@@ -957,8 +965,13 @@ class MenuSystem:
                 except Exception as controller_error:
                     print(f"⚠️ 控制器清理失败: {controller_error}")
             
-            # 3. 跳过显示设备的复杂清理（避免卡死）
-            # 直接清理GPIO即可，显示设备会在程序退出时自动释放
+            # 3. 清理OLED显示（在超时保护下）
+            if hasattr(self, 'oled'):
+                try:
+                    self.oled.clear()
+                    print("✅ OLED已清理")
+                except Exception as oled_error:
+                    print(f"⚠️ OLED清理失败: {oled_error}")
             
             # 4. 清理GPIO（最终步骤）
             try:
@@ -1135,7 +1148,14 @@ if __name__ == "__main__":
                     if hasattr(menu, 'controller'):
                         menu.controller.cleanup()
                         print("✅ 控制器已清理")
-                    # 跳过显示设备清理，直接清理GPIO
+                    # 清理OLED显示
+                    if hasattr(menu, 'oled'):
+                        try:
+                            menu.oled.clear()
+                            print("✅ OLED已清理")
+                        except Exception as oled_error:
+                            print(f"⚠️ OLED清理失败: {oled_error}")
+                    # 清理GPIO
                     GPIO.cleanup()
                     print("✅ GPIO已清理")
                     menu.cleanup_done = True
@@ -1171,6 +1191,13 @@ if __name__ == "__main__":
                     # 快速清理
                     if hasattr(menu, 'controller'):
                         menu.controller.cleanup()
+                    # 清理OLED显示
+                    if hasattr(menu, 'oled'):
+                        try:
+                            menu.oled.clear()
+                        except:
+                            pass
+                    # 清理GPIO
                     GPIO.cleanup()
                     menu.cleanup_done = True
             except:
