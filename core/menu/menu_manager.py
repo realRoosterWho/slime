@@ -62,6 +62,7 @@ class MenuSystem:
             "连接校园网",     # 新增：企业级WiFi连接
             "断开校园网",     # 新增：断开企业级WiFi并清理配置
             "查看当前wifi",
+            "查看IP地址",    # 新增：查看IP地址
             "系统信息",
             "重启设备",
             "关闭设备",
@@ -873,6 +874,8 @@ class MenuSystem:
             self.disconnect_campus_wifi()
         elif selected_item == "查看当前wifi":
             self.show_current_wifi()
+        elif selected_item == "查看IP地址":
+            self.show_ip_address()
         elif selected_item == "系统信息":
             self.show_system_info()
         elif selected_item == "重启设备":
@@ -1021,6 +1024,75 @@ class MenuSystem:
                 self.__init__()
             except Exception as fallback_error:
                 print(f"❌ 备用初始化也失败: {fallback_error}")
+
+    def get_ip_address(self):
+        """获取当前设备的IP地址"""
+        try:
+            # 方法1：尝试获取wifi接口的IP
+            result = subprocess.run(['ip', 'addr', 'show', 'wlan0'], 
+                                   capture_output=True, text=True, check=False)
+            if result.returncode == 0 and result.stdout:
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if 'inet ' in line and not 'inet 127.' in line:
+                        # 提取IP地址
+                        ip = line.strip().split(' ')[1].split('/')[0]
+                        return ip
+            
+            # 方法2：尝试获取任何可用的网络接口IP
+            result = subprocess.run(['hostname', '-I'], 
+                                   capture_output=True, text=True, check=False)
+            if result.returncode == 0 and result.stdout.strip():
+                # 获取第一个IP地址
+                ip = result.stdout.strip().split()[0]
+                return ip
+            
+            # 方法3：使用socket方法
+            import socket
+            ip = socket.gethostbyname(socket.gethostname())
+            if ip and ip != '127.0.0.1':
+                return ip
+            
+            return None
+            
+        except Exception as e:
+            print(f"获取IP地址出错: {e}")
+            return None
+
+    def show_ip_address(self):
+        """显示IP地址"""
+        try:
+            ip_address = self.get_ip_address()
+            
+            if ip_address:
+                # 也获取WiFi信息
+                current_wifi = self.get_current_wifi()
+                wifi_info = f"\n连接到: {current_wifi}" if current_wifi else "\n未连接WiFi"
+                
+                display_text = f"当前IP地址:\n{ip_address}{wifi_info}\n\n按任意键返回菜单"
+            else:
+                display_text = "无法获取IP地址\n\n可能的原因:\n- 未连接网络\n- 网络接口异常\n\n按任意键返回菜单"
+            
+            # 使用wait_for_button_with_text显示，这样更可控
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                display_text,
+                font_size=10,
+                chars_per_line=16
+            )
+            
+        except Exception as e:
+            error_text = f"获取IP地址失败\n\n错误: {str(e)[:20]}...\n\n按任意键返回菜单"
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                error_text,
+                font_size=10,
+                chars_per_line=16
+            )
+            print(f"IP地址获取错误: {e}")
+        finally:
+            # 返回主菜单
+            self.display_menu()
 
 if __name__ == "__main__":
     menu = None
