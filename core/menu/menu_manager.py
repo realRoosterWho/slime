@@ -55,7 +55,7 @@ class MenuSystem:
         # 菜单选项
         self.menu_items = [
             "开始漂流",      # derive_test.py
-            "功能测试",      # openai_test.py (原漂流测试)
+            "网络测试",      # 新增：网络连接测试
             "扫描可用wifi",
             "使用调试wifi",
             "使用热点wifi",
@@ -260,29 +260,111 @@ class MenuSystem:
             self.safe_reinitialize()
             print("返回主菜单")
 
-    def run_openai_test(self):
-        """运行功能测试程序"""
+    def run_network_test(self):
+        """运行网络测试程序"""
         try:
             # 清理当前资源
             self.controller.cleanup()
-            self.oled.show_loading("正在启动功能测试...")
+            self.oled.show_loading("正在进行网络测试...")
             
-            # 获取openai_test.py的路径
-            current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            openai_script = os.path.join(current_dir, "tests", "integration", "openai_test.py")
+            # 第一次测试：直接连接Google
+            print("第一次测试：直接连接外网...")
+            self.oled.show_text_oled("第一次测试:\n直接连接外网\n\n请稍候...")
             
-            # 运行openai_test.py
-            print("启动功能测试程序...")
-            subprocess.run([sys.executable, openai_script], check=True)
+            first_test_result = self.test_google_connection()
             
-        except subprocess.CalledProcessError as e:
-            print(f"功能测试程序运行出错: {e}")
+            if first_test_result:
+                # 直接连接成功
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    "✅ 网络测试成功！\n\n可以直接访问外网\n无需启动代理\n\n按任意键返回菜单"
+                )
+                print("网络测试通过：可以直接访问外网")
+            else:
+                # 直接连接失败，尝试启动代理
+                print("直接连接失败，尝试启动代理...")
+                self.oled.show_text_oled("直接连接失败\n\n正在启动代理...\n请稍候...")
+                
+                proxy_result = self.start_proxy_and_test()
+                
+                if proxy_result:
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        "✅ 网络测试成功！\n\n通过代理可以访问外网\n代理已启动\n\n按任意键返回菜单"
+                    )
+                    print("网络测试通过：通过代理可以访问外网")
+                else:
+                    self.oled.wait_for_button_with_text(
+                        self.controller,
+                        "❌ 网络测试失败！\n\n无法访问外网\n请检查网络连接\n或代理配置\n\n按任意键返回菜单"
+                    )
+                    print("网络测试失败：无法访问外网")
+            
         except Exception as e:
-            print(f"发生错误: {e}")
+            print(f"网络测试出错: {e}")
+            self.oled.wait_for_button_with_text(
+                self.controller,
+                f"❌ 网络测试出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            )
         finally:
             # 重新初始化资源
             self.safe_reinitialize()
             print("返回主菜单")
+
+    def test_google_connection(self):
+        """测试是否能够连接到Google"""
+        try:
+            # 使用curl测试连接Google，设置10秒超时
+            result = subprocess.run([
+                'curl', '-s', '--max-time', '10', 'http://www.google.com'
+            ], capture_output=True, text=True, check=False)
+            
+            # 检查返回码和响应内容
+            if result.returncode == 0 and result.stdout:
+                # 简单检查响应是否包含Google特征内容
+                if 'google' in result.stdout.lower() or 'html' in result.stdout.lower():
+                    print("✅ Google连接测试成功")
+                    return True
+            
+            print(f"❌ Google连接测试失败，返回码: {result.returncode}")
+            if result.stderr:
+                print(f"错误信息: {result.stderr[:100]}...")
+            return False
+            
+        except Exception as e:
+            print(f"❌ Google连接测试异常: {e}")
+            return False
+
+    def start_proxy_and_test(self):
+        """启动代理并测试连接"""
+        try:
+            # 用户脚本路径
+            proxy_script = "/home/roosterwho/start_and_test.sh"
+            
+            # 检查脚本是否存在
+            if not os.path.exists(proxy_script):
+                print(f"❌ 代理脚本不存在: {proxy_script}")
+                return False
+            
+            # 启动代理脚本
+            print("启动代理脚本...")
+            result = subprocess.run([
+                'bash', proxy_script
+            ], capture_output=True, text=True, check=False, timeout=30)
+            
+            # 等待代理启动
+            time.sleep(3)
+            
+            # 再次测试Google连接
+            print("代理启动完成，再次测试连接...")
+            return self.test_google_connection()
+            
+        except subprocess.TimeoutExpired:
+            print("❌ 代理脚本执行超时")
+            return False
+        except Exception as e:
+            print(f"❌ 启动代理时出错: {e}")
+            return False
 
     def get_current_wifi(self):
         """获取当前连接的WiFi名称"""
@@ -906,8 +988,8 @@ class MenuSystem:
         selected_item = self.menu_items[selected_index]
         if selected_item == "开始漂流":
             self.run_derive_test()
-        elif selected_item == "功能测试":
-            self.run_openai_test()
+        elif selected_item == "网络测试":
+            self.run_network_test()
         elif selected_item == "扫描可用wifi":
             self.scan_wifi()
         elif selected_item == "使用调试wifi":
