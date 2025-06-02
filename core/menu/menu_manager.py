@@ -301,15 +301,34 @@ class MenuSystem:
                     print("网络测试失败：无法访问外网")
             
         except Exception as e:
-            print(f"网络测试出错: {e}")
-            self.oled.wait_for_button_with_text(
-                self.controller,
-                f"❌ 网络测试出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
-            )
+            error_type = type(e).__name__
+            print(f"网络测试出错 ({error_type}): {e}")
+            
+            # 针对GPIO错误提供更具体的错误信息
+            if "GPIO" in str(e) or "setmode" in str(e):
+                error_msg = "GPIO初始化错误\n\n正在尝试修复...\n请稍候"
+            else:
+                error_msg = f"网络测试出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            
+            try:
+                self.oled.wait_for_button_with_text(
+                    self.controller,
+                    error_msg
+                )
+            except Exception as display_error:
+                print(f"显示错误信息时也出错: {display_error}")
         finally:
             # 重新初始化资源
-            self.safe_reinitialize()
-            print("返回主菜单")
+            try:
+                self.safe_reinitialize()
+                print("返回主菜单")
+            except Exception as reinit_error:
+                print(f"重新初始化时出错: {reinit_error}")
+                # 如果重新初始化失败，尝试基本恢复
+                try:
+                    self.display_menu()
+                except Exception as menu_error:
+                    print(f"显示菜单时出错: {menu_error}")
 
     def test_google_connection(self):
         """测试是否能够连接到Google"""
@@ -1106,7 +1125,15 @@ class MenuSystem:
         try:
             print("🔄 正在重新初始化菜单系统...")
             
-            # 不重新初始化GPIO，只重新初始化其他组件
+            # 确保GPIO模式正确设置
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                print("✅ GPIO模式已重新设置为BCM")
+            except Exception as gpio_error:
+                print(f"⚠️ GPIO重新设置警告: {gpio_error}")
+            
+            # 重新初始化其他组件
             self.oled = DisplayManager("OLED")
             self.lcd = DisplayManager("LCD")
             self.controller = InputController()
