@@ -273,6 +273,15 @@ class MenuSystem:
             
             first_test_result = self.test_google_connection()
             
+            # 重新初始化controller以便显示结果和等待用户输入
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                self.controller = InputController()
+                print("✅ 控制器已重新初始化用于显示结果")
+            except Exception as controller_error:
+                print(f"⚠️ 控制器重新初始化失败: {controller_error}")
+            
             if first_test_result:
                 # 直接连接成功
                 self.oled.wait_for_button_with_text(
@@ -309,6 +318,15 @@ class MenuSystem:
                 error_msg = "GPIO初始化错误\n\n正在尝试修复...\n请稍候"
             else:
                 error_msg = f"网络测试出错\n\n{str(e)[:30]}...\n\n按任意键返回菜单"
+            
+            # 在显示错误信息前也尝试重新初始化controller
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                self.controller = InputController()
+                print("✅ 控制器已重新初始化用于显示错误")
+            except Exception as error_controller_error:
+                print(f"⚠️ 错误显示时控制器初始化失败: {error_controller_error}")
             
             try:
                 self.oled.wait_for_button_with_text(
