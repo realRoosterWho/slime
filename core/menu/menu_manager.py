@@ -201,7 +201,7 @@ class MenuSystem:
             time.sleep(0.2)
     
     def run_derive_test(self):
-        """运行漂流程序 - 使用新架构"""
+        """运行漂流程序 - 使用新架构 + 紧急返回监听"""
         try:
             # 清理当前资源
             self.controller.cleanup()
@@ -223,13 +223,20 @@ class MenuSystem:
                 derive_script = new_derive_script
                 # 使用新的前台运行方式，不做缓冲
                 print(f"启动漂流程序: {derive_script}")
+                
+                # 显示监听提示
+                self.oled.show_text_oled("漂流程序启动中...\n\n如需紧急返回菜单\n请长按BTN2按钮3秒\n\n正在启动...")
+                time.sleep(2)
+                
                 proc = subprocess.Popen(
                     [sys.executable, "-u", "start_new_derive.py"],
                     cwd=current_dir,
                     stdout=sys.stdout,
                     stderr=sys.stderr
                 )
-                result_code = proc.wait()
+                
+                # 使用带监听的等待方式
+                result_code = self.monitor_process_with_emergency_exit(proc)
                 
                 # 创建一个模拟的result对象来保持兼容性
                 class MockResult:
@@ -240,6 +247,10 @@ class MenuSystem:
             # 检查退出码
             if result.returncode == 42:
                 print("检测到长按返回菜单")
+            elif result.returncode == 99:  # 新增：紧急退出码
+                print("检测到紧急返回菜单")
+                self.oled.show_text_oled("已紧急返回菜单")
+                time.sleep(1)
             elif result.returncode == 0:
                 print("漂流程序正常结束")
             else:
@@ -259,6 +270,83 @@ class MenuSystem:
             # 重新初始化资源
             self.safe_reinitialize()
             print("返回主菜单")
+
+    def monitor_process_with_emergency_exit(self, proc):
+        """监控子进程运行，同时监听紧急退出按钮"""
+        try:
+            # 重新初始化controller用于监听
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            emergency_controller = InputController()
+            
+            # 监听状态
+            btn2_press_start = None
+            btn2_hold_threshold = 3.0  # 长按3秒触发紧急退出
+            check_interval = 0.1  # 每100ms检查一次
+            
+            print("🚨 开始监听紧急退出（长按BTN2 3秒）...")
+            self.oled.show_text_oled("漂流程序运行中\n\n长按BTN2三秒\n可紧急返回菜单")
+            
+            while True:
+                # 检查子进程是否还在运行
+                poll_result = proc.poll()
+                if poll_result is not None:
+                    # 子进程已结束
+                    print(f"子进程正常结束，退出码: {poll_result}")
+                    emergency_controller.cleanup()
+                    return poll_result
+                
+                # 检查按钮状态
+                emergency_controller.check_inputs()
+                
+                # 检查BTN2是否被按下
+                btn2_state = emergency_controller.get_button_state('BTN2')
+                current_time = time.time()
+                
+                if btn2_state:  # BTN2被按下
+                    if btn2_press_start is None:
+                        btn2_press_start = current_time
+                        print("🔘 检测到BTN2按下，开始计时...")
+                    else:
+                        hold_duration = current_time - btn2_press_start
+                        if hold_duration >= btn2_hold_threshold:
+                            # 长按时间足够，触发紧急退出
+                            print(f"🚨 BTN2长按{hold_duration:.1f}秒，触发紧急退出！")
+                            
+                            # 显示终止提示
+                            self.oled.show_text_oled("紧急退出中...\n\n正在终止程序\n请稍候...")
+                            
+                            # 终止子进程
+                            try:
+                                proc.terminate()
+                                time.sleep(1)
+                                if proc.poll() is None:
+                                    print("⚠️ 温和终止失败，强制杀死进程...")
+                                    proc.kill()
+                                    time.sleep(0.5)
+                            except Exception as kill_error:
+                                print(f"终止进程时出错: {kill_error}")
+                            
+                            emergency_controller.cleanup()
+                            return 99  # 紧急退出码
+                else:  # BTN2未被按下
+                    if btn2_press_start is not None:
+                        # 按钮释放了
+                        hold_duration = current_time - btn2_press_start
+                        print(f"🔘 BTN2释放，持续时间: {hold_duration:.1f}秒")
+                        btn2_press_start = None
+                
+                # 短暂休眠避免CPU占用过高
+                time.sleep(check_interval)
+                
+        except Exception as monitor_error:
+            print(f"❌ 监听过程出错: {monitor_error}")
+            try:
+                emergency_controller.cleanup()
+            except:
+                pass
+            # 如果监听出错，回退到普通等待
+            return proc.wait()
 
     def run_network_test(self):
         """运行网络测试程序"""
