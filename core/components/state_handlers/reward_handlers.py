@@ -52,11 +52,21 @@ class RewardHandlers:
         """处理生成奖励图片状态"""
         # 根据奖励类型生成不同的提示词
         if state_machine.data['reward_type'] == 'accessory':
-            prompt = f"""一个奇幻的史莱姆装饰品。{state_machine.data['reward_description']} 
-            精致细腻，色彩鲜艳，儿童绘本风格，白色背景，特写镜头。这个装饰品适合用在史莱姆身上：{state_machine.data['slime_appearance']}"""
+            prompt = f"""
+            Create a 1-bit pixel art magical accessory item. {state_machine.data['reward_description']}
+            
+            Design this as a special item that would perfectly complement a slime character.
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """
         else:  # egg类型
-            prompt = f"""一个神秘的史莱姆蛋。{state_machine.data['reward_description']} 
-            表面有闪光和微妙的纹理，儿童绘本风格，白色背景，特写镜头。"""
+            prompt = f"""
+            Create a 1-bit pixel art mysterious slime egg. {state_machine.data['reward_description']}
+            
+            Design an egg with gentle patterns that suggest the potential for new life.
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """
         
         state_machine.logger.log_prompt("reward_image_prompt", prompt)
         

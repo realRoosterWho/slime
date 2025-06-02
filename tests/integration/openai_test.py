@@ -162,7 +162,13 @@ def main():
 
     # 生成史莱姆图片
     oled_display.show_text_oled("正在绘制\n史莱姆...")
-    slime_prompt = f"一个奇幻的史莱姆生物。{slime_personality_text} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。"
+    slime_prompt = f"""
+    Create a charming pixel art slime character. {slime_personality_text}
+    
+    Design the slime as a simple blob shape with large eyes and a tiny mouth, showing its unique personality traits.
+    
+    Render in Game Boy style monochrome pixel art using only black and white pixels.
+    """
     print("\n🎨 生成史莱姆提示词：", slime_prompt)
 
     # 第4步：用Replicate生成史莱姆图片

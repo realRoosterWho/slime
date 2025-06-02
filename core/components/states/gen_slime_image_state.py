@@ -61,9 +61,8 @@ class GenSlimeImageState(AbstractState):
         prompt = f"""
         Create a charming 1-bit pixel art scene featuring a slime character with these specific traits: {slime_description}
         
-        The slime should be the main character in this scene, clearly displaying its personality through its expression and pose. Design the slime as a simple blob shape with large square eyes and a tiny mouth, but make sure its unique characteristics from the description really shine through.
-        
-        Place this slime in a simple environment that matches its personality and tells its story. The background should complement the slime's character without overwhelming it - perhaps a cozy cave if it's shy, a garden if it loves nature, or a workshop if it's creative.
+        The slime should be the main character in this scene, clearly displaying its personality through its expression and pose.
+        Place this slime in a simple environment that matches its personality and tells its story. The background should complement the slime's character without overwhelming it
         
         Render everything in classic Game Boy style monochrome pixel art. Use only pure black and white pixels with no gray tones. The pixels should look chunky and clearly defined, just like the original handheld games from the 1980s. Focus on high contrast and clean, sharp edges.
         

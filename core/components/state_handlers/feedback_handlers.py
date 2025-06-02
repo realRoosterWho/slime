@@ -70,8 +70,13 @@ class FeedbackHandlers:
         state_machine.logger.log_step("反馈描述", state_machine.data['feedback_description'])
         
         # 生成反馈图片
-        feedback_prompt = f"""一个生动的史莱姆表情反应。{state_machine.data['slime_appearance']} 
-        表情生动，{state_machine.data['feedback_description']} 儿童绘本风格，明亮的背景，色彩鲜艳。"""
+        feedback_prompt = f"""
+        Create a 1-bit pixel art scene showing a slime's emotional reaction. {state_machine.data['slime_description']}
+        
+        The slime should be displaying: {state_machine.data['feedback_description']}
+        
+        Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+        """
         
         state_machine.logger.log_prompt("feedback_image_prompt", feedback_prompt)
         
@@ -156,11 +161,11 @@ class FeedbackHandlers:
             
             # 生成总结图片
             summary_image_prompt = f"""
-            一个可爱的史莱姆正在告别。{state_machine.data['slime_appearance']}
-            史莱姆表情带有一丝不舍但很满足，背景有漂流中收集到的物品和记忆。
-            如果有获得装饰物奖励，史莱姆应该佩戴着这些装饰。
-            画面温馨感人，色彩明亮但带有一丝离别的感伤。
-            儿童绘本风格，高质量插画，细节丰富。
+            Create a 1-bit pixel art farewell scene with a slime. {state_machine.data['slime_description']}
+            
+            The slime should appear satisfied but a bit nostalgic. Include elements from the journey and any rewards collected.
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Create a warm, farewell atmosphere.
             """
             
             # 尝试生成总结图片，不强制要求成功

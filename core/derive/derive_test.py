@@ -553,9 +553,27 @@ class DeriveStateMachine:
     def generate_image_prompt(self, prompt_type):
         """生成不同类型图片的提示词"""
         prompts = {
-            'slime': f"一个奇幻的史莱姆生物。{self.data['slime_description']} 儿童绘本插画风格，色彩丰富且可爱。史莱姆是一个可爱蓬松的生物，有两只大眼睛和一个小嘴巴。",
-            'reward': f"一个奇幻的奖励物品。{self.data['reward_description']} 儿童绘本风格，色彩丰富，特写镜头。",
-            'feedback': f"一个史莱姆的情绪反应。{self.data['slime_appearance']} 表情生动，{self.data['feedback_description']} 儿童绘本风格，色彩鲜艳可爱。" 
+            'slime': f"""
+            Create a charming 1-bit pixel art slime character. {self.data['slime_description']}
+            
+            Design the slime as a simple blob shape with large eyes and a tiny mouth, showing its unique personality traits.
+            
+            Render in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """,
+            'reward': f"""
+            Create a 1-bit pixel art magical reward item. {self.data['reward_description']}
+            
+            Design this as a special item that would be treasured by a slime character.
+            
+            Render in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """,
+            'feedback': f"""
+            Create a 1-bit pixel art scene showing a slime's emotional reaction. {self.data['slime_description']}
+            
+            The slime should be displaying: {self.data['feedback_description']}
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """ 
         }
         
         return prompts.get(prompt_type, '')
@@ -936,11 +954,21 @@ class DeriveStateMachine:
         """处理生成奖励图片状态"""
         # 根据奖励类型生成不同的提示词
         if self.data['reward_type'] == 'accessory':
-            prompt = f"""一个奇幻的史莱姆装饰品。{self.data['reward_description']} 
-            精致细腻，色彩鲜艳，儿童绘本风格，白色背景，特写镜头。这个装饰品适合用在史莱姆身上：{self.data['slime_appearance']}"""
+            prompt = f"""
+            Create a 1-bit pixel art magical accessory item. {self.data['reward_description']}
+            
+            Design this as a special item that would perfectly complement a slime character.
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """
         else:  # egg类型
-            prompt = f"""一个神秘的史莱姆蛋。{self.data['reward_description']} 
-            表面有闪光和微妙的纹理，儿童绘本风格，白色背景，特写镜头。"""
+            prompt = f"""
+            Create a 1-bit pixel art mysterious slime egg. {self.data['reward_description']}
+            
+            Design an egg with gentle patterns that suggest the potential for new life.
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+            """
         
         self.logger.log_prompt("reward_image_prompt", prompt)
         
@@ -1034,8 +1062,13 @@ class DeriveStateMachine:
         self.logger.log_step("反馈描述", self.data['feedback_description'])
         
         # 生成反馈图片
-        feedback_prompt = f"""一个生动的史莱姆表情反应。{self.data['slime_appearance']} 
-        表情生动，{self.data['feedback_description']} 儿童绘本风格，明亮的背景，色彩鲜艳。"""
+        feedback_prompt = f"""
+        Create a 1-bit pixel art scene showing a slime's emotional reaction. {self.data['slime_description']}
+        
+        The slime should be displaying: {self.data['feedback_description']}
+        
+        Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels.
+        """
         
         self.logger.log_prompt("feedback_image_prompt", feedback_prompt)
         
@@ -1120,11 +1153,11 @@ class DeriveStateMachine:
             
             # 生成总结图片
             summary_image_prompt = f"""
-            一个可爱的史莱姆正在告别。{self.data['slime_appearance']}
-            史莱姆表情带有一丝不舍但很满足，背景有漂流中收集到的物品和记忆。
-            如果有获得装饰物奖励，史莱姆应该佩戴着这些装饰。
-            画面温馨感人，色彩明亮但带有一丝离别的感伤。
-            儿童绘本风格，高质量插画，细节丰富。
+            Create a 1-bit pixel art farewell scene with a slime. {self.data['slime_description']}
+            
+            The slime should appear satisfied but a bit nostalgic. Include elements from the journey and any rewards collected.
+            
+            Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Create a warm, farewell atmosphere.
             """
             
             # 尝试生成总结图片，不强制要求成功

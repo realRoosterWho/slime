@@ -31,28 +31,24 @@ class GenerateRewardImageState(AbstractState):
             if reward_level == 'great':
                 # great级别：装扮或符合幻想癖好的物品
                 reward_prompt = f"""
-                Create a magical 1-bit pixel art scene showcasing a special reward item for a slime whose greatest quirk is: {quirk}
+                Create a magical 1-bit pixel art reward item that perfectly embodies this slime's unique trait: {quirk}
                 
-                This reward should be a magical item that perfectly fulfills the slime's deepest fantasy. Design something that would make this slime's heart sing with joy - whether it's a beautiful collection display, magical crafting tools, an enchanted compass for exploration, or whatever fits their unique personality.
+                Design a special magical item that would fulfill this slime's deepest desires. Show it in an environment that highlights its importance and magical nature.
                 
-                Show this precious item in a magical setting that tells its story. Perhaps place it on an ornate pedestal in a treasure chamber, or display it in a cozy workshop surrounded by related magical tools. The environment should make the reward feel truly special and significant.
+                Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Focus on making the reward feel truly special and significant.
                 
-                Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Make the magical item the clear focal point, but let the environment enhance its importance and tell the story of why this reward is so perfect for this particular slime.
-                
-                The reward description mentions: {reward_description}
+                The reward is described as: {reward_description}
                 """
             else:
                 # encouragement级别：符合偏执反应的史莱姆蛋
                 reward_prompt = f"""
-                Create a heartwarming 1-bit pixel art scene featuring a special slime egg that embodies this unique reaction pattern: {reflex}
+                Create a heartwarming 1-bit pixel art slime egg that reflects this personality trait: {reflex}
                 
-                This egg should look promising and full of potential, with gentle patterns on its shell that hint at the wonderful personality trait it contains. Design the egg so that someone looking at it would think "I wonder what amazing little slime is growing in there!"
+                Design an egg with gentle patterns that hint at the wonderful slime growing inside. Place it in a nurturing environment that suggests care and potential.
                 
-                Place this special egg in a nurturing environment that suggests care and growth. Maybe show it resting in a cozy nest, sitting safely in a warm cave, or being tended in a magical incubation chamber. The setting should feel safe, encouraging, and full of hope for the future.
+                Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Make the egg feel like a precious gift full of promise.
                 
-                Render everything in classic Game Boy style monochrome pixel art using only pure black and white pixels. Make the egg feel like a precious gift that holds great promise, surrounded by an environment that speaks of patience, care, and anticipation.
-                
-                The reward description mentions: {reward_description}
+                The egg is described as: {reward_description}
                 """
             
             context.logger.log_prompt("reward_image_prompt", reward_prompt)
