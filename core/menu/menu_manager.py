@@ -463,6 +463,14 @@ class MenuSystem:
     def start_proxy_and_test(self):
         """启动代理并测试连接"""
         try:
+            # 先杀掉所有clash进程
+            print("正在清理现有clash进程...")
+            self.oled.show_text_oled("正在清理\n现有clash进程\n\n请稍候...")
+            
+            # 使用pkill确保杀掉所有clash相关进程
+            subprocess.run(['sudo', 'pkill', '-f', 'clash'], check=False)
+            time.sleep(2)  # 等待进程完全终止
+            
             # 用户脚本路径
             proxy_script = "/home/roosterwho/start_and_test.sh"
             
@@ -473,6 +481,8 @@ class MenuSystem:
             
             # 启动代理脚本
             print("启动代理脚本...")
+            self.oled.show_text_oled("正在启动\n新的clash进程\n\n请稍候...")
+            
             result = subprocess.run([
                 'bash', proxy_script
             ], capture_output=True, text=True, check=False, timeout=30)
